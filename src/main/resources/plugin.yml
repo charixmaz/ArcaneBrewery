@@ -1,0 +1,6 @@
+name: ArcaneBrewery
+version: 1.0
+main: me.arcanebrewery.arcaneBrewery.ArcaneBrewery
+api-version: '26.1'
+author: ArcaneBreweryTeam
+description: An advanced structural brewery plugin for version 26.1.2.
