@@ -39,13 +39,21 @@ public class CaskVisualEngine {
             }
 
             // If completely contaminated, everything turns into radioactive layout blocks
+            // Inside your loop rules within CaskVisualEngine.java:
+
+// --- RENDER SLOT 8 CHEMICAL INPUT VALVE HOOKS ---
             if (isInfected) {
-                setCustomPane(inv, indicatorSlot, Material.LIME_STAINED_GLASS_PANE, "§c☣ CONTAMINATED SLOT", List.of(
-                        "§7Bacteria level: §aMAXIMUM",
-                        "§7Any items dropped here will instantly melt.",
-                        "§7Right-click barrel sign with 4★+ Alcohol to clean."
+                setCustomPane(inv, 8, Material.HOPPER, "§4§l☣ CHEMICAL INJECTOR VALVE", List.of(
+                        "§7Status: §cBLOCKED BY CARBON",
+                        "",
+                        "§e[DRAG & DROP] §fPure Methanol Fluid",
+                        "§7directly here to flush out infection lines."
                 ));
-                continue;
+            } else {
+                setCustomPane(inv, 8, Material.CHARCOAL, "§a⚙ Ventilation Input Pure", List.of(
+                        "§7Status: §2OPERATIONAL",
+                        "§7Atmospheric pressure balanced."
+                ));
             }
 
             if (bottle == null || bottle.getType() == Material.AIR) {

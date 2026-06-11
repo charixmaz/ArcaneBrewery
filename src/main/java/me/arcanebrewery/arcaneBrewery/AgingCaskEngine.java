@@ -3,12 +3,17 @@ package me.arcanebrewery.arcaneBrewery;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.Sign;
 import org.bukkit.block.TileState;
+import org.bukkit.block.sign.Side;
+import org.bukkit.block.sign.SignSide;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.SignChangeEvent;
@@ -59,12 +64,58 @@ public class AgingCaskEngine implements Listener {
                 event.setLine(0, "§a[Brewery]");
                 event.setLine(1, "§7Click to lock");
                 event.setLine(2, "§7casing structure");
+
+                if (event.getBlock().getState() instanceof Sign sign) {
+                    sign.setWaxed(true);
+                    sign.getSide(Side.FRONT).setLine(0, "§a[Brewery]");
+                    sign.update();
+                }
             }
             else if (line0.equalsIgnoreCase("[Status]") || line0.equalsIgnoreCase("[Stats]")) {
-                event.setLine(0, "§2§l[Cask Diagnostics]");
+                event.setLine(0, "§2§l[Diagnostics]");
                 event.setLine(1, "§7Connecting to");
                 event.setLine(2, "§7barrel core...");
                 event.setLine(3, "§7✔ INTERLINKED");
+
+                if (event.getBlock().getState() instanceof Sign sign) {
+                    sign.setWaxed(true);
+                    SignSide front = sign.getSide(Side.FRONT);
+                    front.setLine(0, "§2§l[Diagnostics]");
+                    front.setLine(1, "§7Connecting to");
+                    front.setLine(2, "§7barrel core...");
+                    front.setLine(3, "§7✔ INTERLINKED");
+                    sign.update();
+                }
+
+                Block adjacentBarrel = findAdjacentBarrel(event.getBlock());
+                if (adjacentBarrel != null) {
+                    Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                        CaskHygieneEngine.updateExternalSigns(plugin, adjacentBarrel);
+                    }, 5L);
+                }
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onSignEditIntercept(PlayerInteractEvent event) {
+        if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
+        Block clicked = event.getClickedBlock();
+        if (clicked == null || !(clicked.getState() instanceof Sign sign)) return;
+
+        String line0 = sign.getSide(Side.FRONT).getLine(0);
+        if (line0.contains("[Brewery]") || line0.contains("Diagnostics") || line0.contains("[Cask") || line0.contains("☣")) {
+            if (!sign.isWaxed()) {
+                sign.setWaxed(true);
+                sign.update();
+            }
+
+            if (line0.contains("Diagnostics") || line0.contains("[Cask") || line0.contains("☣")) {
+                event.setCancelled(true);
+                Block barrel = findAdjacentBarrel(clicked);
+                if (barrel != null) {
+                    CaskHygieneEngine.updateExternalSigns(plugin, barrel);
+                }
             }
         }
     }
@@ -75,7 +126,7 @@ public class AgingCaskEngine implements Listener {
         Block clickedBlock = event.getClickedBlock();
         if (clickedBlock == null || !(clickedBlock.getState() instanceof Sign sign)) return;
 
-        if (!sign.getLine(0).contains("[Brewery]")) return;
+        if (!sign.getSide(Side.FRONT).getLine(0).contains("[Brewery]")) return;
         event.setCancelled(true);
 
         Player player = event.getPlayer();
@@ -89,14 +140,14 @@ public class AgingCaskEngine implements Listener {
         String recognizedWood = scanSoftCasingEnvelope(barrelBlock);
         if (recognizedWood.equals("UNKNOWN")) {
             player.sendMessage("§c[Brewery] Cask structure invalid! Build using your cross stair/slab assembly with a plank block core.");
-            sign.setLine(1, "§cINVALID");
-            sign.setLine(2, "§cSTRUCTURE");
+            sign.getSide(Side.FRONT).setLine(1, "§cINVALID");
+            sign.getSide(Side.FRONT).setLine(2, "§cSTRUCTURE");
             sign.update();
             return;
         }
 
-        sign.setLine(1, "§d" + recognizedWood + " Casing");
-        sign.setLine(2, "§2✔ LOCKED & OK");
+        sign.getSide(Side.FRONT).setLine(1, "§d" + recognizedWood + " Casing");
+        sign.getSide(Side.FRONT).setLine(2, "§2✔ LOCKED & OK");
         sign.update();
 
         Inventory breweryGui = Bukkit.createInventory(null, 9, "§0Aging Cask Menu (" + recognizedWood + ")");
@@ -116,6 +167,74 @@ public class AgingCaskEngine implements Listener {
         Player player = (Player) event.getWhoClicked();
         String physicalWood = scanSoftCasingEnvelope(barrelBlock);
 
+        int slot = event.getSlot();
+        ItemStack clickedItem = event.getCurrentItem();
+        ItemStack cursorItem = event.getCursor();
+
+        boolean isInfected = CaskHygieneEngine.checkInfectionStatus(plugin, barrelBlock);
+
+        // --- INTERACTIVE METHANOL SANITIZATION VALVE (SLOT 8) ---
+        if (slot == 8) {
+            event.setCancelled(true);
+
+            if (cursorItem != null && cursorItem.getType() == Material.POTION && cursorItem.hasItemMeta()) {
+                PotionMeta meta = (PotionMeta) cursorItem.getItemMeta();
+                String brewStage = meta.getPersistentDataContainer().getOrDefault(recipeTypeKey, PersistentDataType.STRING, "");
+
+                if (brewStage.equalsIgnoreCase("INDUSTRIAL_METHANOL")) {
+                    if (!isInfected) {
+                        player.sendMessage("§a[Brewery] Cask ventilation system is already fully sterile!");
+                        return;
+                    }
+
+                    if (cursorItem.getAmount() > 1) {
+                        cursorItem.setAmount(cursorItem.getAmount() - 1);
+                    } else {
+                        player.setItemOnCursor(new ItemStack(Material.GLASS_BOTTLE));
+                    }
+
+                    // FIXED Bug #1: Replaced invalid setView method invocation with rock-solid update client packet flush
+                    player.updateInventory();
+
+                    NamespacedKey contaminationKey = new NamespacedKey(plugin, "cask_contaminated");
+                    NamespacedKey spoilTimeKey = new NamespacedKey(plugin, "cask_spoil_timestamp");
+
+                    if (barrelBlock.getState() instanceof TileState tileState) {
+                        tileState.getPersistentDataContainer().set(contaminationKey, PersistentDataType.INTEGER, 0);
+                        tileState.getPersistentDataContainer().remove(spoilTimeKey);
+                        tileState.update();
+                    }
+
+                    Block topBlock = barrelBlock.getRelative(0, 1, 0);
+                    if (topBlock.getType() == Material.BROWN_MUSHROOM) {
+                        topBlock.setType(Material.AIR);
+                    }
+
+                    barrelBlock.getWorld().playSound(barrelBlock.getLocation(), Sound.BLOCK_FIRE_EXTINGUISH, 1.2f, 1.2f);
+                    barrelBlock.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, barrelBlock.getLocation().add(0.5, 1.1, 0.5), 20, 0.2, 0.2, 0.2, 0.02);
+
+                    player.sendMessage("§a§l[Brewery] ✔ Methanol input injection successful! System flushed.");
+
+                    CaskVisualEngine.updateCaskInterface(plugin, inv, barrelBlock);
+                    CaskHygieneEngine.updateExternalSigns(plugin, barrelBlock);
+                    return;
+                }
+            }
+            return;
+        }
+
+        if (isInfected) {
+            if (event.getClickedInventory() == inv) {
+                event.setCancelled(true);
+                player.sendMessage("§c[Brewery] ☣ Core contaminated! Drop pure METHANOL into the Slot 8 condenser valve to purge.");
+                return;
+            }
+            if (event.getClickedInventory() == event.getView().getBottomInventory() && event.isShiftClick()) {
+                event.setCancelled(true);
+                return;
+            }
+        }
+
         if (event.getClickedInventory() == event.getView().getBottomInventory()) {
             if (event.getClick() == ClickType.SHIFT_LEFT || event.getClick() == ClickType.SHIFT_RIGHT) {
                 ItemStack currentItem = event.getCurrentItem();
@@ -123,8 +242,8 @@ public class AgingCaskEngine implements Listener {
                     event.setCancelled(true);
 
                     int[] activeSlots = {0, 2, 4, 6};
-                    for (int slot : activeSlots) {
-                        ItemStack target = inv.getItem(slot);
+                    for (int activeSlot : activeSlots) {
+                        ItemStack target = inv.getItem(activeSlot);
                         if (target == null || target.getType() == Material.AIR) {
                             ItemStack insertedItem = currentItem.clone();
                             insertedItem.setAmount(1);
@@ -135,7 +254,7 @@ public class AgingCaskEngine implements Listener {
                                 insertedItem.setItemMeta(m);
                             }
 
-                            inv.setItem(slot, insertedItem);
+                            inv.setItem(activeSlot, insertedItem);
 
                             if (currentItem.getAmount() > 1) {
                                 currentItem.setAmount(currentItem.getAmount() - 1);
@@ -152,12 +271,18 @@ public class AgingCaskEngine implements Listener {
             return;
         }
 
-        int slot = event.getSlot();
-        ItemStack clickedItem = event.getCurrentItem();
-
-        if (slot == 1 || slot == 3 || slot == 5 || slot == 7 || slot == 8) {
+        // FIXED Bug #2: Deleted the duplicated assignment block statements for 'slot' and 'clickedItem' from this location!
+        if (slot == 1 || slot == 3 || slot == 5 || slot == 7) {
             event.setCancelled(true);
             return;
+        }
+
+        if (event.getClick() != ClickType.SHIFT_LEFT && event.getClick() != ClickType.SHIFT_RIGHT) {
+            if (event.getClickedInventory() == inv && clickedItem != null && clickedItem.getType() == Material.POTION) {
+                event.setCancelled(true);
+                player.sendMessage("§e[Brewery] You must Use SHIFT-CLICK to bottle and harvest finished drinks!");
+                return;
+            }
         }
 
         if (event.isShiftClick() && clickedItem != null && clickedItem.getType() == Material.POTION) {
@@ -284,7 +409,6 @@ public class AgingCaskEngine implements Listener {
             for (int i = 0; i < 9; i++) {
                 ItemStack item = inv.getItem(i);
                 if (item != null && item.getType().name().endsWith("_GLASS_PANE")) item = null;
-                if (item != null && item.getType() == Material.NETHERITE_SCRAP) item = null;
                 dataOutput.writeObject(item);
             }
             dataOutput.close();
