@@ -173,8 +173,8 @@ public class AgingCaskEngine implements Listener {
 
         boolean isInfected = CaskHygieneEngine.checkInfectionStatus(plugin, barrelBlock);
 
-        // --- INTERACTIVE METHANOL SANITIZATION VALVE (SLOT 8) ---
-        if (slot == 8) {
+        // --- INTERACTIVE METHANOL SANITIZATION VALVE FLUSH ROUTINE (SLOT 8) ---
+        if (event.getClickedInventory() == inv && slot == 8) {
             event.setCancelled(true);
 
             if (cursorItem != null && cursorItem.getType() == Material.POTION && cursorItem.hasItemMeta()) {
@@ -193,27 +193,39 @@ public class AgingCaskEngine implements Listener {
                         player.setItemOnCursor(new ItemStack(Material.GLASS_BOTTLE));
                     }
 
-                    // FIXED Bug #1: Replaced invalid setView method invocation with rock-solid update client packet flush
                     player.updateInventory();
 
+                    // --- PREVIOUSLY THIS SET THE CASK TO 0. NOW IT SETS IT TO 2 ---
                     NamespacedKey contaminationKey = new NamespacedKey(plugin, "cask_contaminated");
                     NamespacedKey spoilTimeKey = new NamespacedKey(plugin, "cask_spoil_timestamp");
 
                     if (barrelBlock.getState() instanceof TileState tileState) {
-                        tileState.getPersistentDataContainer().set(contaminationKey, PersistentDataType.INTEGER, 0);
+                        // State 2 = Methanol Injected, pending manual sign reboot!
+                        tileState.getPersistentDataContainer().set(contaminationKey, PersistentDataType.INTEGER, 2);
                         tileState.getPersistentDataContainer().remove(spoilTimeKey);
                         tileState.update();
                     }
+
+                    int[] activeSlots = {0, 2, 4, 6};
+                    for (int aSlot : activeSlots) {
+                        ItemStack currentSlotItem = inv.getItem(aSlot);
+                        if (currentSlotItem != null && currentSlotItem.getType() == Material.BARRIER) {
+                            inv.setItem(aSlot, new ItemStack(Material.AIR));
+                        }
+                    }
+
+                    loadInventoryFromBarrel(barrelBlock, inv);
 
                     Block topBlock = barrelBlock.getRelative(0, 1, 0);
                     if (topBlock.getType() == Material.BROWN_MUSHROOM) {
                         topBlock.setType(Material.AIR);
                     }
 
-                    barrelBlock.getWorld().playSound(barrelBlock.getLocation(), Sound.BLOCK_FIRE_EXTINGUISH, 1.2f, 1.2f);
-                    barrelBlock.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, barrelBlock.getLocation().add(0.5, 1.1, 0.5), 20, 0.2, 0.2, 0.2, 0.02);
+                    barrelBlock.getWorld().playSound(barrelBlock.getLocation(), org.bukkit.Sound.BLOCK_FIRE_EXTINGUISH, 1.2f, 1.2f);
+                    barrelBlock.getWorld().spawnParticle(org.bukkit.Particle.HAPPY_VILLAGER, barrelBlock.getLocation().add(0.5, 1.1, 0.5), 20, 0.2, 0.2, 0.2, 0.02);
 
-                    player.sendMessage("§a§l[Brewery] ✔ Methanol input injection successful! System flushed.");
+                    // Tell the player exactly what to do next!
+                    player.sendMessage("§e§l[Brewery] ♻ Methanol injected! You must RIGHT-CLICK the [Brewery] sign outside to reboot the machine.");
 
                     CaskVisualEngine.updateCaskInterface(plugin, inv, barrelBlock);
                     CaskHygieneEngine.updateExternalSigns(plugin, barrelBlock);
@@ -223,6 +235,7 @@ public class AgingCaskEngine implements Listener {
             return;
         }
 
+        // Lock down normal slots ONLY if system is actively infected
         if (isInfected) {
             if (event.getClickedInventory() == inv) {
                 event.setCancelled(true);
@@ -235,16 +248,36 @@ public class AgingCaskEngine implements Listener {
             }
         }
 
+        // --- FIXED INTERFACE LAYER: Prevent taking out background display items ---
+        if (event.getClickedInventory() == inv) {
+            // Protect background dividers (1, 3, 5, 7) from any type of manipulation
+            if (slot == 1 || slot == 3 || slot == 5 || slot == 7) {
+                event.setCancelled(true);
+                return;
+            }
+
+            // Let normal/custom potions be placed down naturally via cursor items!
+            if (event.getCursor() != null && event.getCursor().getType() != Material.AIR) {
+                if (event.getCursor().getType() != Material.POTION) {
+                    event.setCancelled(true);
+                    player.sendMessage("§c[Brewery] Lane Rejected! Casks only accept potion-based inputs.");
+                    return;
+                }
+            }
+        }
+
+        // Handle Shift-clicking items from bottom player bag inventory INTO brewing channels safely
         if (event.getClickedInventory() == event.getView().getBottomInventory()) {
             if (event.getClick() == ClickType.SHIFT_LEFT || event.getClick() == ClickType.SHIFT_RIGHT) {
                 ItemStack currentItem = event.getCurrentItem();
                 if (currentItem != null && currentItem.getType() == Material.POTION) {
-                    event.setCancelled(true);
+                    event.setCancelled(true); // Cancel vanilla handling
 
                     int[] activeSlots = {0, 2, 4, 6};
                     for (int activeSlot : activeSlots) {
                         ItemStack target = inv.getItem(activeSlot);
-                        if (target == null || target.getType() == Material.AIR) {
+
+                        if (target == null || target.getType() == Material.AIR || target.getType().name().endsWith("_GLASS_PANE")) {
                             ItemStack insertedItem = currentItem.clone();
                             insertedItem.setAmount(1);
 
@@ -254,15 +287,20 @@ public class AgingCaskEngine implements Listener {
                                 insertedItem.setItemMeta(m);
                             }
 
+                            // 1. Place the potion inside the custom slot
                             inv.setItem(activeSlot, insertedItem);
 
+                            // 2. Reduce player item hand arrays
                             if (currentItem.getAmount() > 1) {
                                 currentItem.setAmount(currentItem.getAmount() - 1);
+                                event.getClickedInventory().setItem(event.getSlot(), currentItem);
                             } else {
                                 event.getClickedInventory().setItem(event.getSlot(), null);
                             }
 
+                            // CRITICAL FIX: Instantly lock changes into NBT data storage keys
                             saveInventoryToBarrel(barrelBlock, inv);
+                            player.updateInventory(); // Force client packet refresh
                             return;
                         }
                     }
@@ -271,21 +309,8 @@ public class AgingCaskEngine implements Listener {
             return;
         }
 
-        // FIXED Bug #2: Deleted the duplicated assignment block statements for 'slot' and 'clickedItem' from this location!
-        if (slot == 1 || slot == 3 || slot == 5 || slot == 7) {
-            event.setCancelled(true);
-            return;
-        }
-
-        if (event.getClick() != ClickType.SHIFT_LEFT && event.getClick() != ClickType.SHIFT_RIGHT) {
-            if (event.getClickedInventory() == inv && clickedItem != null && clickedItem.getType() == Material.POTION) {
-                event.setCancelled(true);
-                player.sendMessage("§e[Brewery] You must Use SHIFT-CLICK to bottle and harvest finished drinks!");
-                return;
-            }
-        }
-
-        if (event.isShiftClick() && clickedItem != null && clickedItem.getType() == Material.POTION) {
+        // --- HARVESTING CHECK (SHIFT-CLICK SELECTION) ---
+        if (event.getClickedInventory() == inv && event.isShiftClick() && clickedItem != null && clickedItem.getType() == Material.POTION) {
             PotionMeta meta = (PotionMeta) clickedItem.getItemMeta();
             if (meta != null && meta.getPersistentDataContainer().has(slotTimeKey, PersistentDataType.LONG)) {
 
@@ -310,6 +335,7 @@ public class AgingCaskEngine implements Listener {
             }
         }
 
+        // Handle a safe post-tick file storage save when clicking items inside slots manually
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             ItemStack itemInSlot = inv.getItem(slot);
             if (itemInSlot != null && itemInSlot.getType() == Material.POTION) {
@@ -408,8 +434,12 @@ public class AgingCaskEngine implements Listener {
             dataOutput.writeInt(9);
             for (int i = 0; i < 9; i++) {
                 ItemStack item = inv.getItem(i);
-                if (item != null && item.getType().name().endsWith("_GLASS_PANE")) item = null;
-                dataOutput.writeObject(item);
+                // CRITICAL DATA FIX: Only save actual bottles! Filters out GUI UI items and barriers!
+                if (item != null && (item.getType() == Material.POTION || item.getType() == Material.GLASS_BOTTLE)) {
+                    dataOutput.writeObject(item);
+                } else {
+                    dataOutput.writeObject(null); // Save empty slot for everything else
+                }
             }
             dataOutput.close();
             String serialized = Base64.getEncoder().encodeToString(outputStream.toByteArray());
@@ -429,7 +459,11 @@ public class AgingCaskEngine implements Listener {
             BukkitObjectInputStream dataInput = new BukkitObjectInputStream(inputStream);
             int size = dataInput.readInt();
             for (int i = 0; i < size; i++) {
-                inv.setItem(i, (ItemStack) dataInput.readObject());
+                ItemStack loaded = (ItemStack) dataInput.readObject();
+                // STRICT LOAD: Ignore corrupted barriers from older broken NBT saves
+                if (loaded != null && (loaded.getType() == Material.POTION || loaded.getType() == Material.GLASS_BOTTLE)) {
+                    inv.setItem(i, loaded);
+                }
             }
             dataInput.close();
         } catch (Exception e) {

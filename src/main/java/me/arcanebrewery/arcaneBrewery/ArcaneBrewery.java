@@ -18,8 +18,11 @@ public final class ArcaneBrewery extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new AgingCaskEngine(this), this);
         getServer().getPluginManager().registerEvents(new CaskHygieneEngine(this), this);
         getServer().getPluginManager().registerEvents(new MethanolProducerEngine(this), this);
+        MessageConfig.setup(this);
+        getServer().getPluginManager().registerEvents(new StructureBreakListener(), this);
+        getServer().getPluginManager().registerEvents(new CaskInteractListener(this), this);
+        getServer().getPluginManager().registerEvents(new StructureBreakListener(), this);
 
-        // BULLETPROOF PERSISTENCE LOOP: Sweeps loaded blocks once every second to tick external world signs!
         new BukkitRunnable() {
             @Override
             public void run() {

@@ -23,37 +23,41 @@ public class CaskVisualEngine {
         boolean isInfected = CaskHygieneEngine.checkInfectionStatus(plugin, barrelBlock);
         int[] storageSlots = {0, 2, 4, 6};
 
-        // Draw Core Ventilation Border Item
+        // --- CONDENSER VALVE PORT (SLOT 8) ---
         if (isInfected) {
-            setCustomPane(inv, 8, Material.SLIME_BLOCK, "§c§l☣ AIR SYSTEM CRITICAL", List.of("§7Spoiled fungal mold spores have blocked the tubes."));
+            setCustomPane(inv, 8, Material.HOPPER, "§4§l☣ CHEMICAL INJECTOR VALVE", List.of(
+                    "§7Status: §cBLOCKED BY CONTAMINATION",
+                    "",
+                    "§e[DRAG & DROP] §fIndustrial Methanol Fluid",
+                    "§7directly over this slot to flush the core lines."
+            ));
         } else {
-            setCustomPane(inv, 8, Material.NETHERITE_SCRAP, "§d§l⚡ Cask Ventilation Core", List.of("§7Maintains atmospheric pressure."));
+            setCustomPane(inv, 8, Material.CHARCOAL, "§a⚙ Ventilation Input Pure", List.of(
+                    "§7Status: §2OPERATIONAL",
+                    "§7Atmospheric inner pressure balanced."
+            ));
+        }
+
+        // Dividers
+        int[] dividers = {1, 3, 5, 7};
+        for (int div : dividers) {
+            if (isInfected) {
+                setCustomPane(inv, div, Material.LIME_STAINED_GLASS_PANE, "§c☣ Clogged Line", List.of("§7Purify via the injector input."));
+            } else {
+                setCustomPane(inv, div, Material.GRAY_STAINED_GLASS_PANE, "§8| Separator Line", List.of("§7Isolates fluid pressure."));
+            }
         }
 
         for (int slot : storageSlots) {
             ItemStack bottle = inv.getItem(slot);
             int indicatorSlot = slot + 1;
 
-            if (bottle != null && bottle.getType().name().endsWith("_GLASS_PANE")) {
-                continue;
-            }
+            if (bottle != null && bottle.getType().name().endsWith("_GLASS_PANE")) continue;
 
-            // If completely contaminated, everything turns into radioactive layout blocks
-            // Inside your loop rules within CaskVisualEngine.java:
-
-// --- RENDER SLOT 8 CHEMICAL INPUT VALVE HOOKS ---
+            // FIX: Draw the barrier on the INDICATOR pane, leaving the real potion in the slot alone!
             if (isInfected) {
-                setCustomPane(inv, 8, Material.HOPPER, "§4§l☣ CHEMICAL INJECTOR VALVE", List.of(
-                        "§7Status: §cBLOCKED BY CARBON",
-                        "",
-                        "§e[DRAG & DROP] §fPure Methanol Fluid",
-                        "§7directly here to flush out infection lines."
-                ));
-            } else {
-                setCustomPane(inv, 8, Material.CHARCOAL, "§a⚙ Ventilation Input Pure", List.of(
-                        "§7Status: §2OPERATIONAL",
-                        "§7Atmospheric pressure balanced."
-                ));
+                setCustomPane(inv, indicatorSlot, Material.BARRIER, "§c☣ UNIT LOCKED", List.of("§7Methanol flush required."));
+                continue;
             }
 
             if (bottle == null || bottle.getType() == Material.AIR) {
@@ -64,7 +68,6 @@ public class CaskVisualEngine {
             if (bottle.getType() == Material.POTION) {
                 PotionMeta meta = (PotionMeta) bottle.getItemMeta();
                 if (meta != null && meta.getPersistentDataContainer().has(slotTimeKey, PersistentDataType.LONG)) {
-
                     long startTime = meta.getPersistentDataContainer().getOrDefault(slotTimeKey, PersistentDataType.LONG, System.currentTimeMillis());
                     long elapsed = (System.currentTimeMillis() - startTime) / 1000;
                     String recipeKey = meta.getPersistentDataContainer().getOrDefault(recipeTypeKey, PersistentDataType.STRING, "UNKNOWN");
@@ -72,7 +75,7 @@ public class CaskVisualEngine {
                     BreweryData.RecipeProfile profile = BreweryData.RECIPES.get(recipeKey);
 
                     if (recipeKey.equals("RUINED_UNWASHED") || profile == null) {
-                        setCustomPane(inv, indicatorSlot, Material.BROWN_STAINED_GLASS_PANE, "§c● BATCH SPOILED", List.of("§7Unwashed or toxic compounds detected."));
+                        setCustomPane(inv, indicatorSlot, Material.BROWN_STAINED_GLASS_PANE, "§c● BATCH SPOILED", List.of("§7Unwashed toxic compounds detected."));
                         continue;
                     }
 
@@ -86,20 +89,17 @@ public class CaskVisualEngine {
                     } else if (elapsed >= targetTime && elapsed <= (targetTime + 15)) {
                         setCustomPane(inv, indicatorSlot, Material.GREEN_STAINED_GLASS_PANE, "§a● PEAK PURITY WINDOW", List.of("§7The sweet spot achieved. Shift-click potion left to bottle product."));
                     } else {
-                        // RE-WRITTEN LOGIC: Bottle turned stagnant. Initialize the 10-minute fuse if missing!
                         if (barrelBlock != null && barrelBlock.getState() instanceof TileState state) {
                             if (!state.getPersistentDataContainer().has(spoilTimeKey, PersistentDataType.LONG)) {
                                 state.getPersistentDataContainer().set(spoilTimeKey, PersistentDataType.LONG, System.currentTimeMillis());
                                 state.update();
                             }
                         }
-
                         long spoilTimer = 0;
                         if (barrelBlock != null && barrelBlock.getState() instanceof TileState state) {
                             long startSpoil = state.getPersistentDataContainer().getOrDefault(spoilTimeKey, PersistentDataType.LONG, System.currentTimeMillis());
                             spoilTimer = 600 - ((System.currentTimeMillis() - startSpoil) / 1000);
                         }
-
                         setCustomPane(inv, indicatorSlot, Material.BLACK_STAINED_GLASS_PANE, "§8● STAGNANT ACME", List.of(
                                 "§7Yeast carbonation collapsed.",
                                 "§c☣ Contamination fuse ticking: §f" + Math.max(0, spoilTimer) + "s / 600s"
