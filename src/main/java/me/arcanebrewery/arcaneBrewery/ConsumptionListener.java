@@ -2,6 +2,7 @@ package me.arcanebrewery.arcaneBrewery;
 
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.aging.FinalDrinkMetadata;
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.consumption.PlayerIntoxicationMetadata;
+import me.arcanebrewery.arcaneBrewery.application.alchemy.*;
 import me.arcanebrewery.arcaneBrewery.application.consumption.*;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -40,9 +41,73 @@ public final class ConsumptionListener implements Listener {
         RecoveryCondition next = lifecycle.afterDrink(players.read(player), profile.get(), now);
         players.write(player, next);
         applyStatus(player, next, true);
+        drinks.readAlchemy(meta).ifPresent(alchemy -> applyAlchemy(player, alchemy));
 
         player.sendMessage("§6[Brewery] Intoxication: §f" + Math.round(next.state().intoxication())
                 + "/100 §7| Poisoning: §f" + Math.round(next.state().poisoning()) + "/100");
+    }
+
+    private void applyAlchemy(Player player, AlchemyResult alchemy) {
+        if (alchemy.effect() == AlchemyEffect.NONE) return;
+
+        int amplifier = alchemy.potency() >= 75 ? 1 : 0;
+        int duration = (int) Math.max(5 * 20, Math.min(60 * 20, (10 + alchemy.potency() * 0.5) * 20));
+
+        switch (alchemy.effect()) {
+            case NONE -> { }
+            case FIRE_RESISTANCE -> player.addPotionEffect(new PotionEffect(
+                    PotionEffectType.FIRE_RESISTANCE, duration, amplifier, false, true, true));
+            case INVISIBILITY -> player.addPotionEffect(new PotionEffect(
+                    PotionEffectType.INVISIBILITY, duration, 0, false, true, true));
+            case REGENERATION -> player.addPotionEffect(new PotionEffect(
+                    PotionEffectType.REGENERATION, Math.min(duration, 30 * 20), amplifier, false, true, true));
+            case NIGHT_VISION -> player.addPotionEffect(new PotionEffect(
+                    PotionEffectType.NIGHT_VISION, duration, 0, false, true, true));
+            case LEVITATION -> player.addPotionEffect(new PotionEffect(
+                    PotionEffectType.LEVITATION, Math.min(duration, 12 * 20), 0, false, true, true));
+            case TELEPORTATION -> safeForwardTeleport(player);
+            case HALLUCINATION -> {
+                player.addPotionEffect(new PotionEffect(
+                        PotionEffectType.NAUSEA, Math.min(duration, 25 * 20), amplifier, false, true, true));
+                player.addPotionEffect(new PotionEffect(
+                        PotionEffectType.DARKNESS, Math.min(duration, 18 * 20), 0, false, true, true));
+            }
+            case CURSE -> {
+                player.addPotionEffect(new PotionEffect(
+                        PotionEffectType.WEAKNESS, Math.min(duration, 30 * 20), amplifier, false, true, true));
+                player.addPotionEffect(new PotionEffect(
+                        PotionEffectType.SLOWNESS, Math.min(duration, 20 * 20), 0, false, true, true));
+            }
+            case WITHER -> player.addPotionEffect(new PotionEffect(
+                    PotionEffectType.WITHER, Math.min(duration, 12 * 20), amplifier, false, true, true));
+        }
+
+        if (alchemy.dangerousReaction()) {
+            player.addPotionEffect(new PotionEffect(
+                    PotionEffectType.WEAKNESS, 8 * 20, 0, false, true, true));
+            player.sendMessage("§4§l[Alchemy] Unstable magical backlash!");
+        } else {
+            player.sendMessage("§d[Alchemy] " + alchemy.effect() + " §7("
+                    + Math.round(alchemy.potency()) + "% potency)");
+        }
+    }
+
+    private void safeForwardTeleport(Player player) {
+        var start = player.getLocation();
+        var direction = start.getDirection().normalize();
+        for (int distance = 5; distance >= 2; distance--) {
+            var target = start.clone().add(direction.clone().multiply(distance));
+            var feet = target.getBlock();
+            var head = target.clone().add(0, 1, 0).getBlock();
+            var floor = target.clone().add(0, -1, 0).getBlock();
+            if (feet.isPassable() && head.isPassable() && floor.getType().isSolid()) {
+                target.setYaw(start.getYaw());
+                target.setPitch(start.getPitch());
+                player.teleport(target);
+                return;
+            }
+        }
+        player.sendMessage("§5[Alchemy] The teleportation reaction collapses without a safe destination.");
     }
 
     @EventHandler
