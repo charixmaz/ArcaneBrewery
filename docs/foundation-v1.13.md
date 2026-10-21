@@ -66,3 +66,16 @@ Dangerous reactions add short harmful backlash. Presentation effects are not rec
 V1.13 does not yet add a dedicated alchemy machine or GUI for inserting catalysts/additives. The process model already supports additives, and the runtime can produce effects from naturally magical ingredients immediately.
 
 The next alchemy milestone should introduce a controlled player-facing catalyst/additive preparation step and machine interaction.
+
+
+## V1.14 player-controlled preparation
+
+V1.14 adds the first deliberate catalyst preparation step before aging.
+
+A completed fermented base can be infused by right-clicking an Enchanting Table while holding the base in the main hand and a supported catalyst in the off-hand. The catalyst is consumed once and a versioned additive ID/dose is written to ArcaneBrewery metadata.
+
+Initial catalysts include blaze powder, amethyst shard, glistering melon, glowstone dust, shulker shell, chorus fruit, netherite scrap and wither skeleton skull.
+
+The prepared additive is carried through cask aging into the final ProcessProfile. Because alchemical additives are fingerprint inputs, choosing a catalyst changes drink identity deterministically.
+
+V1.14 allows one catalyst per batch. A future milestone should replace the direct workstation interaction with a full multiblock alchemy machine and GUI with processing time, multiple catalyst slots and instability feedback.
