@@ -8,6 +8,7 @@ import me.arcanebrewery.arcaneBrewery.adapter.bukkit.ingredient.IngredientItemAd
 import me.arcanebrewery.arcaneBrewery.application.aging.*;
 import me.arcanebrewery.arcaneBrewery.application.alchemy.*;
 import me.arcanebrewery.arcaneBrewery.application.discovery.DiscoveryRuntime;
+import me.arcanebrewery.arcaneBrewery.application.economy.DrinkValueCalculator;
 import me.arcanebrewery.arcaneBrewery.application.fermentation.FermentationBatchState;
 import me.arcanebrewery.arcaneBrewery.application.storage.RegistrationResult;
 import me.arcanebrewery.arcaneBrewery.domain.discovery.DescriptiveNameGenerator;
@@ -64,6 +65,7 @@ public class AgingCaskEngine implements Listener {
     private final DiscoveryRuntime discoveries;
     private final AgingService agingService = new AgingService();
     private final AlchemyEngine alchemyEngine;
+    private final DrinkValueCalculator valueCalculator = new DrinkValueCalculator();
     private final NamespacedKey slotTimeKey;
     private final NamespacedKey recipeTypeKey;
     private final NamespacedKey barrelStorageKey;
@@ -578,16 +580,18 @@ public class AgingCaskEngine implements Listener {
 
         meta.setDisplayName((score >= 75 ? "§6" : "§f") + drinkName);
         AlchemyResult alchemy = alchemyEngine.evaluate(result.process(), result.simulation().quality());
+        var value = valueCalculator.calculate(result.process(), result.simulation().quality(), alchemy);
         meta.setLore(List.of(
                 "§7Quality: §f" + Math.round(score) + "/100",
                 "§7Contamination: §f" + Math.round(result.simulation().quality().contamination()) + "/100",
                 "§7Alchemy: §d" + alchemy.effect(),
                 "§7Instability: §f" + Math.round(alchemy.instability()) + "/100",
+                "§7Value: §6" + Math.round(value.units()) + " units",
                 "§7Compatibility Rating: §e" + stars + "★",
                 "",
                 "§d§oRight-click to ingest product contents."
         ));
-        finalDrinkMetadata.write(meta, result, alchemy);
+        finalDrinkMetadata.write(meta, result, alchemy, value);
         meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "alcohol_stars"),
                 PersistentDataType.INTEGER, stars);
         alcohol.setItemMeta(meta);
