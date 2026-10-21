@@ -4,3 +4,15 @@ main: me.arcanebrewery.arcaneBrewery.ArcaneBrewery
 api-version: '26.1'
 author: ArcaneBreweryTeam
 description: An advanced structural brewery plugin for version 26.1.2.
+
+commands:
+  brew:
+    description: ArcaneBrewery discovery and recipe commands.
+    usage: /brew help
+    aliases: [arcanebrewery]
+    permission: arcanebrewery.use
+
+permissions:
+  arcanebrewery.use:
+    description: Allows access to ArcaneBrewery player commands.
+    default: true

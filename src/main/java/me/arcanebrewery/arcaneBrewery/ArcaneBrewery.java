@@ -1,6 +1,7 @@
 package me.arcanebrewery.arcaneBrewery;
 
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.ingredient.*;
+import me.arcanebrewery.arcaneBrewery.application.discovery.DiscoveryQueryRuntime;
 import me.arcanebrewery.arcaneBrewery.application.discovery.DiscoveryRegistrationService;
 import me.arcanebrewery.arcaneBrewery.application.discovery.DiscoveryRuntime;
 import me.arcanebrewery.arcaneBrewery.application.ingredient.BuiltInIngredients;
@@ -12,6 +13,7 @@ public final class ArcaneBrewery extends JavaPlugin {
     private IngredientItemAdapter ingredientItems;
     private StorageProvider storage;
     private DiscoveryRuntime discoveries;
+    private DiscoveryQueryRuntime discoveryQueries;
 
     public IngredientItemAdapter ingredientItems() {
         return java.util.Objects.requireNonNull(ingredientItems, "ingredient adapter not initialized");
@@ -24,10 +26,13 @@ public final class ArcaneBrewery extends JavaPlugin {
 
         try {
             storage = new SqliteStorageProvider(getDataFolder().toPath().resolve("arcanebrewery.db"));
+            java.util.concurrent.Executor async = command ->
+                    getServer().getScheduler().runTaskAsynchronously(this, command);
             discoveries = new DiscoveryRuntime(
                     new DiscoveryRegistrationService(storage.discoveries()),
-                    command -> getServer().getScheduler().runTaskAsynchronously(this, command)
+                    async
             );
+            discoveryQueries = new DiscoveryQueryRuntime(storage.discoveries(), async);
             getLogger().info("ArcaneBrewery storage ready (schema V" + storage.schemaVersion() + ").");
         } catch (RuntimeException failure) {
             getLogger().severe("ArcaneBrewery storage initialization failed: " + failure.getMessage());
@@ -44,6 +49,11 @@ public final class ArcaneBrewery extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new MethanolProducerEngine(this), this);
         getServer().getPluginManager().registerEvents(new StructureBreakListener(), this);
         getServer().getPluginManager().registerEvents(new CaskInteractListener(this), this);
+
+        var brew = java.util.Objects.requireNonNull(getCommand("brew"), "brew command missing from plugin.yml");
+        var discoveryCommand = new DiscoveryCommand(this, discoveryQueries);
+        brew.setExecutor(discoveryCommand);
+        brew.setTabCompleter(discoveryCommand);
 
         getLogger().info("ArcaneBrewery enabled.");
     }
