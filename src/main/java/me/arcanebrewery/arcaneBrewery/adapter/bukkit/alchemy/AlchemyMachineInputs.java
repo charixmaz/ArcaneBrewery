@@ -73,4 +73,33 @@ public final class AlchemyMachineInputs {
         }
         return output;
     }
+
+    public static ItemStack[] fail(ItemStack[] inputs, String namespace,
+            AlchemyMachineOperation operation, long now, AlchemyFailureOutcome outcome) {
+        if (operation.state().status() != AlchemyMachineState.Status.PROCESSING || !operation.state().ready(now))
+            throw new IllegalStateException("machine is not ready to fail");
+        if (outcome != AlchemyFailureOutcome.FAILED_INFUSION
+                && outcome != AlchemyFailureOutcome.CRITICAL_FAILURE)
+            throw new IllegalArgumentException("failure outcome required");
+        validateLocked(inputs, namespace, operation);
+        ItemStack[] output = Arrays.stream(inputs).map(item -> item == null ? null : item.clone())
+                .toArray(ItemStack[]::new);
+        for (int slot : new int[]{1, 2}) {
+            if (AlchemyMachineItems.empty(output[slot])) continue;
+            if (output[slot].getAmount() == 1) output[slot] = null;
+            else output[slot].setAmount(output[slot].getAmount() - 1);
+        }
+        if (outcome == AlchemyFailureOutcome.CRITICAL_FAILURE) {
+            output[0] = null;
+        } else {
+            var meta = Objects.requireNonNull(output[0].getItemMeta());
+            var lore = new ArrayList<>(meta.hasLore() && meta.getLore() != null
+                    ? meta.getLore() : List.<String>of());
+            lore.add("§8Arcane residue: §cFailed infusion");
+            meta.setLore(lore);
+            if (!output[0].setItemMeta(meta))
+                throw new IllegalStateException("unable to mark failed infusion");
+        }
+        return output;
+    }
 }
