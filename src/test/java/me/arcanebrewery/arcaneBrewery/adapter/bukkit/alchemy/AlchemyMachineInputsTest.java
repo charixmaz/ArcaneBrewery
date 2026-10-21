@@ -93,4 +93,29 @@ class AlchemyMachineInputsTest {
         });
         assertThrows(IllegalArgumentException.class, () -> AlchemyMachineInputs.start(malformed,NAMESPACE,0,8000));
     }
+
+    @Test void failedInfusionConsumesCatalystsButKeepsBaseUnprepared() {
+        var inputs = inputs();
+        var op = AlchemyMachineInputs.start(inputs, NAMESPACE, 0, 8000);
+        var output = AlchemyMachineInputs.fail(
+                inputs, NAMESPACE, op, 8000, AlchemyFailureOutcome.FAILED_INFUSION);
+        assertNotNull(output[0]);
+        assertEquals(2, output[1].getAmount());
+        assertEquals(1, output[2].getAmount());
+        assertTrue(new AlchemyPreparationMetadata(NAMESPACE).read(output[0].getItemMeta()).isEmpty());
+        assertEquals(3, inputs[1].getAmount());
+        assertEquals(2, inputs[2].getAmount());
+    }
+
+    @Test void criticalFailureConsumesCatalystsAndDestroysBase() {
+        var inputs = inputs();
+        var op = AlchemyMachineInputs.start(inputs, NAMESPACE, 0, 8000);
+        var output = AlchemyMachineInputs.fail(
+                inputs, NAMESPACE, op, 8000, AlchemyFailureOutcome.CRITICAL_FAILURE);
+        assertNull(output[0]);
+        assertEquals(2, output[1].getAmount());
+        assertEquals(1, output[2].getAmount());
+        assertThrows(IllegalArgumentException.class, () -> AlchemyMachineInputs.fail(
+                inputs, NAMESPACE, op, 8000, AlchemyFailureOutcome.STABLE_SUCCESS));
+    }
 }
