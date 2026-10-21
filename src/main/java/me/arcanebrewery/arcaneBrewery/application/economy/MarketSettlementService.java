@@ -59,6 +59,10 @@ public final class MarketSettlementService {
                     restored ? "economy deposit failed" : "manual reconciliation required");
         }
 
+        // Payment has succeeded. Releasing escrow can fail independently; in
+        // that case leave the journal PREPARED so restart reconciliation sees
+        // an intentionally uncertain cross-system outcome.
+        assets.finalizeSale(playerId, asset, transactionId);
         journal.commit(transactionId);
         return new MarketSettlementResult(
                 transactionId, MarketSettlementResult.Status.COMMITTED, quote.price(), "");
