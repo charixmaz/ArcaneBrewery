@@ -3,6 +3,18 @@ package me.arcanebrewery.arcaneBrewery.application.alchemy;
 import java.util.*;
 
 public final class AlchemyMachineService {
+    private final AlchemyBalanceProfile balance;
+    private final AlchemyFailureModel failureModel;
+
+    public AlchemyMachineService() {
+        this(AlchemyBalanceProfile.DEFAULT);
+    }
+
+    public AlchemyMachineService(AlchemyBalanceProfile balance) {
+        this.balance = Objects.requireNonNull(balance);
+        this.failureModel = new AlchemyFailureModel(balance);
+    }
+
     public AlchemyPreparation combine(List<AlchemyCatalyst> catalysts) {
         Objects.requireNonNull(catalysts, "catalysts");
         if (catalysts.isEmpty()) throw new IllegalArgumentException("at least one catalyst is required");
@@ -24,12 +36,16 @@ public final class AlchemyMachineService {
             List<AlchemyCatalyst> catalysts, AlchemyMachineCondition condition) {
         Objects.requireNonNull(catalysts, "catalysts");
         Objects.requireNonNull(condition, "condition");
-        return new AlchemyFailureModel().assess(combine(catalysts), condition);
+        return failureModel.assess(combine(catalysts), condition);
     }
 
     public AlchemyFailureAssessment assess(
             AlchemyPreparation preparation, AlchemyMachineCondition condition) {
-        return new AlchemyFailureModel().assess(preparation, condition);
+        return failureModel.assess(preparation, condition);
+    }
+
+    public AlchemyMachineState start(long nowEpochMillis, UUID batchId) {
+        return start(nowEpochMillis, balance.processingDurationMillis(), batchId);
     }
 
     public AlchemyMachineState start(long nowEpochMillis, long durationMillis, UUID batchId) {
