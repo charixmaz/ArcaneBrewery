@@ -305,7 +305,7 @@ class SqliteDiscoveryRepositoryTest {
     @Test
     void defaultProviderCreatesInjectedDirectoryAndExpectedDatabaseFile() {
         try (var storage = StorageProviders.openDefault(directory.resolve("plugin-data"))) {
-            assertEquals(1, storage.schemaVersion());
+            assertEquals(2, storage.schemaVersion());
             assertTrue(java.nio.file.Files.exists(directory.resolve("plugin-data/arcanebrewery.db")));
         }
     }
