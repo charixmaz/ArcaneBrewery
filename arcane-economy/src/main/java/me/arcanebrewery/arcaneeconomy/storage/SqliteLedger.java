@@ -18,6 +18,7 @@ public final class SqliteLedger implements ArcaneEconomyService, TransactionLook
     private final String jdbcUrl;
     private final MoneyPolicy money;
     private final int busyTimeoutMillis;
+    private volatile boolean closed;
 
     public SqliteLedger(Path file, MoneyPolicy money, int busyTimeoutMillis) {
         this.money = Objects.requireNonNull(money);
@@ -279,6 +280,7 @@ public final class SqliteLedger implements ArcaneEconomyService, TransactionLook
     }
 
     private Connection open() throws SQLException {
+        if (closed) throw new IllegalStateException("economy ledger is closed");
         Connection connection = DriverManager.getConnection(jdbcUrl);
         try (Statement statement = connection.createStatement()) {
             statement.execute("PRAGMA foreign_keys=ON");
@@ -536,7 +538,9 @@ public final class SqliteLedger implements ArcaneEconomyService, TransactionLook
 
     @Override
     public void close() {
-        // Connections are short-lived and transaction-scoped; nothing persistent to close.
+        // Existing transactions may finish; no new calls may open storage after
+        // service unregistration/disable, even if a consumer retained this object.
+        closed = true;
     }
 
     private record Replay(boolean present, boolean sameRequest, long resultingBalance) {

@@ -25,11 +25,17 @@ jobs:
           java-version: '25'
           cache: maven
 
+      - name: Verify and install standalone economy API
+        run: mvn --batch-mode -f arcane-economy-api/pom.xml clean install
+
       - name: Build ArcaneBrewery
         run: mvn --batch-mode clean verify
 
       - name: Build ArcaneEconomy
         run: mvn --batch-mode -f arcane-economy/pom.xml clean verify
+
+      - name: Verify economy API class ownership and optional packaging
+        run: python3 scripts/verify-economy-packaging.py
 
       - name: Upload ArcaneBrewery JAR
         uses: actions/upload-artifact@v4
@@ -43,4 +49,11 @@ jobs:
         with:
           name: ArcaneEconomy
           path: arcane-economy/target/ArcaneEconomy-*.jar
+          if-no-files-found: error
+
+      - name: Upload economy API artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ArcaneEconomy-API
+          path: arcane-economy-api/target/arcane-economy-api-*.jar
           if-no-files-found: error

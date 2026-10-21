@@ -18,6 +18,20 @@ class SqliteLedgerTest {
     private MoneyPolicy money;
     private Path file;
 
+    @Test
+    void implementsSharedApiAndRetainedReferenceFailsAfterClose() {
+        var ledger = new SqliteLedger(file, money, 1000);
+        ArcaneEconomyService api = ledger;
+        assertEquals(ArcaneEconomyService.API_VERSION, api.apiVersion());
+        UUID player = UUID.randomUUID();
+        assertEquals(new BigDecimal("10.00"),api.balance(player));
+        ledger.close();
+        assertThrows(IllegalStateException.class, () -> api.balance(player));
+        assertThrows(IllegalStateException.class, () -> api.deposit(player,BigDecimal.ONE,UUID.randomUUID()));
+        assertThrows(IllegalStateException.class, () -> api.withdraw(player,BigDecimal.ONE,UUID.randomUUID()));
+        assertThrows(IllegalStateException.class, () -> api.history(player,10));
+    }
+
     @BeforeEach
     void setup() {
         money = new MoneyPolicy(

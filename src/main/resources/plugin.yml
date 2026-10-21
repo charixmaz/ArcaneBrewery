@@ -4,6 +4,7 @@ main: me.arcanebrewery.arcaneBrewery.ArcaneBrewery
 api-version: '26.1'
 author: ArcaneBreweryTeam
 description: An advanced structural brewery plugin for version 26.1.2.
+softdepend: [ArcaneEconomy]
 
 commands:
   brew:
