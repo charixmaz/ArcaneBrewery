@@ -8,6 +8,8 @@ import me.arcanebrewery.arcaneBrewery.application.economy.*;
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.economy.OptionalArcaneEconomy;
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.economy.CanonicalMarketBottleReader;
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.economy.BukkitMarketAssetPort;
+import me.arcanebrewery.arcaneBrewery.adapter.bukkit.economy.BukkitMarketPlayerService;
+import me.arcanebrewery.arcaneBrewery.adapter.bukkit.economy.MarketDiagnosticsCommand;
 import java.util.UUID;
 import java.util.concurrent.*;
 import me.arcanebrewery.arcaneBrewery.application.discovery.*;
@@ -78,10 +80,11 @@ public final class ArcaneBrewery extends JavaPlugin {
             return;
         }
 
+        java.util.concurrent.Executor async = command ->
+                getServer().getScheduler().runTaskAsynchronously(this, command);
+
         try {
             storage = new SqliteStorageProvider(getDataFolder().toPath().resolve("arcanebrewery.db"));
-            java.util.concurrent.Executor async = command ->
-                    getServer().getScheduler().runTaskAsynchronously(this, command);
             discoveries = new DiscoveryRuntime(
                     new DiscoveryRegistrationService(storage.discoveries()),
                     async
@@ -89,9 +92,9 @@ public final class ArcaneBrewery extends JavaPlugin {
             discoveryQueries = new DiscoveryQueryRuntime(storage.discoveries(), async);
             discoveryMutations = new DiscoveryMutationRuntime(storage.discoveries(), async);
             marketJournal = storage.marketJournal();
-            marketAssets = new BukkitMarketAssetPort(
-                    new CanonicalMarketBottleReader(getName().toLowerCase(java.util.Locale.ROOT)),
-                    storage.marketEscrow());
+            var marketBottleReader = new CanonicalMarketBottleReader(
+                    getName().toLowerCase(java.util.Locale.ROOT));
+            marketAssets = new BukkitMarketAssetPort(marketBottleReader, storage.marketEscrow());
             int prepared = marketJournal.prepared(1000).size();
             int unresolvedEscrow = storage.marketEscrow().unresolved(1000).size();
             if (prepared > 0 || unresolvedEscrow > 0) {
@@ -132,10 +135,24 @@ public final class ArcaneBrewery extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new StructureBreakListener(), this);
         getServer().getPluginManager().registerEvents(new CaskInteractListener(this), this);
 
+        var marketBottleReader = new CanonicalMarketBottleReader(
+                getName().toLowerCase(java.util.Locale.ROOT));
+        var marketPlayer = new BukkitMarketPlayerService(
+                this, marketQuotes, marketBottleReader,
+                () -> marketSettings.playerSalesEnabled() && economy != null && economy.isAvailable());
+
         var brew = java.util.Objects.requireNonNull(getCommand("brew"), "brew command missing from plugin.yml");
-        var discoveryCommand = new DiscoveryCommand(this, discoveryQueries, discoveryMutations, consumption);
+        var discoveryCommand = new DiscoveryCommand(
+                this, discoveryQueries, discoveryMutations, consumption, marketPlayer);
         brew.setExecutor(discoveryCommand);
         brew.setTabCompleter(discoveryCommand);
+
+        var brewMarket = java.util.Objects.requireNonNull(
+                getCommand("brewmarket"), "brewmarket command missing from plugin.yml");
+        var diagnostics = new MarketDiagnosticsCommand(
+                this, marketJournal, storage.marketEscrow(), async);
+        brewMarket.setExecutor(diagnostics);
+        brewMarket.setTabCompleter(diagnostics);
 
         getLogger().info("ArcaneBrewery enabled.");
     }
