@@ -16,6 +16,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <junit.version>5.11.4</junit.version>
         <sqlite.version>3.53.4.0</sqlite.version>
+        <paper.version>26.1.2.build.74-stable</paper.version>
     </properties>
 
     <build>
@@ -92,7 +93,7 @@
         <dependency>
             <groupId>io.papermc.paper</groupId>
             <artifactId>paper-api</artifactId>
-            <version>[26.1.2.build,)</version>
+            <version>${paper.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>

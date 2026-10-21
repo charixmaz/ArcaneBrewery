@@ -35,6 +35,8 @@ public final class AlchemyPreparationCodec {
 
     public AlchemyPreparation decodeBase64(String encoded) {
         Objects.requireNonNull(encoded);
+        if (encoded.length() > ((MAX_BYTES + 2) / 3) * 4)
+            throw new IllegalArgumentException("alchemy preparation too large");
         byte[] raw;
         try {
             raw = Base64.getDecoder().decode(encoded);

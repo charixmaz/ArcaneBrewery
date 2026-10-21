@@ -16,7 +16,12 @@ public final class AlchemyPreparationMetadata {
     private final AlchemyPreparationCodec codec = new AlchemyPreparationCodec();
 
     public AlchemyPreparationMetadata(JavaPlugin plugin) {
-        this.namespace = plugin.getName().toLowerCase(java.util.Locale.ROOT);
+        this(plugin.getName().toLowerCase(java.util.Locale.ROOT));
+    }
+
+    public AlchemyPreparationMetadata(String namespace) {
+        this.namespace = java.util.Objects.requireNonNull(namespace);
+        key("alchemy_prep_format");
     }
 
     private NamespacedKey key(String name) {
@@ -34,9 +39,16 @@ public final class AlchemyPreparationMetadata {
     public Optional<AlchemyPreparation> read(ItemMeta meta) {
         var pdc = meta.getPersistentDataContainer();
         Integer version = pdc.get(key("alchemy_prep_format"), PersistentDataType.INTEGER);
-        if (version == null) return Optional.empty();
+        if (version == null) {
+            if (pdc.has(key("alchemy_prep_format")) || pdc.has(key("alchemy_preparation"))
+                    || pdc.has(key("alchemy_additive_id")) || pdc.has(key("alchemy_additive_dose")))
+                throw new IllegalArgumentException("incomplete alchemy preparation metadata");
+            return Optional.empty();
+        }
 
         if (version == 1) {
+            if (pdc.has(key("alchemy_preparation")))
+                throw new IllegalArgumentException("mixed alchemy preparation metadata");
             String id = pdc.get(key("alchemy_additive_id"), PersistentDataType.STRING);
             Double dose = pdc.get(key("alchemy_additive_dose"), PersistentDataType.DOUBLE);
             if (id == null || dose == null)
