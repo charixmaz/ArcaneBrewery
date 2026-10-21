@@ -26,6 +26,9 @@ public final class AlchemyMachineHandler implements Listener {
     private final String namespace;
     private final AlchemyMachineItems items = new AlchemyMachineItems();
     private final AlchemyMachineStorage storage;
+    private final AlchemyRuntimeSettings settings;
+    private final AlchemyMachineService machineService;
+    private final AlchemyMaintenanceService maintenanceService;
     private final Map<MachineLocation, Session> sessions = new HashMap<>();
     private final Map<MachineLocation, BukkitRunnable> tasks = new HashMap<>();
     private boolean shuttingDown;
@@ -51,9 +54,17 @@ public final class AlchemyMachineHandler implements Listener {
     }
 
     public AlchemyMachineHandler(JavaPlugin plugin) {
+        this(plugin, new AlchemyRuntimeSettings(
+                AlchemyBalanceProfile.DEFAULT, Material.IRON_INGOT, Material.SPONGE));
+    }
+
+    public AlchemyMachineHandler(JavaPlugin plugin, AlchemyRuntimeSettings settings) {
         this.plugin = Objects.requireNonNull(plugin);
+        this.settings = Objects.requireNonNull(settings);
         this.namespace = plugin.getName().toLowerCase(Locale.ROOT);
         this.storage = new AlchemyMachineStorage(namespace, items);
+        this.machineService = new AlchemyMachineService(settings.balance());
+        this.maintenanceService = new AlchemyMaintenanceService(settings.balance());
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -67,7 +78,9 @@ public final class AlchemyMachineHandler implements Listener {
             Session session = session(core);
             if (session.blocked) throw new IllegalStateException("machine unavailable");
             recover(session);
-            if (!session.blocked) event.getPlayer().openInventory(session.gui);
+            if (session.blocked) return;
+            if (event.getPlayer().isSneaking() && maintain(event.getPlayer(), session)) return;
+            event.getPlayer().openInventory(session.gui);
         } catch (RuntimeException failure) {
             warn(core);
             event.getPlayer().sendMessage("§c[Alchemy] Machine data is unavailable; stored items have been retained.");
@@ -152,7 +165,8 @@ public final class AlchemyMachineHandler implements Listener {
     private void start(Player player, Session session) {
         if (session.processing()) return;
         AlchemyMachineOperation operation;
-        try { operation = AlchemyMachineInputs.start(contents(session.gui), namespace, System.currentTimeMillis(), 8000); }
+        try { operation = AlchemyMachineInputs.start(contents(session.gui), namespace,
+                System.currentTimeMillis(), settings.balance().processingDurationMillis()); }
         catch (RuntimeException invalid) {
             player.sendMessage("§c[Alchemy] Use one completed, uninfused fermented base and one or two supported catalysts.");
             return;
@@ -160,13 +174,46 @@ public final class AlchemyMachineHandler implements Listener {
         try {
             commit(session, contents(session.gui), Optional.of(operation));
             schedule(session);
-            var service = new AlchemyMachineService();
-            var assessment = service.assess(
+            var assessment = machineService.assess(
                     AlchemyMachineInputs.catalysts(contents(session.gui)), session.snapshot.condition());
             player.sendMessage("§d[Alchemy] Infusion started. Instability: §f"
                     + Math.round(assessment.instability()) + "/100 §7| Integrity: §f"
                     + Math.round(session.snapshot.condition().integrity()) + "/100");
         } catch (RuntimeException failure) { fault(session); }
+    }
+
+    private boolean maintain(Player player, Session session) {
+        ItemStack held = player.getInventory().getItemInMainHand();
+        boolean repair = held.getType() == settings.repairMaterial();
+        boolean clean = held.getType() == settings.cleaningMaterial();
+        if (!repair && !clean) return false;
+
+        if (session.processing()) {
+            player.sendMessage("§c[Alchemy] The crucible cannot be serviced while processing.");
+            return true;
+        }
+
+        AlchemyMachineCondition current = session.snapshot.condition();
+        AlchemyMachineCondition next = repair
+                ? maintenanceService.repair(current)
+                : maintenanceService.clean(current);
+        if (next.equals(current)) {
+            player.sendMessage(repair
+                    ? "§7[Alchemy] Crucible integrity is already full."
+                    : "§7[Alchemy] The crucible is already clean.");
+            return true;
+        }
+
+        commit(session, contents(session.gui), session.snapshot.operation(), next);
+        if (held.getAmount() <= 1) {
+            player.getInventory().setItemInMainHand(new ItemStack(Material.AIR));
+        } else {
+            held.setAmount(held.getAmount() - 1);
+        }
+        player.sendMessage(repair
+                ? "§a[Alchemy] Crucible repaired to §f" + Math.round(next.integrity()) + "/100§a integrity."
+                : "§b[Alchemy] Crucible cleaned to §f" + Math.round(next.contamination()) + "/100§b contamination.");
+        return true;
     }
 
     private void recover(Session session) {
@@ -205,8 +252,7 @@ public final class AlchemyMachineHandler implements Listener {
         if (session.blocked || !session.processing() || !AlchemyStructureScanner.isValid(session.core)) return;
         var operation = session.snapshot.operation().orElseThrow();
         long now = System.currentTimeMillis();
-        var service = new AlchemyMachineService();
-        AlchemyFailureAssessment assessment = service.assess(
+        AlchemyFailureAssessment assessment = machineService.assess(
                 operation.preparation(), session.snapshot.condition());
         AlchemyMachineCondition nextCondition = session.snapshot.condition().wear(
                 assessment.integrityDamage(), assessment.contaminationGain());
@@ -247,7 +293,8 @@ public final class AlchemyMachineHandler implements Listener {
                 world.spawnParticle(Particle.SMOKE, location, 30, 0.45, 0.45, 0.45, 0.05);
                 world.playSound(location, Sound.BLOCK_FIRE_EXTINGUISH, 1.0f, 0.8f);
             }
-            case CRITICAL_FAILURE -> world.createExplosion(location, 1.5f, false, false);
+            case CRITICAL_FAILURE -> world.createExplosion(
+                    location, settings.balance().criticalExplosionPower(), false, false);
         }
     }
 
