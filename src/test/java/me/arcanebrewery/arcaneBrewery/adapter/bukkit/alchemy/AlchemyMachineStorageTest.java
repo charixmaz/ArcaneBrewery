@@ -66,6 +66,19 @@ class AlchemyMachineStorageTest {
         assertThrows(IllegalArgumentException.class, () -> items.decode(List.of(new byte[]{65},new byte[0],new byte[0])));
     }
 
+
+    @Test void machineConditionPersistsAtomicallyWithInventory() {
+        var core = new Core();
+        var conditioned = new AlchemyMachineSnapshot(
+                Optional.empty(),
+                new AlchemyMachineCondition(42.5, 61.0),
+                List.of(new byte[]{3}, new byte[0], new byte[0]));
+        byte[] saved = storage.save(core.block, null, conditioned);
+        var reopened = storage.load(core.block);
+        assertArrayEquals(saved, reopened.persisted());
+        assertEquals(new AlchemyMachineCondition(42.5, 61.0), reopened.snapshot().condition());
+        assertEquals(3, items.decode(reopened.snapshot().items())[0].getAmount());
+    }
     private static final class Core {
         ItemMeta persisted = TestItems.stack(Material.PAPER,1).getItemMeta();
         boolean allowUpdate = true;
