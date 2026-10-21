@@ -15,6 +15,7 @@ class MarketRuntimeSettingsTest {
         assertEquals(0.01, settings.pricing().minimumPrice());
         assertEquals(100_000.0, settings.pricing().maximumPrice());
         assertEquals(30_000, settings.pricing().quoteLifetimeMillis());
+        assertFalse(settings.playerSalesEnabled());
     }
 
     @Test
@@ -25,6 +26,7 @@ class MarketRuntimeSettingsTest {
         config.set("market.minimum-price", 2.5);
         config.set("market.maximum-price", 5000.0);
         config.set("market.quote-lifetime-seconds", 12.5);
+        config.set("market.player-sales-enabled", true);
 
         var settings = MarketRuntimeSettings.from(config);
 
@@ -33,6 +35,7 @@ class MarketRuntimeSettingsTest {
         assertEquals(2.5, settings.pricing().minimumPrice());
         assertEquals(5000.0, settings.pricing().maximumPrice());
         assertEquals(12_500, settings.pricing().quoteLifetimeMillis());
+        assertTrue(settings.playerSalesEnabled());
     }
 
     @Test
