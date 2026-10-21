@@ -3,7 +3,7 @@ package me.arcanebrewery.arcaneeconomy.api;
 import java.math.BigDecimal;
 import java.util.UUID;
 
-public interface ArcaneEconomyService {
+public interface ArcaneEconomyService extends TransactionLookup {
     BigDecimal balance(UUID playerId);
 
     EconomyResult deposit(UUID playerId, BigDecimal amount, UUID transactionId);
