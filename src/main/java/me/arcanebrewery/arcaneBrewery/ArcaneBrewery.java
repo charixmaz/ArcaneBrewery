@@ -1,9 +1,7 @@
 package me.arcanebrewery.arcaneBrewery;
 
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.ingredient.*;
-import me.arcanebrewery.arcaneBrewery.application.discovery.DiscoveryQueryRuntime;
-import me.arcanebrewery.arcaneBrewery.application.discovery.DiscoveryRegistrationService;
-import me.arcanebrewery.arcaneBrewery.application.discovery.DiscoveryRuntime;
+import me.arcanebrewery.arcaneBrewery.application.discovery.*;
 import me.arcanebrewery.arcaneBrewery.application.ingredient.BuiltInIngredients;
 import me.arcanebrewery.arcaneBrewery.application.storage.StorageProvider;
 import me.arcanebrewery.arcaneBrewery.storage.sqlite.SqliteStorageProvider;
@@ -14,6 +12,7 @@ public final class ArcaneBrewery extends JavaPlugin {
     private StorageProvider storage;
     private DiscoveryRuntime discoveries;
     private DiscoveryQueryRuntime discoveryQueries;
+    private DiscoveryMutationRuntime discoveryMutations;
 
     public IngredientItemAdapter ingredientItems() {
         return java.util.Objects.requireNonNull(ingredientItems, "ingredient adapter not initialized");
@@ -33,6 +32,7 @@ public final class ArcaneBrewery extends JavaPlugin {
                     async
             );
             discoveryQueries = new DiscoveryQueryRuntime(storage.discoveries(), async);
+            discoveryMutations = new DiscoveryMutationRuntime(storage.discoveries(), async);
             getLogger().info("ArcaneBrewery storage ready (schema V" + storage.schemaVersion() + ").");
         } catch (RuntimeException failure) {
             getLogger().severe("ArcaneBrewery storage initialization failed: " + failure.getMessage());
@@ -51,7 +51,7 @@ public final class ArcaneBrewery extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new CaskInteractListener(this), this);
 
         var brew = java.util.Objects.requireNonNull(getCommand("brew"), "brew command missing from plugin.yml");
-        var discoveryCommand = new DiscoveryCommand(this, discoveryQueries);
+        var discoveryCommand = new DiscoveryCommand(this, discoveryQueries, discoveryMutations);
         brew.setExecutor(discoveryCommand);
         brew.setTabCompleter(discoveryCommand);
 
