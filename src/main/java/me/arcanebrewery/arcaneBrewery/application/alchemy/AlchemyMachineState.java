@@ -23,7 +23,13 @@ public record AlchemyMachineState(
     }
 
     public boolean ready(long nowEpochMillis) {
-        return nowEpochMillis >= startedAtEpochMillis + durationMillis;
+        long finish;
+        try {
+            finish = Math.addExact(startedAtEpochMillis, durationMillis);
+        } catch (ArithmeticException overflow) {
+            return false;
+        }
+        return nowEpochMillis >= finish;
     }
 
     public AlchemyMachineState complete(long nowEpochMillis) {
