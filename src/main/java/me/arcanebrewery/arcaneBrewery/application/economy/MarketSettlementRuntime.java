@@ -37,6 +37,9 @@ public final class MarketSettlementRuntime implements AutoCloseable {
                 public boolean restoreAfterFailedSale(UUID p, MarketAsset a, UUID id) {
                     return inventory(() -> assets.restoreAfterFailedSale(p, a, id));
                 }
+                public void finalizeSale(UUID p, MarketAsset a, UUID id) {
+                    inventory(() -> { assets.finalizeSale(p, a, id); return true; });
+                }
             };
             return new MarketSettlementService(journal, serverAssets, economy)
                     .settleSale(player, asset, quote, transaction, clock.getAsLong());
