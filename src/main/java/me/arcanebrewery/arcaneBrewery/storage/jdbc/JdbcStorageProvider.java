@@ -1,5 +1,7 @@
 package me.arcanebrewery.arcaneBrewery.storage.jdbc;
 
+import me.arcanebrewery.arcaneBrewery.application.economy.MarketEscrowStore;
+import me.arcanebrewery.arcaneBrewery.application.economy.RecoverableMarketTransactionJournal;
 import me.arcanebrewery.arcaneBrewery.application.storage.*;
 import me.arcanebrewery.arcaneBrewery.storage.migration.MigrationRunner;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -8,6 +10,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public abstract class JdbcStorageProvider implements StorageProvider {
     protected final JdbcConnectionFactory connections;
     private final DiscoveryRepository repository;
+    private final RecoverableMarketTransactionJournal marketJournal;
+    private final MarketEscrowStore marketEscrow;
     private final AtomicBoolean closed = new AtomicBoolean();
 
     protected JdbcStorageProvider(JdbcConnectionFactory factory) {
@@ -16,10 +20,20 @@ public abstract class JdbcStorageProvider implements StorageProvider {
             return factory.open(write);
         };
         repository = new JdbcDiscoveryRepository(connections);
+        marketJournal = new JdbcMarketTransactionJournal(connections);
+        marketEscrow = new JdbcMarketEscrowStore(connections);
     }
     public DiscoveryRepository discoveries() {
         if (closed.get()) throw new StorageException("Storage provider is closed");
         return repository;
+    }
+    public RecoverableMarketTransactionJournal marketJournal() {
+        if (closed.get()) throw new StorageException("Storage provider is closed");
+        return marketJournal;
+    }
+    public MarketEscrowStore marketEscrow() {
+        if (closed.get()) throw new StorageException("Storage provider is closed");
+        return marketEscrow;
     }
     public int schemaVersion() {
         return JdbcTransactions.run(connections, false, MigrationRunner::currentVersion);
