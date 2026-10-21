@@ -62,6 +62,57 @@ class AlchemyMachineSnapshotCodecTest {
                 new AlchemyMachineState(1, UUID.randomUUID(), Long.MAX_VALUE, 10, AlchemyMachineState.Status.PROCESSING),
                 UUID.randomUUID(), new AlchemyPreparation(Map.of("fire", 1.0))));
     }
+
+    @Test void v3RoundTripPreservesMachineCondition() {
+        var conditioned = new AlchemyMachineSnapshot(
+                snapshot().operation(),
+                new AlchemyMachineCondition(63.5, 27.25),
+                snapshot().items());
+        var decoded = codec.decode(codec.encode(conditioned));
+        assertEquals(conditioned.condition(), decoded.condition());
+    }
+
+    @Test void v2SnapshotMigratesAsPristineCondition() throws Exception {
+        byte[] v2 = encodeV2(snapshot());
+        var decoded = codec.decode(v2);
+        assertEquals(AlchemyMachineCondition.PRISTINE, decoded.condition());
+        assertEquals(snapshot().operation(), decoded.operation());
+    }
+
+    private byte[] encodeV2(AlchemyMachineSnapshot source) throws Exception {
+        var preparations = new AlchemyPreparationCodec();
+        var buffer = new java.io.ByteArrayOutputStream();
+        try (var out = new java.io.DataOutputStream(buffer)) {
+            out.writeInt(0x4142414d);
+            out.writeInt(2);
+            out.writeBoolean(source.operation().isPresent());
+            if (source.operation().isPresent()) {
+                var operation = source.operation().orElseThrow();
+                var state = operation.state();
+                out.writeLong(state.batchId().getMostSignificantBits());
+                out.writeLong(state.batchId().getLeastSignificantBits());
+                out.writeLong(state.startedAtEpochMillis());
+                out.writeLong(state.durationMillis());
+                out.writeByte(state.status() == AlchemyMachineState.Status.PROCESSING ? 0 : 1);
+                out.writeLong(operation.sourceBatch().getMostSignificantBits());
+                out.writeLong(operation.sourceBatch().getLeastSignificantBits());
+                byte[] prep = preparations.encodeBase64(operation.preparation())
+                        .getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+                out.writeInt(prep.length);
+                out.write(prep);
+            }
+            for (byte[] item : source.items()) {
+                out.writeInt(item.length);
+                out.write(item);
+            }
+        }
+        byte[] body = buffer.toByteArray();
+        byte[] hash = MessageDigest.getInstance("SHA-256").digest(body);
+        var payload = new java.io.ByteArrayOutputStream();
+        payload.write(body);
+        payload.write(hash);
+        return payload.toByteArray();
+    }
     private void resign(byte[] payload) throws Exception {
         byte[] hash = MessageDigest.getInstance("SHA-256").digest(Arrays.copyOf(payload, payload.length - 32));
         System.arraycopy(hash, 0, payload, payload.length - 32, 32);
