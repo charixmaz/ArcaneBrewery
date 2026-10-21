@@ -45,14 +45,16 @@ public final class ArcaneBrewery extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new DistilleryMenuHandler(this, ingredientItems), this);
         getServer().getPluginManager().registerEvents(new BreweryListener(this), this);
         getServer().getPluginManager().registerEvents(new AgingCaskEngine(this, ingredientItems, discoveries), this);
-        getServer().getPluginManager().registerEvents(new ConsumptionListener(this), this);
+        var consumption = new ConsumptionListener(this);
+        getServer().getPluginManager().registerEvents(consumption, this);
+        getServer().getScheduler().runTaskTimer(this, new ConsumptionRecoveryTask(consumption), 200L, 200L);
         getServer().getPluginManager().registerEvents(new CaskHygieneEngine(this), this);
         getServer().getPluginManager().registerEvents(new MethanolProducerEngine(this), this);
         getServer().getPluginManager().registerEvents(new StructureBreakListener(), this);
         getServer().getPluginManager().registerEvents(new CaskInteractListener(this), this);
 
         var brew = java.util.Objects.requireNonNull(getCommand("brew"), "brew command missing from plugin.yml");
-        var discoveryCommand = new DiscoveryCommand(this, discoveryQueries, discoveryMutations);
+        var discoveryCommand = new DiscoveryCommand(this, discoveryQueries, discoveryMutations, consumption);
         brew.setExecutor(discoveryCommand);
         brew.setTabCompleter(discoveryCommand);
 

@@ -16,12 +16,15 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
     private final JavaPlugin plugin;
     private final DiscoveryQueryRuntime queries;
     private final DiscoveryMutationRuntime mutations;
+    private final ConsumptionListener consumption;
     private final DiscoveryTextFormatter formatter = new DiscoveryTextFormatter();
 
-    public DiscoveryCommand(JavaPlugin plugin, DiscoveryQueryRuntime queries, DiscoveryMutationRuntime mutations) {
+    public DiscoveryCommand(JavaPlugin plugin, DiscoveryQueryRuntime queries,
+            DiscoveryMutationRuntime mutations, ConsumptionListener consumption) {
         this.plugin = Objects.requireNonNull(plugin);
         this.queries = Objects.requireNonNull(queries);
         this.mutations = Objects.requireNonNull(mutations);
+        this.consumption = Objects.requireNonNull(consumption);
     }
 
     @Override
@@ -42,6 +45,7 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
             case "visibility" -> { visibility(player, args); yield true; }
             case "share" -> { share(player, args); yield true; }
             case "revoke" -> { revoke(player, args); yield true; }
+            case "status" -> { status(player); yield true; }
             default -> { help(player); yield true; }
         };
     }
@@ -253,6 +257,19 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
         return Set.copyOf(fields);
     }
 
+    private void status(Player player) {
+        var condition = consumption.refresh(player, false);
+        var state = condition.state();
+        player.sendMessage("§d§lArcaneBrewery Status");
+        player.sendMessage("§7State: §f" + consumption.status(condition));
+        player.sendMessage("§7Intoxication: §f" + Math.round(state.intoxication()) + "/100");
+        player.sendMessage("§7Poisoning: §f" + Math.round(state.poisoning()) + "/100");
+        player.sendMessage("§7Tolerance: §f" + Math.round(state.tolerance()) + "/100");
+        player.sendMessage("§7Dependence: §f" + Math.round(state.dependence()) + "/100");
+        player.sendMessage("§7Hangover: §f" + Math.round(condition.hangover()) + "/100");
+        player.sendMessage("§7Withdrawal: §f" + Math.round(condition.withdrawal()) + "/100");
+    }
+
     private void help(Player player) {
         player.sendMessage("§d§lArcaneBrewery Recipes");
         player.sendMessage("§f/brew discoveries [page] §7— list recipes you discovered");
@@ -261,6 +278,7 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
         player.sendMessage("§f/brew visibility <fingerprint> <private|shared|public>");
         player.sendMessage("§f/brew share <fingerprint> <player|uuid> <full|partial> [fields]");
         player.sendMessage("§f/brew revoke <fingerprint> <player|uuid>");
+        player.sendMessage("§f/brew status §7— show intoxication and recovery state");
     }
 
     private void onMain(Runnable task) {
@@ -281,7 +299,7 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            return List.of("discoveries", "recipe", "rename", "visibility", "share", "revoke", "help").stream()
+            return List.of("discoveries", "recipe", "rename", "visibility", "share", "revoke", "status", "help").stream()
                     .filter(value -> value.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
         }
         if (args.length == 3 && args[0].equalsIgnoreCase("visibility")) {
