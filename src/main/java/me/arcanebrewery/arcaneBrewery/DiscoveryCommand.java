@@ -3,6 +3,7 @@ package me.arcanebrewery.arcaneBrewery;
 import me.arcanebrewery.arcaneBrewery.application.discovery.*;
 import me.arcanebrewery.arcaneBrewery.domain.discovery.*;
 import me.arcanebrewery.arcaneBrewery.domain.drink.DrinkFingerprint;
+import me.arcanebrewery.arcaneBrewery.adapter.bukkit.economy.BukkitMarketPlayerService;
 import org.bukkit.Bukkit;
 import org.bukkit.command.*;
 import org.bukkit.entity.Player;
@@ -17,14 +18,17 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
     private final DiscoveryQueryRuntime queries;
     private final DiscoveryMutationRuntime mutations;
     private final ConsumptionListener consumption;
+    private final BukkitMarketPlayerService market;
     private final DiscoveryTextFormatter formatter = new DiscoveryTextFormatter();
 
     public DiscoveryCommand(JavaPlugin plugin, DiscoveryQueryRuntime queries,
-            DiscoveryMutationRuntime mutations, ConsumptionListener consumption) {
+            DiscoveryMutationRuntime mutations, ConsumptionListener consumption,
+            BukkitMarketPlayerService market) {
         this.plugin = Objects.requireNonNull(plugin);
         this.queries = Objects.requireNonNull(queries);
         this.mutations = Objects.requireNonNull(mutations);
         this.consumption = Objects.requireNonNull(consumption);
+        this.market = Objects.requireNonNull(market);
     }
 
     @Override
@@ -46,6 +50,13 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
             case "share" -> { share(player, args); yield true; }
             case "revoke" -> { revoke(player, args); yield true; }
             case "status" -> { status(player); yield true; }
+            case "value" -> { market.value(player); yield true; }
+            case "sell" -> {
+                if (args.length == 1) market.quoteSale(player);
+                else if (args.length == 2 && args[1].equalsIgnoreCase("confirm")) market.confirmSale(player);
+                else player.sendMessage("§cUsage: /brew sell [confirm]");
+                yield true;
+            }
             default -> { help(player); yield true; }
         };
     }
@@ -279,6 +290,9 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
         player.sendMessage("§f/brew share <fingerprint> <player|uuid> <full|partial> [fields]");
         player.sendMessage("§f/brew revoke <fingerprint> <player|uuid>");
         player.sendMessage("§f/brew status §7— show intoxication and recovery state");
+        player.sendMessage("§f/brew value §7— inspect the held finished drink's market value");
+        player.sendMessage("§f/brew sell §7— request a sell quote for the held finished drink");
+        player.sendMessage("§f/brew sell confirm §7— confirm your active quote");
     }
 
     private void onMain(Runnable task) {
@@ -299,8 +313,12 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            return List.of("discoveries", "recipe", "rename", "visibility", "share", "revoke", "status", "help").stream()
+            return List.of("discoveries", "recipe", "rename", "visibility", "share", "revoke", "status", "value", "sell", "help").stream()
                     .filter(value -> value.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("sell")) {
+            return List.of("confirm").stream()
+                    .filter(value -> value.startsWith(args[1].toLowerCase(Locale.ROOT))).toList();
         }
         if (args.length == 3 && args[0].equalsIgnoreCase("visibility")) {
             return List.of("private", "shared", "public").stream()
