@@ -257,7 +257,7 @@ class SqliteDiscoveryRepositoryTest {
         var discovery = PlayerDiscovery.discover(OWNER, custom, TIME).rename(OWNER, "Moon'); DROP TABLE discoveries; --");
         assertEquals(discovery.snapshot(), saved(discovery).discovery().snapshot());
         assertEquals(1, repository.findOwnedBy(OWNER, 20, 0).size());
-        assertEquals(1, provider.schemaVersion());
+        assertEquals(2, provider.schemaVersion());
     }
 
     @Test
