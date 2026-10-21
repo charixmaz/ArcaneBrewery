@@ -4,10 +4,11 @@ public record MarketPricingProfile(
         double sellMultiplier,
         double buyMultiplier,
         double minimumPrice,
-        double maximumPrice
+        double maximumPrice,
+        long quoteLifetimeMillis
 ) {
     public static final MarketPricingProfile DEFAULT =
-            new MarketPricingProfile(0.75, 1.25, 0.01, 100_000.0);
+            new MarketPricingProfile(0.75, 1.25, 0.01, 100_000.0, 30_000L);
 
     public MarketPricingProfile {
         if (!Double.isFinite(sellMultiplier) || sellMultiplier < 0)
@@ -20,5 +21,7 @@ public record MarketPricingProfile(
             throw new IllegalArgumentException("minimum price must be finite and non-negative");
         if (!Double.isFinite(maximumPrice) || maximumPrice < minimumPrice)
             throw new IllegalArgumentException("maximum price must be finite and >= minimum price");
+        if (quoteLifetimeMillis <= 0)
+            throw new IllegalArgumentException("quote lifetime must be positive");
     }
 }
