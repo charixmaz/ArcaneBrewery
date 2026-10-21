@@ -6,6 +6,8 @@ import me.arcanebrewery.arcaneBrewery.adapter.bukkit.economy.MarketRuntimeSettin
 import me.arcanebrewery.arcaneBrewery.application.economy.MarketQuoteService;
 import me.arcanebrewery.arcaneBrewery.application.economy.*;
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.economy.OptionalArcaneEconomy;
+import me.arcanebrewery.arcaneBrewery.adapter.bukkit.economy.CanonicalMarketBottleReader;
+import me.arcanebrewery.arcaneBrewery.adapter.bukkit.economy.BukkitMarketAssetPort;
 import java.util.UUID;
 import java.util.concurrent.*;
 import me.arcanebrewery.arcaneBrewery.application.discovery.*;
@@ -25,6 +27,8 @@ public final class ArcaneBrewery extends JavaPlugin {
     private OptionalArcaneEconomy economy;
     private MarketSettlementRuntime marketSettlements;
     private ExecutorService marketWorker;
+    private RecoverableMarketTransactionJournal marketJournal;
+    private MarketAssetPort marketAssets;
 
     /** Integration entry point only: no market commands or inventory adapter yet.
      * Journal must be durable/idempotent; assets are invoked on the server thread.
@@ -36,6 +40,19 @@ public final class ArcaneBrewery extends JavaPlugin {
         var currentEconomy = economy;
         if (runtime == null || currentEconomy == null)
             return CompletableFuture.failedFuture(new IllegalStateException("market runtime unavailable"));
+        return runtime.settleSale(journal, assets, currentEconomy, player, asset, quote, transactionId);
+    }
+
+    /** Built-in durable sale path. No player-facing command is enabled yet. */
+    public CompletableFuture<MarketSettlementResult> settleMarketSale(
+            UUID player, MarketAsset asset, MarketQuote quote, UUID transactionId) {
+        var runtime = marketSettlements;
+        var currentEconomy = economy;
+        var journal = marketJournal;
+        var assets = marketAssets;
+        if (runtime == null || currentEconomy == null || journal == null || assets == null) {
+            return CompletableFuture.failedFuture(new IllegalStateException("market runtime unavailable"));
+        }
         return runtime.settleSale(journal, assets, currentEconomy, player, asset, quote, transactionId);
     }
 
@@ -71,6 +88,17 @@ public final class ArcaneBrewery extends JavaPlugin {
             );
             discoveryQueries = new DiscoveryQueryRuntime(storage.discoveries(), async);
             discoveryMutations = new DiscoveryMutationRuntime(storage.discoveries(), async);
+            marketJournal = storage.marketJournal();
+            marketAssets = new BukkitMarketAssetPort(
+                    new CanonicalMarketBottleReader(getName().toLowerCase(java.util.Locale.ROOT)),
+                    storage.marketEscrow());
+            int prepared = marketJournal.prepared(1000).size();
+            int unresolvedEscrow = storage.marketEscrow().unresolved(1000).size();
+            if (prepared > 0 || unresolvedEscrow > 0) {
+                getLogger().warning("Market recovery required: " + prepared
+                        + " prepared transaction(s), " + unresolvedEscrow
+                        + " unresolved escrow record(s). No automatic payout/refund was attempted.");
+            }
             getLogger().info("ArcaneBrewery storage ready (schema V" + storage.schemaVersion() + ").");
         } catch (RuntimeException failure) {
             getLogger().severe("ArcaneBrewery storage initialization failed: " + failure.getMessage());
@@ -131,6 +159,8 @@ public final class ArcaneBrewery extends JavaPlugin {
             }
         }
         marketQuotes = null;
+        marketJournal = null;
+        marketAssets = null;
         getLogger().info("ArcaneBrewery systems offline.");
     }
 }
