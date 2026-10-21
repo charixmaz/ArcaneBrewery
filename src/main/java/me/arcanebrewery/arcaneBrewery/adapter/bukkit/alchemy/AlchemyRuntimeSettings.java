@@ -15,8 +15,8 @@ public record AlchemyRuntimeSettings(
         Objects.requireNonNull(balance);
         Objects.requireNonNull(repairMaterial);
         Objects.requireNonNull(cleaningMaterial);
-        if (!repairMaterial.isItem() || !cleaningMaterial.isItem())
-            throw new IllegalArgumentException("maintenance materials must be items");
+        if (repairMaterial == Material.AIR || cleaningMaterial == Material.AIR)
+            throw new IllegalArgumentException("maintenance materials cannot be AIR");
         if (repairMaterial == cleaningMaterial)
             throw new IllegalArgumentException("repair and cleaning materials must differ");
     }
