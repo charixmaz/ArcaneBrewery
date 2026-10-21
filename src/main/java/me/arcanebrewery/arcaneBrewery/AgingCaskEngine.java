@@ -1,5 +1,14 @@
 package me.arcanebrewery.arcaneBrewery;
 
+import me.arcanebrewery.arcaneBrewery.adapter.bukkit.aging.AgingBatchMetadata;
+import me.arcanebrewery.arcaneBrewery.adapter.bukkit.aging.FinalDrinkMetadata;
+import me.arcanebrewery.arcaneBrewery.adapter.bukkit.fermentation.FermentationBatchMetadata;
+import me.arcanebrewery.arcaneBrewery.adapter.bukkit.ingredient.IngredientItemAdapter;
+import me.arcanebrewery.arcaneBrewery.application.aging.*;
+import me.arcanebrewery.arcaneBrewery.application.fermentation.FermentationBatchState;
+import me.arcanebrewery.arcaneBrewery.domain.discovery.DescriptiveNameGenerator;
+import me.arcanebrewery.arcaneBrewery.domain.quality.IngredientLot;
+
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -41,6 +50,11 @@ import java.util.Map;
 public class AgingCaskEngine implements Listener {
 
     private final JavaPlugin plugin;
+    private final IngredientItemAdapter ingredientItems;
+    private final FermentationBatchMetadata fermentationMetadata;
+    private final AgingBatchMetadata agingMetadata;
+    private final FinalDrinkMetadata finalDrinkMetadata;
+    private final AgingService agingService = new AgingService();
     private final NamespacedKey slotTimeKey;
     private final NamespacedKey recipeTypeKey;
     private final NamespacedKey barrelStorageKey;
@@ -48,8 +62,12 @@ public class AgingCaskEngine implements Listener {
     private final Map<Inventory, Block> inventorySourceMap = new HashMap<>();
     private final Map<Inventory, BukkitRunnable> liveVisualTasks = new HashMap<>();
 
-    public AgingCaskEngine(JavaPlugin plugin) {
+    public AgingCaskEngine(JavaPlugin plugin, IngredientItemAdapter ingredientItems) {
         this.plugin = plugin;
+        this.ingredientItems = java.util.Objects.requireNonNull(ingredientItems);
+        this.fermentationMetadata = new FermentationBatchMetadata(plugin);
+        this.agingMetadata = new AgingBatchMetadata(plugin);
+        this.finalDrinkMetadata = new FinalDrinkMetadata(plugin);
         this.slotTimeKey = new NamespacedKey(plugin, "slot_start_time");
         this.recipeTypeKey = new NamespacedKey(plugin, "brew_stage");
         this.barrelStorageKey = new NamespacedKey(plugin, "barrel_inventory_storage");
@@ -282,8 +300,12 @@ public class AgingCaskEngine implements Listener {
                             insertedItem.setAmount(1);
 
                             PotionMeta m = (PotionMeta) insertedItem.getItemMeta();
-                            if (m != null && m.getPersistentDataContainer().has(recipeTypeKey, PersistentDataType.STRING)) {
-                                m.getPersistentDataContainer().set(slotTimeKey, PersistentDataType.LONG, System.currentTimeMillis());
+                            if (m != null) {
+                                long now = System.currentTimeMillis();
+                                if (m.getPersistentDataContainer().has(recipeTypeKey, PersistentDataType.STRING)) {
+                                    m.getPersistentDataContainer().set(slotTimeKey, PersistentDataType.LONG, now);
+                                }
+                                beginCanonicalAging(m, physicalWood, isInfected, now);
                                 insertedItem.setItemMeta(m);
                             }
 
@@ -316,21 +338,21 @@ public class AgingCaskEngine implements Listener {
 
                 event.setCancelled(true);
 
-                int stars = CaskQualityEngine.calculateHarvestStars(plugin, clickedItem, physicalWood, barrelBlock);
-                String recipeKey = meta.getPersistentDataContainer().getOrDefault(recipeTypeKey, PersistentDataType.STRING, "WORT_BEER");
-                BreweryData.RecipeProfile profile = BreweryData.RECIPES.get(recipeKey);
-
-                String finalDrinkName = (profile != null) ? profile.name : "Ruined Stagnant Slop";
-
-                if (stars >= 1) {
-                    CaskQualityEngine.incrementBatchCounter(plugin, barrelBlock);
-                }
-
+                var canonical = finishCanonicalBatch(meta, physicalWood, isInfected);
                 event.setCurrentItem(null);
                 clearCompanionPane(inv, slot);
                 saveInventoryToBarrel(barrelBlock, inv);
 
-                giveFinishedBooze(player, stars, finalDrinkName);
+                if (canonical != null) {
+                    giveCanonicalFinishedBooze(player, canonical);
+                } else {
+                    int stars = CaskQualityEngine.calculateHarvestStars(plugin, clickedItem, physicalWood, barrelBlock);
+                    String recipeKey = meta.getPersistentDataContainer().getOrDefault(recipeTypeKey, PersistentDataType.STRING, "WORT_BEER");
+                    BreweryData.RecipeProfile profile = BreweryData.RECIPES.get(recipeKey);
+                    String finalDrinkName = (profile != null) ? profile.name : "Ruined Stagnant Slop";
+                    if (stars >= 1) CaskQualityEngine.incrementBatchCounter(plugin, barrelBlock);
+                    giveFinishedBooze(player, stars, finalDrinkName);
+                }
                 return;
             }
         }
@@ -343,7 +365,9 @@ public class AgingCaskEngine implements Listener {
                 if (meta != null && meta.getPersistentDataContainer().has(recipeTypeKey, PersistentDataType.STRING)
                         && !meta.getPersistentDataContainer().has(slotTimeKey, PersistentDataType.LONG)) {
 
-                    meta.getPersistentDataContainer().set(slotTimeKey, PersistentDataType.LONG, System.currentTimeMillis());
+                    long now = System.currentTimeMillis();
+                    meta.getPersistentDataContainer().set(slotTimeKey, PersistentDataType.LONG, now);
+                    beginCanonicalAging(meta, physicalWood, isInfected, now);
                     itemInSlot.setItemMeta(meta);
                 }
             }
@@ -469,6 +493,91 @@ public class AgingCaskEngine implements Listener {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private void beginCanonicalAging(PotionMeta meta, String physicalWood, boolean infected, long now) {
+        try {
+            var fermentation = fermentationMetadata.read(meta);
+            if (fermentation.isEmpty()
+                    || fermentation.get().status() != FermentationBatchState.Status.COMPLETED
+                    || agingMetadata.read(meta).isPresent()) return;
+            double cleanliness = infected ? 10.0 : 95.0;
+            var state = new AgingBatchState(AgingBatchState.VERSION, java.util.UUID.randomUUID(),
+                    new AgingSettings(physicalWood, 12.0, 18.0, cleanliness), now);
+            agingMetadata.write(meta, state);
+        } catch (IllegalArgumentException failure) {
+            plugin.getLogger().fine("Canonical aging metadata rejected: " + failure.getMessage());
+        }
+    }
+
+    private AgingResult finishCanonicalBatch(PotionMeta meta, String physicalWood, boolean infected) {
+        try {
+            var fermentation = fermentationMetadata.read(meta);
+            var aging = agingMetadata.read(meta);
+            if (fermentation.isEmpty() || aging.isEmpty()
+                    || fermentation.get().status() != FermentationBatchState.Status.COMPLETED) return null;
+
+            var fermentationState = fermentation.get();
+            var aged = aging.get();
+            if (!aged.settings().woodType().equalsIgnoreCase(physicalWood)) return null;
+
+            var lots = new java.util.TreeMap<String, IngredientLot>();
+            fermentationState.distillery().ingredientPurity().forEach((id, purity) ->
+                    lots.put(id, new IngredientLot(ingredientItems.registry().require(id).profile(), purity)));
+
+            double contaminationLoad = infected ? 100.0 : Math.max(0.0, 100.0 - aged.settings().caskCleanliness());
+            long seed = aged.batchId().getMostSignificantBits() ^ aged.batchId().getLeastSignificantBits();
+            return agingService.finish(
+                    fermentationState.fermentedDraft(),
+                    aged,
+                    System.currentTimeMillis(),
+                    lots,
+                    AgingBalance.wood(physicalWood),
+                    contaminationLoad,
+                    AgingBalance.targets(),
+                    seed
+            );
+        } catch (RuntimeException failure) {
+            plugin.getLogger().warning("Canonical cask harvest failed safely: " + failure.getMessage());
+            return null;
+        }
+    }
+
+    private void giveCanonicalFinishedBooze(Player player, AgingResult result) {
+        ItemStack alcohol = new ItemStack(Material.POTION);
+        PotionMeta meta = (PotionMeta) alcohol.getItemMeta();
+        if (meta == null) meta = (PotionMeta) Bukkit.getItemFactory().getItemMeta(Material.POTION);
+        if (meta == null) return;
+
+        double score = result.simulation().quality().overallScore();
+        int stars = qualityStars(score);
+        String drinkName = new DescriptiveNameGenerator().generate(result.process()).value();
+
+        meta.setDisplayName((score >= 75 ? "§6" : "§f") + drinkName);
+        meta.setLore(List.of(
+                "§7Quality: §f" + Math.round(score) + "/100",
+                "§7Contamination: §f" + Math.round(result.simulation().quality().contamination()) + "/100",
+                "§7Compatibility Rating: §e" + stars + "★",
+                "",
+                "§d§oRight-click to ingest product contents."
+        ));
+        finalDrinkMetadata.write(meta, result);
+        meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "alcohol_stars"),
+                PersistentDataType.INTEGER, stars);
+        alcohol.setItemMeta(meta);
+
+        player.getInventory().addItem(alcohol);
+        player.sendMessage("§a[Brewery] Bottled: " + drinkName + " (" + Math.round(score) + "/100)");
+    }
+
+    private int qualityStars(double score) {
+        if (score < 20) return 0;
+        if (score < 40) return 1;
+        if (score < 55) return 2;
+        if (score < 70) return 3;
+        if (score < 82) return 4;
+        if (score < 94) return 5;
+        return 6;
     }
 
     private void giveFinishedBooze(Player player, int stars, String drinkName) {

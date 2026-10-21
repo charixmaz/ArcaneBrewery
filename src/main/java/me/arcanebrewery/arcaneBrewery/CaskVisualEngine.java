@@ -72,6 +72,30 @@ public class CaskVisualEngine {
                     long elapsed = (System.currentTimeMillis() - startTime) / 1000;
                     String recipeKey = meta.getPersistentDataContainer().getOrDefault(recipeTypeKey, PersistentDataType.STRING, "UNKNOWN");
 
+                    NamespacedKey agingFormatKey = new NamespacedKey(plugin, "aging_format");
+                    NamespacedKey agingStartKey = new NamespacedKey(plugin, "aging_started_at");
+                    if (meta.getPersistentDataContainer().has(agingFormatKey, PersistentDataType.INTEGER)
+                            && meta.getPersistentDataContainer().has(agingStartKey, PersistentDataType.LONG)) {
+                        long canonicalStart = meta.getPersistentDataContainer().getOrDefault(
+                                agingStartKey, PersistentDataType.LONG, System.currentTimeMillis());
+                        long canonicalElapsed = Math.max(0, (System.currentTimeMillis() - canonicalStart) / 1000);
+                        long targetTime = me.arcanebrewery.arcaneBrewery.application.aging.AgingBalance.targets().agingSeconds();
+                        if (canonicalElapsed < targetTime) {
+                            setCustomPane(inv, indicatorSlot, Material.BLUE_STAINED_GLASS_PANE,
+                                    "§b● Canonical Aging Active", List.of(
+                                            "§7Progress: §e" + canonicalElapsed + "s / " + targetTime + "s",
+                                            "§7Quality is process-driven, not randomly rolled."
+                                    ));
+                        } else {
+                            setCustomPane(inv, indicatorSlot, Material.GREEN_STAINED_GLASS_PANE,
+                                    "§a● MATURED — READY TO BOTTLE", List.of(
+                                            "§7Shift-click potion left to finish the batch.",
+                                            "§7Further aging may alter final quality."
+                                    ));
+                        }
+                        continue;
+                    }
+
                     BreweryData.RecipeProfile profile = BreweryData.RECIPES.get(recipeKey);
 
                     if (recipeKey.equals("RUINED_UNWASHED") || profile == null) {
