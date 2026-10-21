@@ -14,6 +14,7 @@ public final class MarketQuoteService {
             long nowEpochMillis, UUID quoteId) {
         Objects.requireNonNull(asset);
         Objects.requireNonNull(side);
+        long expiresAt = Math.addExact(nowEpochMillis, pricing.quoteLifetimeMillis());
         double multiplier = side == MarketSide.PLAYER_SELLS
                 ? pricing.sellMultiplier() : pricing.buyMultiplier();
         double price = clamp(asset.value().units() * multiplier);
@@ -25,7 +26,8 @@ public final class MarketQuoteService {
                 side,
                 asset.value().units(),
                 round2(price),
-                nowEpochMillis
+                nowEpochMillis,
+                expiresAt
         );
     }
 
