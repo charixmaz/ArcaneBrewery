@@ -12,14 +12,14 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.plugin.java.JavaPlugin;
+import me.arcanebrewery.arcaneBrewery.adapter.bukkit.ingredient.IngredientItemAdapter;
 
 public class CauldronWasherEngine implements Listener {
 
-    private final JavaPlugin plugin;
+    private final IngredientItemAdapter ingredients;
 
-    public CauldronWasherEngine(JavaPlugin plugin) {
-        this.plugin = plugin;
+    public CauldronWasherEngine(IngredientItemAdapter ingredients) {
+        this.ingredients = java.util.Objects.requireNonNull(ingredients);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
@@ -51,11 +51,14 @@ public class CauldronWasherEngine implements Listener {
             }
 
             // Verify maximum purity hasn't already been reached
-            int currentPurity = IngredientPurityEngine.getPurity(plugin, heldItem);
+            int currentPurity = IngredientPurityEngine.getPurity(ingredients, heldItem);
             if (currentPurity >= 100) {
                 player.sendMessage("§a[Washer] This ingredient is already 100% pure!");
                 return;
             }
+
+            // Validate/copy the ingredient before consuming water or the held stack.
+            ItemStack washedResult = IngredientPurityEngine.processWashCycle(ingredients, heldItem);
 
             if (clicked.getBlockData() instanceof Levelled cauldronData) {
                 int currentLevel = cauldronData.getLevel();
@@ -69,9 +72,6 @@ public class CauldronWasherEngine implements Listener {
                 return;
             }
 
-            // Route item through the purity engine
-            ItemStack washedResult = IngredientPurityEngine.processWashCycle(plugin, heldItem);
-
             if (heldItem.getAmount() > 1) {
                 heldItem.setAmount(heldItem.getAmount() - 1);
                 player.getInventory().setItemInMainHand(heldItem);
@@ -82,7 +82,7 @@ public class CauldronWasherEngine implements Listener {
             player.getInventory().addItem(washedResult);
             player.getWorld().playSound(clicked.getLocation(), org.bukkit.Sound.ITEM_BUCKET_EMPTY, 1.0f, 1.3f);
 
-            int newPurity = IngredientPurityEngine.getPurity(plugin, washedResult);
+            int newPurity = IngredientPurityEngine.getPurity(ingredients, washedResult);
             if (newPurity == 100) {
                 player.sendMessage("§a[Washer] ✔ Sanitization complete. Contaminants fully removed!");
             } else {

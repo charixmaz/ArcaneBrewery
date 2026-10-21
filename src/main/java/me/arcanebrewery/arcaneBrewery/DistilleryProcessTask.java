@@ -83,11 +83,8 @@ public class DistilleryProcessTask {
         ItemStack ingredient = inv.getItem(4);
         if (ingredient == null) return;
 
-        NamespacedKey washedItemKey = new NamespacedKey(plugin, "washed_ingredient");
-        NamespacedKey premiumGrainKey = new NamespacedKey(plugin, "premium_grain_tag");
-
-        boolean isWashed = ingredient.hasItemMeta() && ingredient.getItemMeta().getPersistentDataContainer().has(washedItemKey, PersistentDataType.STRING);
-        boolean isPremium = ingredient.hasItemMeta() && ingredient.getItemMeta().getPersistentDataContainer().has(premiumGrainKey, PersistentDataType.STRING);
+        boolean isWashed = IngredientPurityEngine.hasLegacyWashedMarker(plugin, ingredient);
+        boolean isPremium = IngredientPurityEngine.isPremiumGrain(plugin, ingredient);
 
         String recipeType = "RUINED_UNWASHED";
         String finalName = "§8Ruined Unwashed Slop Base";
