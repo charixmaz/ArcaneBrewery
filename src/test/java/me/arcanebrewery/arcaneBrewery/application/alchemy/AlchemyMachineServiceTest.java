@@ -56,4 +56,16 @@ class AlchemyMachineServiceTest {
         assertThrows(IllegalArgumentException.class,
                 () -> service.combine(List.of(fire, fire, fire)));
     }
+
+    @Test
+    void timestampOverflowNeverBecomesReady() {
+        var state = new AlchemyMachineState(
+                AlchemyMachineState.VERSION,
+                UUID.randomUUID(),
+                Long.MAX_VALUE - 5,
+                10,
+                AlchemyMachineState.Status.PROCESSING
+        );
+        assertFalse(state.ready(Long.MAX_VALUE));
+    }
 }
