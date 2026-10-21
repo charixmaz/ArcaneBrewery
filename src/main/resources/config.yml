@@ -1,0 +1,21 @@
+alchemy:
+  processing-seconds: 8.0
+
+  thresholds:
+    unstable: 55.0
+    failed: 75.0
+    critical: 90.0
+
+  weights:
+    additive-load: 18.0
+    diversity: 16.0
+    integrity-loss: 0.45
+    contamination: 0.35
+
+  critical-explosion-power: 1.5
+
+  maintenance:
+    repair-material: IRON_INGOT
+    cleaning-material: SPONGE
+    repair-integrity: 20.0
+    cleaning-amount: 25.0
