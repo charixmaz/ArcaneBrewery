@@ -26,7 +26,7 @@ class MarketSettlementServiceTest {
 
         assertEquals(MarketSettlementResult.Status.COMMITTED, result.status());
         assertEquals(75.0, result.amount());
-        assertEquals(List.of("remove", "deposit", "commit"), journaledOrder(journal, assets, economy));
+        assertEquals(List.of("remove", "deposit", "finalize", "commit"), journaledOrder(journal, assets, economy));
         assertEquals(1, economy.deposits);
         assertEquals(0, assets.restores);
     }
@@ -126,8 +126,9 @@ class MarketSettlementServiceTest {
         return switch (value) {
             case "remove" -> 0;
             case "deposit" -> 1;
-            case "commit" -> 2;
-            default -> 3;
+            case "finalize" -> 2;
+            case "commit" -> 3;
+            default -> 4;
         };
     }
 
@@ -160,6 +161,7 @@ class MarketSettlementServiceTest {
         boolean restoreSucceeds = true;
         int removes;
         int restores;
+        int finalizes;
 
         public boolean removeForSale(UUID playerId, MarketAsset asset, UUID transactionId) {
             removes++;
@@ -170,6 +172,11 @@ class MarketSettlementServiceTest {
         public boolean restoreAfterFailedSale(UUID playerId, MarketAsset asset, UUID transactionId) {
             restores++;
             return restoreSucceeds;
+        }
+
+        public void finalizeSale(UUID playerId, MarketAsset asset, UUID transactionId) {
+            finalizes++;
+            events.add("finalize");
         }
     }
 
