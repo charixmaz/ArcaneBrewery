@@ -15,7 +15,7 @@ commands:
     permission: arcaneeconomy.pay
   eco:
     description: Administrative economy commands.
-    usage: /eco <give|take|set> <player> <amount>
+    usage: /eco <give|take|set> <player> <amount> or /eco history <player> [limit]
     permission: arcaneeconomy.admin
 permissions:
   arcaneeconomy.balance:
