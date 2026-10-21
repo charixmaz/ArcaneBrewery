@@ -4,6 +4,7 @@ import me.arcanebrewery.arcaneBrewery.application.aging.AgingResult;
 import me.arcanebrewery.arcaneBrewery.application.alchemy.*;
 import me.arcanebrewery.arcaneBrewery.application.consumption.DrinkConsumptionProfile;
 import me.arcanebrewery.arcaneBrewery.application.consumption.DrinkStrengthCalculator;
+import me.arcanebrewery.arcaneBrewery.application.economy.DrinkValue;
 import org.bukkit.NamespacedKey;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
@@ -14,7 +15,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 public final class FinalDrinkMetadata {
-    public static final int VERSION = 3;
+    public static final int VERSION = 4;
     private final String namespace;
     private final DrinkStrengthCalculator strength = new DrinkStrengthCalculator();
 
@@ -30,7 +31,7 @@ public final class FinalDrinkMetadata {
         return new NamespacedKey(namespace, name);
     }
 
-    public void write(ItemMeta meta, AgingResult result, AlchemyResult alchemy) {
+    public void write(ItemMeta meta, AgingResult result, AlchemyResult alchemy, DrinkValue value) {
         var data = meta.getPersistentDataContainer();
         data.set(key("drink_format"), PersistentDataType.INTEGER, VERSION);
         data.set(key("drink_fingerprint"), PersistentDataType.STRING, result.simulation().fingerprint().value());
@@ -43,6 +44,12 @@ public final class FinalDrinkMetadata {
         data.set(key("drink_alchemy_potency"), PersistentDataType.DOUBLE, alchemy.potency());
         data.set(key("drink_alchemy_instability"), PersistentDataType.DOUBLE, alchemy.instability());
         data.set(key("drink_alchemy_dangerous"), PersistentDataType.BYTE, (byte) (alchemy.dangerousReaction() ? 1 : 0));
+        data.set(key("drink_value_version"), PersistentDataType.INTEGER, value.version());
+        data.set(key("drink_value_units"), PersistentDataType.DOUBLE, value.units());
+        data.set(key("drink_value_quality"), PersistentDataType.DOUBLE, value.qualityComponent());
+        data.set(key("drink_value_process"), PersistentDataType.DOUBLE, value.processComponent());
+        data.set(key("drink_value_alchemy"), PersistentDataType.DOUBLE, value.alchemyComponent());
+        data.set(key("drink_value_contamination_penalty"), PersistentDataType.DOUBLE, value.contaminationPenalty());
         data.set(key("drink_stage"), PersistentDataType.STRING, "FINISHED");
     }
 
