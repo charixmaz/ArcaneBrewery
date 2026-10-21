@@ -1,6 +1,7 @@
 package me.arcanebrewery.arcaneBrewery.adapter.bukkit.aging;
 
 import me.arcanebrewery.arcaneBrewery.application.aging.AgingResult;
+import me.arcanebrewery.arcaneBrewery.application.alchemy.*;
 import me.arcanebrewery.arcaneBrewery.application.consumption.DrinkConsumptionProfile;
 import me.arcanebrewery.arcaneBrewery.application.consumption.DrinkStrengthCalculator;
 import org.bukkit.NamespacedKey;
@@ -13,7 +14,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 public final class FinalDrinkMetadata {
-    public static final int VERSION = 2;
+    public static final int VERSION = 3;
     private final String namespace;
     private final DrinkStrengthCalculator strength = new DrinkStrengthCalculator();
 
@@ -29,7 +30,7 @@ public final class FinalDrinkMetadata {
         return new NamespacedKey(namespace, name);
     }
 
-    public void write(ItemMeta meta, AgingResult result) {
+    public void write(ItemMeta meta, AgingResult result, AlchemyResult alchemy) {
         var data = meta.getPersistentDataContainer();
         data.set(key("drink_format"), PersistentDataType.INTEGER, VERSION);
         data.set(key("drink_fingerprint"), PersistentDataType.STRING, result.simulation().fingerprint().value());
@@ -37,6 +38,11 @@ public final class FinalDrinkMetadata {
         data.set(key("drink_contamination"), PersistentDataType.DOUBLE, result.simulation().quality().contamination());
         data.set(key("drink_magical_potency"), PersistentDataType.DOUBLE, result.simulation().quality().magicalPotency());
         data.set(key("drink_strength"), PersistentDataType.DOUBLE, strength.calculate(result.process()));
+        data.set(key("drink_alchemy_effect"), PersistentDataType.STRING, alchemy.effect().name());
+        data.set(key("drink_alchemy_affinity"), PersistentDataType.DOUBLE, alchemy.affinity());
+        data.set(key("drink_alchemy_potency"), PersistentDataType.DOUBLE, alchemy.potency());
+        data.set(key("drink_alchemy_instability"), PersistentDataType.DOUBLE, alchemy.instability());
+        data.set(key("drink_alchemy_dangerous"), PersistentDataType.BYTE, (byte) (alchemy.dangerousReaction() ? 1 : 0));
         data.set(key("drink_stage"), PersistentDataType.STRING, "FINISHED");
     }
 
@@ -45,7 +51,7 @@ public final class FinalDrinkMetadata {
         Integer version = data.get(key("drink_format"), PersistentDataType.INTEGER);
         String stage = data.get(key("drink_stage"), PersistentDataType.STRING);
         if (version == null || stage == null) return Optional.empty();
-        if (version != VERSION || !"FINISHED".equals(stage)) return Optional.empty();
+        if ((version < 2 || version > VERSION) || !"FINISHED".equals(stage)) return Optional.empty();
 
         Double drinkStrength = data.get(key("drink_strength"), PersistentDataType.DOUBLE);
         Double quality = data.get(key("drink_quality"), PersistentDataType.DOUBLE);
@@ -61,6 +67,34 @@ public final class FinalDrinkMetadata {
         try {
             return Optional.of(new DrinkConsumptionProfile(
                     drinkStrength, quality, contamination, magicalPotency));
+        } catch (IllegalArgumentException malformed) {
+            return Optional.empty();
+        }
+    }
+
+    public Optional<AlchemyResult> readAlchemy(ItemMeta meta) {
+        var data = meta.getPersistentDataContainer();
+        Integer version = data.get(key("drink_format"), PersistentDataType.INTEGER);
+        if (version == null || version < 3) return Optional.empty();
+
+        String effect = data.get(key("drink_alchemy_effect"), PersistentDataType.STRING);
+        Double affinity = data.get(key("drink_alchemy_affinity"), PersistentDataType.DOUBLE);
+        Double potency = data.get(key("drink_alchemy_potency"), PersistentDataType.DOUBLE);
+        Double instability = data.get(key("drink_alchemy_instability"), PersistentDataType.DOUBLE);
+        Byte dangerous = data.get(key("drink_alchemy_dangerous"), PersistentDataType.BYTE);
+
+        if (effect == null || affinity == null || potency == null || instability == null || dangerous == null) {
+            return Optional.empty();
+        }
+
+        try {
+            return Optional.of(new AlchemyResult(
+                    AlchemyEffect.valueOf(effect),
+                    affinity,
+                    potency,
+                    instability,
+                    dangerous != 0
+            ));
         } catch (IllegalArgumentException malformed) {
             return Optional.empty();
         }
