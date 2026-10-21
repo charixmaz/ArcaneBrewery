@@ -92,6 +92,12 @@ public final class AlchemyMachineHandler implements Listener {
         boolean top = event.getClickedInventory() == gui;
         boolean processing = isProcessing(core);
 
+        if (processing && event.isShiftClick()) {
+            event.setCancelled(true);
+            ((Player) event.getWhoClicked()).sendMessage("§c[Alchemy] Inputs are locked while infusing.");
+            return;
+        }
+
         if (top && slot == START_SLOT) {
             event.setCancelled(true);
             if (processing) {
@@ -216,6 +222,12 @@ public final class AlchemyMachineHandler implements Listener {
         ItemStack base = gui.getItem(BASE_SLOT);
         if (base == null || base.getType() != Material.POTION || !(base.getItemMeta() instanceof PotionMeta meta)) return;
 
+        if (preparation.read(meta).isPresent()) {
+            writeState(core, current.complete(System.currentTimeMillis()));
+            paint(gui, false);
+            return;
+        }
+
         List<AlchemyCatalyst> catalysts = catalysts(gui);
         if (catalysts.isEmpty()) return;
 
@@ -230,8 +242,8 @@ public final class AlchemyMachineHandler implements Listener {
 
         consumeOne(gui, CATALYST_A);
         consumeOne(gui, CATALYST_B);
-        writeState(core, current.complete(System.currentTimeMillis()));
         saveInventory(core, gui);
+        writeState(core, current.complete(System.currentTimeMillis()));
         paint(gui, false);
 
         for (var viewer : gui.getViewers()) {
