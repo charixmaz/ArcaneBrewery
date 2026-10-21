@@ -36,9 +36,9 @@ public final class BukkitMarketAssetPort implements MarketAssetPort {
             ItemStack candidate = inventory.getItem(i);
             var read = reader.read(candidate);
             if (read.isPresent() && read.get().equals(asset)) {
-                if (slot != -1) return false; // ambiguous duplicate asset; require explicit single match
                 slot = i;
                 exact = candidate;
+                break;
             }
         }
         if (slot < 0 || exact == null) return false;
