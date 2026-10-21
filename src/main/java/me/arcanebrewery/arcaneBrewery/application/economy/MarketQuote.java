@@ -11,7 +11,8 @@ public record MarketQuote(
         MarketSide side,
         double intrinsicValueUnits,
         double price,
-        long createdAtEpochMillis
+        long createdAtEpochMillis,
+        long expiresAtEpochMillis
 ) {
     public static final int VERSION = 1;
 
@@ -29,13 +30,17 @@ public record MarketQuote(
             throw new IllegalArgumentException("intrinsic value must be finite and non-negative");
         if (!Double.isFinite(price) || price < 0)
             throw new IllegalArgumentException("price must be finite and non-negative");
-        if (createdAtEpochMillis < 0)
-            throw new IllegalArgumentException("quote timestamp must be non-negative");
+        if (createdAtEpochMillis < 0 || expiresAtEpochMillis <= createdAtEpochMillis)
+            throw new IllegalArgumentException("invalid quote lifetime");
     }
 
     public boolean matches(MarketAsset asset) {
         return fingerprint.equals(asset.fingerprint())
                 && assetToken.equals(asset.token())
                 && Double.compare(intrinsicValueUnits, asset.value().units()) == 0;
+    }
+
+    public boolean expired(long nowEpochMillis) {
+        return nowEpochMillis >= expiresAtEpochMillis;
     }
 }
