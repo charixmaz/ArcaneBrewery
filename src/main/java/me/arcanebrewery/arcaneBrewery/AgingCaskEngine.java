@@ -2,6 +2,7 @@ package me.arcanebrewery.arcaneBrewery;
 
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.aging.AgingBatchMetadata;
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.aging.FinalDrinkMetadata;
+import me.arcanebrewery.arcaneBrewery.adapter.bukkit.alchemy.AlchemyPreparationMetadata;
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.fermentation.FermentationBatchMetadata;
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.ingredient.IngredientItemAdapter;
 import me.arcanebrewery.arcaneBrewery.application.aging.*;
@@ -59,6 +60,7 @@ public class AgingCaskEngine implements Listener {
     private final FermentationBatchMetadata fermentationMetadata;
     private final AgingBatchMetadata agingMetadata;
     private final FinalDrinkMetadata finalDrinkMetadata;
+    private final AlchemyPreparationMetadata alchemyPreparationMetadata;
     private final DiscoveryRuntime discoveries;
     private final AgingService agingService = new AgingService();
     private final AlchemyEngine alchemyEngine;
@@ -76,6 +78,7 @@ public class AgingCaskEngine implements Listener {
         this.fermentationMetadata = new FermentationBatchMetadata(plugin);
         this.agingMetadata = new AgingBatchMetadata(plugin);
         this.finalDrinkMetadata = new FinalDrinkMetadata(plugin);
+        this.alchemyPreparationMetadata = new AlchemyPreparationMetadata(plugin);
         this.alchemyEngine = new AlchemyEngine(ingredientItems.registry());
         this.slotTimeKey = new NamespacedKey(plugin, "slot_start_time");
         this.recipeTypeKey = new NamespacedKey(plugin, "brew_stage");
@@ -536,6 +539,8 @@ public class AgingCaskEngine implements Listener {
 
             double contaminationLoad = infected ? 100.0 : Math.max(0.0, 100.0 - aged.settings().caskCleanliness());
             long seed = aged.batchId().getMostSignificantBits() ^ aged.batchId().getLeastSignificantBits();
+            var preparation = alchemyPreparationMetadata.read(meta);
+            var additives = preparation.map(p -> p.additives()).orElseGet(java.util.Map::of);
             return agingService.finish(
                     fermentationState.fermentedDraft(),
                     aged,
@@ -544,7 +549,8 @@ public class AgingCaskEngine implements Listener {
                     AgingBalance.wood(physicalWood),
                     contaminationLoad,
                     AgingBalance.targets(),
-                    seed
+                    seed,
+                    additives
             );
         } catch (RuntimeException failure) {
             plugin.getLogger().warning("Canonical cask harvest failed safely: " + failure.getMessage());
