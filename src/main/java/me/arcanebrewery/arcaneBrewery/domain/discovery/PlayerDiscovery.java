@@ -59,6 +59,26 @@ public final class PlayerDiscovery {
     public DrinkName displayName() { return canonicalName.orElse(temporaryName); }
     public DiscoveryVisibility visibility() { return visibility; }
 
+    /** Trusted state export. Player-facing code must continue using knowledgeFor instead. */
+    public DiscoverySnapshot snapshot() {
+        Map<UUID, RecipeGrant> exported = new HashMap<>();
+        grants.forEach((recipient, grant) -> exported.put(recipient, grant.partial()
+                .map(disclosure -> RecipeGrant.partial(disclosure.fields().keySet()))
+                .orElseGet(RecipeGrant::fullRecipe)));
+        return new DiscoverySnapshot(discovererId, fingerprint, process, discoveredAt, temporaryName,
+                canonicalName, visibility, exported);
+    }
+
+    public static PlayerDiscovery restore(DiscoverySnapshot snapshot) {
+        Objects.requireNonNull(snapshot, "snapshot");
+        Map<UUID, Grant> restored = new HashMap<>();
+        snapshot.grants().forEach((recipient, grant) -> restored.put(recipient, grant.full()
+                ? Grant.full() : Grant.partial(RecipeDisclosure.from(snapshot.process(), grant.fields()))));
+        return new PlayerDiscovery(snapshot.discovererId(), snapshot.fingerprint(), snapshot.process(),
+                snapshot.discoveredAt(), snapshot.temporaryName(), snapshot.canonicalName(),
+                snapshot.visibility(), restored);
+    }
+
     public PlayerDiscovery rename(UUID actor, String name) {
         requireOwner(actor);
         if (renameUsed()) throw new IllegalStateException("discovery has already been renamed");
