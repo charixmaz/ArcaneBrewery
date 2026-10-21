@@ -1,7 +1,12 @@
 package me.arcanebrewery.arcaneBrewery.application.storage;
 
+import me.arcanebrewery.arcaneBrewery.application.economy.MarketEscrowStore;
+import me.arcanebrewery.arcaneBrewery.application.economy.RecoverableMarketTransactionJournal;
+
 public interface StorageProvider extends AutoCloseable {
     DiscoveryRepository discoveries();
+    RecoverableMarketTransactionJournal marketJournal();
+    MarketEscrowStore marketEscrow();
     int schemaVersion();
     @Override void close();
 }
