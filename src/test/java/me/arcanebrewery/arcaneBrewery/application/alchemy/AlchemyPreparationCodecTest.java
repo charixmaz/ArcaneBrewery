@@ -39,4 +39,22 @@ class AlchemyPreparationCodecTest {
     void malformedPayloadIsRejected() {
         assertThrows(IllegalArgumentException.class, () -> codec.decodeBase64("not-base64"));
     }
+
+    @Test
+    void malformedUtf8IsRejected() {
+        var raw = new java.io.ByteArrayOutputStream();
+        try (var out = new java.io.DataOutputStream(raw)) {
+            out.writeInt(0x41425052);
+            out.writeInt(1);
+            out.writeInt(1);
+            out.writeInt(2);
+            out.writeByte(0xC3);
+            out.writeByte(0x28);
+            out.writeDouble(1.0);
+        } catch (java.io.IOException impossible) {
+            throw new AssertionError(impossible);
+        }
+        String encoded = java.util.Base64.getEncoder().encodeToString(raw.toByteArray());
+        assertThrows(IllegalArgumentException.class, () -> codec.decodeBase64(encoded));
+    }
 }
