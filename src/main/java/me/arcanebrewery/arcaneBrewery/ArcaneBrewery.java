@@ -1,6 +1,7 @@
 package me.arcanebrewery.arcaneBrewery;
 
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.ingredient.*;
+import me.arcanebrewery.arcaneBrewery.adapter.bukkit.alchemy.AlchemyRuntimeSettings;
 import me.arcanebrewery.arcaneBrewery.application.discovery.*;
 import me.arcanebrewery.arcaneBrewery.application.ingredient.BuiltInIngredients;
 import me.arcanebrewery.arcaneBrewery.application.storage.StorageProvider;
@@ -22,7 +23,17 @@ public final class ArcaneBrewery extends JavaPlugin {
     @Override
     public void onEnable() {
         MessageConfig.setup(this);
+        saveDefaultConfig();
         ingredientItems = new IngredientItemAdapter(BuiltInIngredients.registry(), new IngredientMetadataCodec(this));
+
+        AlchemyRuntimeSettings alchemySettings;
+        try {
+            alchemySettings = AlchemyRuntimeSettings.from(getConfig());
+        } catch (RuntimeException failure) {
+            getLogger().severe("ArcaneBrewery configuration is invalid: " + failure.getMessage());
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
 
         try {
             storage = new SqliteStorageProvider(getDataFolder().toPath().resolve("arcanebrewery.db"));
@@ -45,7 +56,7 @@ public final class ArcaneBrewery extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new CauldronWasherEngine(ingredientItems), this);
         getServer().getPluginManager().registerEvents(new DistilleryMenuHandler(this, ingredientItems), this);
         getServer().getPluginManager().registerEvents(new BreweryListener(this), this);
-        alchemyMachines = new AlchemyMachineHandler(this);
+        alchemyMachines = new AlchemyMachineHandler(this, alchemySettings);
         getServer().getPluginManager().registerEvents(alchemyMachines, this);
         getServer().getScheduler().runTask(this, alchemyMachines::resumeLoadedMachines);
         getServer().getPluginManager().registerEvents(new AgingCaskEngine(this, ingredientItems, discoveries), this);
