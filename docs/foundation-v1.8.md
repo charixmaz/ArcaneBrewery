@@ -51,3 +51,8 @@ A persistence failure does not delete or duplicate the already-finished bottle. 
 ## Next step
 
 The next milestone should add player-facing recipe/discovery commands or GUI projections and then begin consumption/intoxication mechanics. Marketplace/economy remains later.
+
+
+## Verification
+
+The branch CI executes `mvn --batch-mode clean verify` on Java 25 after runtime discovery integration. This validates the cumulative V1.7 cask changes and V1.8 storage/discovery wiring together.
