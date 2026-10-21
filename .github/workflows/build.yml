@@ -25,5 +25,8 @@ jobs:
           java-version: '25'
           cache: maven
 
-      - name: Build and test
+      - name: Build ArcaneBrewery
         run: mvn --batch-mode clean verify
+
+      - name: Build ArcaneEconomy
+        run: mvn --batch-mode -f arcane-economy/pom.xml clean verify
