@@ -65,14 +65,9 @@ public final class AlchemyMachineHandler implements Listener {
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
         Block core = event.getClickedBlock();
         if (core == null || core.getType() != Material.ENCHANTING_TABLE) return;
+        if (!AlchemyStructureScanner.isValid(core)) return;
 
         event.setCancelled(true);
-        if (!AlchemyStructureScanner.isValid(core)) {
-            event.getPlayer().sendMessage("§c[Alchemy] Invalid crucible structure.");
-            event.getPlayer().sendMessage("§7Requires Crying Obsidian below and an adjacent Amethyst Block.");
-            return;
-        }
-
         Inventory gui = Bukkit.createInventory(null, 9, TITLE);
         sources.put(gui, core);
         loadInventory(core, gui);
@@ -184,6 +179,12 @@ public final class AlchemyMachineHandler implements Listener {
         BukkitRunnable task = new BukkitRunnable() {
             @Override
             public void run() {
+                if (!AlchemyStructureScanner.isValid(core)) {
+                    activeTasks.remove(key);
+                    cancel();
+                    return;
+                }
+
                 AlchemyMachineState current = readState(core);
                 if (current == null || current.status() == AlchemyMachineState.Status.COMPLETED) {
                     activeTasks.remove(key);
