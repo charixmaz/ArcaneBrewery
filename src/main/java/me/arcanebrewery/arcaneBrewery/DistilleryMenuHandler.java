@@ -1,5 +1,11 @@
 package me.arcanebrewery.arcaneBrewery;
 
+import me.arcanebrewery.arcaneBrewery.adapter.bukkit.distillery.DistilleryBatchMetadata;
+import me.arcanebrewery.arcaneBrewery.adapter.bukkit.distillery.LegacyWortBridge;
+import me.arcanebrewery.arcaneBrewery.adapter.bukkit.ingredient.IngredientItemAdapter;
+import me.arcanebrewery.arcaneBrewery.adapter.bukkit.ingredient.MachineIngredientExtractor;
+import me.arcanebrewery.arcaneBrewery.application.distillery.*;
+
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -30,22 +36,33 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 public class DistilleryMenuHandler implements Listener {
+    private static final long PROCESS_DURATION_MILLIS = 10_000L;
 
     private final JavaPlugin plugin;
     private final NamespacedKey recipeTypeKey;
     private final NamespacedKey purityKey;
     private final NamespacedKey distilleryStorageKey;
-
+    private final NamespacedKey batchStateKey;
     private final Map<Inventory, Block> distillerySourceMap = new HashMap<>();
-    private final Map<Block, BukkitRunnable> activeBoilTasks = new HashMap<>();
+    private final Map<MachineLocation, BukkitRunnable> activeBoilTasks = new HashMap<>();
 
-    public DistilleryMenuHandler(JavaPlugin plugin) {
+    private final MachineIngredientExtractor ingredientExtractor;
+    private final DistilleryService distilleryService = new DistilleryService();
+    private final DistilleryStateCodec stateCodec = new DistilleryStateCodec();
+    private final DistilleryBatchMetadata batchMetadata;
+    private final LegacyWortBridge legacyWortBridge = new LegacyWortBridge();
+
+    public DistilleryMenuHandler(JavaPlugin plugin, IngredientItemAdapter ingredientItems) {
         this.plugin = plugin;
         this.recipeTypeKey = new NamespacedKey(plugin, "brew_stage");
         this.purityKey = new NamespacedKey(plugin, "ingredient_purity");
         this.distilleryStorageKey = new NamespacedKey(plugin, "distillery_inventory_storage");
+        this.batchStateKey = new NamespacedKey(plugin, "distillery_batch_state");
+        this.ingredientExtractor = new MachineIngredientExtractor(ingredientItems);
+        this.batchMetadata = new DistilleryBatchMetadata(plugin);
     }
 
     @EventHandler
@@ -55,15 +72,251 @@ public class DistilleryMenuHandler implements Listener {
         if (block == null || block.getType() != Material.BREWING_STAND) return;
 
         event.setCancelled(true);
-        Player player = event.getPlayer();
-
         Inventory distilleryGui = Bukkit.createInventory(null, 9, "§8Industrial Core Distillery");
-
         distillerySourceMap.put(distilleryGui, block);
         loadDistilleryFromBlock(block, distilleryGui);
-        setupBaseGuiLayout(distilleryGui, activeBoilTasks.containsKey(block));
+        recoverBatch(block, distilleryGui);
+        setupBaseGuiLayout(distilleryGui, isProcessing(block));
+        event.getPlayer().openInventory(distilleryGui);
+    }
 
-        player.openInventory(distilleryGui);
+    @EventHandler
+    public void onDistilleryClick(InventoryClickEvent event) {
+        Inventory inv = event.getInventory();
+        if (!event.getView().getTitle().equals("§8Industrial Core Distillery")) return;
+
+        int slot = event.getSlot();
+        if (event.getClickedInventory() == inv && slot != 0 && slot != 1 && slot != 2 && slot != 4) {
+            event.setCancelled(true);
+            return;
+        }
+
+        Player player = (Player) event.getWhoClicked();
+        Block block = distillerySourceMap.get(inv);
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (block == null) return;
+            saveDistilleryToBlock(block, inv);
+
+            ItemStack ingredient = inv.getItem(4);
+            if (ingredient == null || !hasValidBottles(inv)) return;
+
+            boolean phaseTwo = isAttemptingPhaseTwoRefinement(inv);
+            int currentPurity = IngredientPurityEngine.getPurity(plugin, ingredient);
+            if (currentPurity == 0 && !phaseTwo) {
+                player.sendMessage(MessageConfig.get("distillery_wash_first"));
+                return;
+            }
+            if (phaseTwo && ingredient.getType() != Material.GOLDEN_APPLE) {
+                player.sendMessage(MessageConfig.get("distillery_needs_catalyst"));
+                return;
+            }
+
+            if (!isProcessing(block)) {
+                try {
+                    startDistillation(block, inv);
+                } catch (RuntimeException failure) {
+                    player.sendMessage("§cThis item cannot be processed by the distillery.");
+                    plugin.getLogger().fine("Distillery rejected input: " + failure.getMessage());
+                }
+            }
+        }, 1L);
+    }
+
+    @EventHandler
+    public void onDistilleryClose(InventoryCloseEvent event) {
+        Inventory inv = event.getInventory();
+        Block block = distillerySourceMap.remove(inv);
+        if (block != null) saveDistilleryToBlock(block, inv);
+    }
+
+    private void startDistillation(Block block, Inventory inv) {
+        if (readState(block) != null && readState(block).status() == DistilleryBatchState.Status.PROCESSING) return;
+        var extracted = ingredientExtractor.extract(inv, 4);
+        var state = distilleryService.start(machineLocation(block), extracted, DistillationControls.DEFAULT,
+                System.currentTimeMillis(), PROCESS_DURATION_MILLIS, UUID.randomUUID());
+        writeState(block, state);
+        schedule(block, state);
+    }
+
+    private void recoverBatch(Block block, Inventory inv) {
+        DistilleryBatchState state = readState(block);
+        if (state == null || state.status() == DistilleryBatchState.Status.COMPLETED) return;
+        if (state.ready(System.currentTimeMillis())) {
+            completeBatch(block, inv, state);
+        } else if (!activeBoilTasks.containsKey(state.machine())) {
+            schedule(block, state);
+        }
+    }
+
+    private void schedule(Block block, DistilleryBatchState state) {
+        MachineLocation machine = state.machine();
+        if (activeBoilTasks.containsKey(machine)) return;
+        updateAllOpenGuisForBlock(block, true);
+
+        BukkitRunnable task = new BukkitRunnable() {
+            @Override
+            public void run() {
+                DistilleryBatchState current = readState(block);
+                if (current == null || current.status() == DistilleryBatchState.Status.COMPLETED) {
+                    activeBoilTasks.remove(machine);
+                    cancel();
+                    return;
+                }
+
+                if (block.getWorld().isChunkLoaded(block.getX() >> 4, block.getZ() >> 4)) {
+                    block.getWorld().spawnParticle(Particle.SMOKE, block.getLocation().add(0.5, 1.2, 0.5), 4, 0.1, 0.1, 0.1, 0.02);
+                    block.getWorld().playSound(block.getLocation(), Sound.BLOCK_BREWING_STAND_BREW, 0.7f, 1.2f);
+                }
+
+                if (current.ready(System.currentTimeMillis())) {
+                    Inventory target = openInventoryFor(block);
+                    if (target == null) {
+                        target = Bukkit.createInventory(null, 9);
+                        loadDistilleryFromBlock(block, target);
+                    }
+                    completeBatch(block, target, current);
+                    if (!distillerySourceMap.containsKey(target)) saveDistilleryToBlock(block, target);
+                    activeBoilTasks.remove(machine);
+                    cancel();
+                }
+            }
+        };
+        activeBoilTasks.put(machine, task);
+        task.runTaskTimer(plugin, 0L, 20L);
+    }
+
+    private void completeBatch(Block block, Inventory inv, DistilleryBatchState expected) {
+        DistilleryBatchState current = readState(block);
+        if (current == null || current.status() == DistilleryBatchState.Status.COMPLETED) return;
+        if (!current.batchId().equals(expected.batchId()) || !current.ready(System.currentTimeMillis())) return;
+
+        if (isAttemptingPhaseTwoRefinement(inv)) {
+            executeLegacyRefinement(inv);
+        } else {
+            executeCanonicalDistillation(inv, current);
+        }
+
+        writeState(block, current.complete(System.currentTimeMillis()));
+        saveDistilleryToBlock(block, inv);
+        setupBaseGuiLayout(inv, false);
+
+        if (!inv.getViewers().isEmpty() && inv.getViewers().getFirst() instanceof Player player) {
+            player.sendMessage(MessageConfig.get("distillery_success"));
+        }
+        if (block.getWorld().isChunkLoaded(block.getX() >> 4, block.getZ() >> 4)) {
+            block.getWorld().playSound(block.getLocation(), Sound.BLOCK_LAVA_EXTINGUISH, 0.8f, 1.2f);
+        }
+    }
+
+    private void executeCanonicalDistillation(Inventory inv, DistilleryBatchState state) {
+        ItemStack ingredient = inv.getItem(4);
+        if (ingredient == null) return;
+
+        String legacyStage = legacyWortBridge.stageFor(state.draft());
+        double weightedPurity = state.draft().ingredientPurity().entrySet().stream()
+                .mapToDouble(entry -> state.draft().ingredientRatios().get(entry.getKey()) * entry.getValue()).sum();
+
+        for (int slot : new int[]{0, 1, 2}) {
+            ItemStack flask = inv.getItem(slot);
+            if (flask == null) continue;
+            if (flask.getType() == Material.GLASS_BOTTLE) flask.setType(Material.POTION);
+            if (flask.getType() != Material.POTION) continue;
+
+            PotionMeta meta = (PotionMeta) flask.getItemMeta();
+            if (meta == null) meta = (PotionMeta) Bukkit.getItemFactory().getItemMeta(Material.POTION);
+            if (meta == null) continue;
+
+            meta.setDisplayName("§fDistilled Brewing Base");
+            meta.setLore(List.of(
+                    "§7Stage: §bDistilled base",
+                    "§7Transferred purity: §e" + Math.round(weightedPurity) + "%",
+                    "",
+                    "§8Arcane process data stored internally."
+            ));
+            batchMetadata.write(meta, state, "DISTILLED_BASE");
+            meta.getPersistentDataContainer().set(recipeTypeKey, PersistentDataType.STRING, legacyStage);
+            meta.getPersistentDataContainer().set(purityKey, PersistentDataType.INTEGER, (int) Math.round(weightedPurity));
+            flask.setItemMeta(meta);
+        }
+
+        consumeOne(inv, 4);
+    }
+
+    private void executeLegacyRefinement(Inventory inv) {
+        for (int slot : new int[]{0, 1, 2}) {
+            ItemStack flask = inv.getItem(slot);
+            if (flask == null || flask.getType() != Material.POTION) continue;
+            PotionMeta meta = (PotionMeta) flask.getItemMeta();
+            if (meta == null) continue;
+            meta.setDisplayName("§dRefined Industrial Alcohol");
+            meta.setLore(List.of("§7Type: §fConcentrated Chemical Catalyst", "§7Purity Level: §aHigh-Grade Compound", "", "§e[Refinery Producer Required]"));
+            meta.getPersistentDataContainer().set(recipeTypeKey, PersistentDataType.STRING, "REFINED_INDUSTRIAL_ALCOHOL");
+            flask.setItemMeta(meta);
+        }
+        consumeOne(inv, 4);
+    }
+
+    private void consumeOne(Inventory inv, int slot) {
+        ItemStack ingredient = inv.getItem(slot);
+        if (ingredient == null) return;
+        if (ingredient.getAmount() > 1) ingredient.setAmount(ingredient.getAmount() - 1);
+        else inv.setItem(slot, null);
+    }
+
+    private DistilleryBatchState readState(Block block) {
+        if (!(block.getState() instanceof TileState tile)) return null;
+        String encoded = tile.getPersistentDataContainer().get(batchStateKey, PersistentDataType.STRING);
+        if (encoded == null || encoded.isBlank()) return null;
+        try {
+            DistilleryBatchState state = stateCodec.decodeBase64(encoded);
+            return state.machine().equals(machineLocation(block)) ? state : null;
+        } catch (IllegalArgumentException failure) {
+            plugin.getLogger().warning("Ignoring corrupt distillery state at " + block.getLocation());
+            return null;
+        }
+    }
+
+    private void writeState(Block block, DistilleryBatchState state) {
+        if (!(block.getState() instanceof TileState tile)) return;
+        tile.getPersistentDataContainer().set(batchStateKey, PersistentDataType.STRING, stateCodec.encodeBase64(state));
+        tile.update();
+    }
+
+    private MachineLocation machineLocation(Block block) {
+        return new MachineLocation(block.getWorld().getUID(), block.getX(), block.getY(), block.getZ());
+    }
+
+    private boolean isProcessing(Block block) {
+        DistilleryBatchState state = readState(block);
+        return state != null && state.status() == DistilleryBatchState.Status.PROCESSING;
+    }
+
+    private Inventory openInventoryFor(Block block) {
+        for (var entry : distillerySourceMap.entrySet()) {
+            if (entry.getValue().equals(block)) return entry.getKey();
+        }
+        return null;
+    }
+
+    private boolean hasValidBottles(Inventory inv) {
+        for (int slot : new int[]{0, 1, 2}) {
+            ItemStack item = inv.getItem(slot);
+            if (item != null && (item.getType() == Material.POTION || item.getType() == Material.GLASS_BOTTLE)) return true;
+        }
+        return false;
+    }
+
+    private boolean isAttemptingPhaseTwoRefinement(Inventory inv) {
+        for (int slot : new int[]{0, 1, 2}) {
+            ItemStack flask = inv.getItem(slot);
+            if (flask != null && flask.getType() == Material.POTION && flask.hasItemMeta()) {
+                PotionMeta pMeta = (PotionMeta) flask.getItemMeta();
+                if (!batchMetadata.stage(pMeta).isBlank()) continue;
+                String stage = pMeta.getPersistentDataContainer().getOrDefault(recipeTypeKey, PersistentDataType.STRING, "");
+                if (stage.equalsIgnoreCase("WORT_ETHANOL")) return true;
+            }
+        }
+        return false;
     }
 
     private void setupBaseGuiLayout(Inventory inv, boolean isBoiling) {
@@ -81,222 +334,36 @@ public class DistilleryMenuHandler implements Listener {
         }
     }
 
-    @EventHandler
-    public void onDistilleryClick(InventoryClickEvent event) {
-        Inventory inv = event.getInventory();
-        if (!event.getView().getTitle().equals("§8Industrial Core Distillery")) return;
-
-        int slot = event.getSlot();
-        if (event.getClickedInventory() == inv) {
-            if (slot != 0 && slot != 1 && slot != 2 && slot != 4) {
-                event.setCancelled(true);
-                return;
-            }
-        }
-
-        Player player = (Player) event.getWhoClicked();
-        Block block = distillerySourceMap.get(inv);
-
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            if (block != null) saveDistilleryToBlock(block, inv);
-
-            ItemStack ingredient = inv.getItem(4);
-            if (ingredient != null && hasValidBottles(inv)) {
-                ItemMeta ingMeta = ingredient.getItemMeta();
-                boolean attemptingPhaseTwo = isAttemptingPhaseTwoRefinement(inv);
-
-                int currentPurity = IngredientPurityEngine.getPurity(plugin, ingredient);
-
-                if (currentPurity == 0) {
-                    if (!attemptingPhaseTwo) {
-                        player.sendMessage(MessageConfig.get("distillery_wash_first"));
-                        return;
-                    }
-                }
-
-                if (attemptingPhaseTwo && ingredient.getType() != Material.GOLDEN_APPLE) {
-                    player.sendMessage(MessageConfig.get("distillery_needs_catalyst"));
-                    return;
-                }
-
-                if (!activeBoilTasks.containsKey(block)) {
-                    startOfflineDistillation(block);
-                }
-            }
-        }, 1L);
-    }
-
-    @EventHandler
-    public void onDistilleryClose(InventoryCloseEvent event) {
-        Inventory inv = event.getInventory();
-        if (!distillerySourceMap.containsKey(inv)) return;
-
-        Block block = distillerySourceMap.get(inv);
-        saveDistilleryToBlock(block, inv);
-        distillerySourceMap.remove(inv);
-    }
-
-    private boolean hasValidBottles(Inventory inv) {
-        for (int slot : new int[]{0, 1, 2}) {
-            ItemStack item = inv.getItem(slot);
-            if (item != null && (item.getType() == Material.POTION || item.getType() == Material.GLASS_BOTTLE)) return true;
-        }
-        return false;
-    }
-
-    private void startOfflineDistillation(Block block) {
-        updateAllOpenGuisForBlock(block, true);
-
-        BukkitRunnable task = new BukkitRunnable() {
-            int timerTicks = 0;
-
-            @Override
-            public void run() {
-                timerTicks++;
-
-                if (block.getWorld().isChunkLoaded(block.getX() >> 4, block.getZ() >> 4)) {
-                    block.getWorld().spawnParticle(Particle.SMOKE, block.getLocation().add(0.5, 1.2, 0.5), 4, 0.1, 0.1, 0.1, 0.02);
-                    if (timerTicks % 2 == 0) block.getWorld().playSound(block.getLocation(), Sound.BLOCK_BREWING_STAND_BREW, 0.7f, 1.2f);
-                }
-
-                if (timerTicks >= 10) {
-                    boolean guiWasOpen = false;
-
-                    // ISSUE 1 FIX: Prioritize mutating the LIVE inventory first to prevent the infinite exploit!
-                    for (Map.Entry<Inventory, Block> entry : distillerySourceMap.entrySet()) {
-                        if (entry.getValue().equals(block)) {
-                            Inventory openInv = entry.getKey();
-                            executeRefineryTransformation(openInv);
-                            saveDistilleryToBlock(block, openInv);
-                            setupBaseGuiLayout(openInv, false);
-
-                            if (openInv.getViewers().size() > 0) {
-                                ((Player) openInv.getViewers().get(0)).sendMessage(MessageConfig.get("distillery_success"));
-                            }
-                            guiWasOpen = true;
-                        }
-                    }
-
-                    // If no one was watching, mutate the offline NBT storage normally
-                    if (!guiWasOpen) {
-                        Inventory offlineInv = Bukkit.createInventory(null, 9);
-                        loadDistilleryFromBlock(block, offlineInv);
-                        executeRefineryTransformation(offlineInv);
-                        saveDistilleryToBlock(block, offlineInv);
-                    }
-
-                    if (block.getWorld().isChunkLoaded(block.getX() >> 4, block.getZ() >> 4)) {
-                        block.getWorld().playSound(block.getLocation(), Sound.BLOCK_LAVA_EXTINGUISH, 0.8f, 1.2f);
-                    }
-
-                    activeBoilTasks.remove(block);
-                    this.cancel();
-                }
-            }
-        };
-
-        task.runTaskTimer(plugin, 0L, 20L);
-        activeBoilTasks.put(block, task);
-    }
-
     private void updateAllOpenGuisForBlock(Block block, boolean isBoiling) {
         for (Map.Entry<Inventory, Block> entry : distillerySourceMap.entrySet()) {
-            if (entry.getValue().equals(block)) {
-                Inventory openInv = entry.getKey();
-                loadDistilleryFromBlock(block, openInv);
-                setupBaseGuiLayout(openInv, isBoiling);
-            }
-        }
-    }
-
-    private boolean isAttemptingPhaseTwoRefinement(Inventory inv) {
-        for (int slot : new int[]{0, 1, 2}) {
-            ItemStack flask = inv.getItem(slot);
-            if (flask != null && flask.getType() == Material.POTION && flask.hasItemMeta()) {
-                PotionMeta pMeta = (PotionMeta) flask.getItemMeta();
-                String stage = pMeta.getPersistentDataContainer().getOrDefault(recipeTypeKey, PersistentDataType.STRING, "");
-                if (stage.equalsIgnoreCase("WORT_ETHANOL")) return true;
-            }
-        }
-        return false;
-    }
-
-    private void executeRefineryTransformation(Inventory inv) {
-        ItemStack ingredient = inv.getItem(4);
-        if (ingredient == null) return;
-
-        boolean runningRefinement = isAttemptingPhaseTwoRefinement(inv);
-        int ingredientPurity = IngredientPurityEngine.getPurity(plugin, ingredient);
-
-        Material ingType = ingredient.getType();
-        String targetStageKey;
-        String targetDisplayName;
-
-        switch (ingType) {
-            case WHEAT: targetStageKey = "WORT_BEER"; targetDisplayName = "§fUnrefined Beer Wort"; break;
-            case SUGAR_CANE: targetStageKey = "WORT_RUM"; targetDisplayName = "§fUnrefined Rum Wort"; break;
-            case APPLE: targetStageKey = "WORT_CIDER"; targetDisplayName = "§fUnrefined Cider Wort"; break;
-            case POTATO: targetStageKey = "WORT_VODKA"; targetDisplayName = "§fUnrefined Vodka Wort"; break;
-            case SWEET_BERRIES: targetStageKey = "WORT_WINE"; targetDisplayName = "§fUnrefined Wine Wort"; break;
-            case HONEYCOMB: targetStageKey = "WORT_MEAD"; targetDisplayName = "§fUnrefined Mead Wort"; break;
-            case GOLDEN_APPLE:
-            default: targetStageKey = "WORT_ETHANOL"; targetDisplayName = "§fUnrefined Ethanol Wort"; break;
-        }
-
-        for (int i : new int[]{0, 1, 2}) {
-            ItemStack flask = inv.getItem(i);
-            if (flask == null) continue;
-
-            if (flask.getType() == Material.GLASS_BOTTLE) flask.setType(Material.POTION);
-            if (flask.getType() != Material.POTION) continue;
-
-            PotionMeta pMeta = (PotionMeta) flask.getItemMeta();
-            if (pMeta == null) pMeta = (PotionMeta) Bukkit.getItemFactory().getItemMeta(Material.POTION);
-            if (pMeta == null) continue;
-
-            if (runningRefinement) {
-                pMeta.setDisplayName("§dRefined Industrial Alcohol");
-                pMeta.setLore(List.of("§7Type: §fConcentrated Chemical Catalyst", "§7Purity Level: §aHigh-Grade Compound", "", "§e[Refinery Producer Required]"));
-                pMeta.getPersistentDataContainer().set(recipeTypeKey, PersistentDataType.STRING, "REFINED_INDUSTRIAL_ALCOHOL");
-            } else {
-                pMeta.setDisplayName(targetDisplayName);
-                pMeta.setLore(List.of("§7Type: §fRaw Distillation Base", "§7Fermentation Stage: §bWort", "§7Base Purity Transfer: §e" + ingredientPurity + "%", "", "§4⚠ TOXIC GAS DEVELOPING: DO NOT INGEST"));
-                pMeta.getPersistentDataContainer().set(recipeTypeKey, PersistentDataType.STRING, targetStageKey);
-                pMeta.getPersistentDataContainer().set(purityKey, PersistentDataType.INTEGER, ingredientPurity);
-            }
-            flask.setItemMeta(pMeta);
-        }
-
-        // Deduct exactly 1 to patch the infinite processing exploit
-        if (ingredient.getAmount() > 1) {
-            ingredient.setAmount(ingredient.getAmount() - 1);
-        } else {
-            inv.setItem(4, null);
+            if (entry.getValue().equals(block)) setupBaseGuiLayout(entry.getKey(), isBoiling);
         }
     }
 
     private boolean isValidStorageItem(ItemStack item) {
         if (item == null) return false;
-        Material t = item.getType();
-        return t == Material.POTION || t == Material.GLASS_BOTTLE || t.isEdible() || t == Material.WHEAT || t == Material.SUGAR_CANE || t == Material.HONEYCOMB;
+        Material type = item.getType();
+        return type == Material.POTION || type == Material.GLASS_BOTTLE || type.isEdible()
+                || type == Material.WHEAT || type == Material.SUGAR_CANE || type == Material.HONEYCOMB;
     }
 
     private void saveDistilleryToBlock(Block block, Inventory inv) {
         if (!(block.getState() instanceof TileState tileState)) return;
         try {
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            BukkitObjectOutputStream dataOutput = new BukkitObjectOutputStream(outputStream);
-            dataOutput.writeInt(9);
-            for (int i = 0; i < 9; i++) {
-                ItemStack item = inv.getItem(i);
-                if (isValidStorageItem(item)) dataOutput.writeObject(item);
-                else dataOutput.writeObject(null);
+            try (BukkitObjectOutputStream dataOutput = new BukkitObjectOutputStream(outputStream)) {
+                dataOutput.writeInt(9);
+                for (int i = 0; i < 9; i++) {
+                    ItemStack item = inv.getItem(i);
+                    dataOutput.writeObject(isValidStorageItem(item) ? item : null);
+                }
             }
-            dataOutput.close();
             String serialized = Base64.getEncoder().encodeToString(outputStream.toByteArray());
             tileState.getPersistentDataContainer().set(distilleryStorageKey, PersistentDataType.STRING, serialized);
             tileState.update();
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) {
+            plugin.getLogger().warning("Failed to persist legacy distillery inventory: " + e.getMessage());
+        }
     }
 
     private void loadDistilleryFromBlock(Block block, Inventory inv) {
@@ -304,14 +371,17 @@ public class DistilleryMenuHandler implements Listener {
         String serialized = tileState.getPersistentDataContainer().get(distilleryStorageKey, PersistentDataType.STRING);
         if (serialized == null || serialized.isEmpty()) return;
         try {
-            ByteArrayInputStream inputStream = new ByteArrayInputStream(Base64.getDecoder().decode(serialized));
-            BukkitObjectInputStream dataInput = new BukkitObjectInputStream(inputStream);
-            int size = dataInput.readInt();
-            for (int i = 0; i < size; i++) {
-                ItemStack loaded = (ItemStack) dataInput.readObject();
-                if (isValidStorageItem(loaded)) inv.setItem(i, loaded);
+            byte[] bytes = Base64.getDecoder().decode(serialized);
+            if (bytes.length > 1_048_576) throw new IllegalArgumentException("legacy distillery inventory too large");
+            try (BukkitObjectInputStream dataInput = new BukkitObjectInputStream(new ByteArrayInputStream(bytes))) {
+                int size = Math.min(9, dataInput.readInt());
+                for (int i = 0; i < size; i++) {
+                    ItemStack loaded = (ItemStack) dataInput.readObject();
+                    if (isValidStorageItem(loaded)) inv.setItem(i, loaded);
+                }
             }
-            dataInput.close();
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) {
+            plugin.getLogger().warning("Ignoring invalid legacy distillery inventory: " + e.getMessage());
+        }
     }
 }
