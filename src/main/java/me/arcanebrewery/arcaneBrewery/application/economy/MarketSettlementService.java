@@ -18,12 +18,17 @@ public final class MarketSettlementService {
     }
 
     public MarketSettlementResult settleSale(
-            UUID playerId, MarketAsset asset, MarketQuote quote, UUID transactionId) {
+            UUID playerId, MarketAsset asset, MarketQuote quote,
+            UUID transactionId, long nowEpochMillis) {
         Objects.requireNonNull(playerId);
         Objects.requireNonNull(asset);
         Objects.requireNonNull(quote);
         Objects.requireNonNull(transactionId);
 
+        if (quote.expired(nowEpochMillis)) {
+            return new MarketSettlementResult(
+                    transactionId, MarketSettlementResult.Status.REJECTED, 0, "quote expired");
+        }
         if (quote.side() != MarketSide.PLAYER_SELLS || !quote.matches(asset)) {
             return new MarketSettlementResult(
                     transactionId, MarketSettlementResult.Status.REJECTED, 0, "quote does not match asset");
