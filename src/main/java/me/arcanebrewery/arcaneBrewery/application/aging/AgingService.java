@@ -15,11 +15,21 @@ public final class AgingService {
             long nowEpochMillis, Map<String, IngredientLot> lots,
             WoodCharacteristics wood, double contaminationLoad,
             QualityTargets targets, long variationSeed) {
+        return finish(source, aging, nowEpochMillis, lots, wood, contaminationLoad,
+                targets, variationSeed, Map.of());
+    }
+
+    public AgingResult finish(FermentedProcessDraft source, AgingBatchState aging,
+            long nowEpochMillis, Map<String, IngredientLot> lots,
+            WoodCharacteristics wood, double contaminationLoad,
+            QualityTargets targets, long variationSeed,
+            Map<String, Double> additives) {
         Objects.requireNonNull(source);
         Objects.requireNonNull(aging);
         Objects.requireNonNull(lots);
         Objects.requireNonNull(wood);
         Objects.requireNonNull(targets);
+        Objects.requireNonNull(additives);
 
         DistillationControls controls = source.distillery().controls();
         var process = new ProcessProfile(
@@ -29,7 +39,7 @@ public final class AgingService {
                 new DistillationProfile(controls.headsCutPercent(), controls.heartsCutPercent(),
                         controls.tailsCutPercent(), controls.temperatureCelsius(), controls.passes()),
                 aging.settings().profile(aging.elapsedSeconds(nowEpochMillis)),
-                Map.of()
+                additives
         );
         var conditions = new BatchConditions(lots, contaminationLoad, 90.0, wood);
         var simulation = calculator.calculate(process, targets, conditions, BatchVariation.fromSeed(variationSeed));
