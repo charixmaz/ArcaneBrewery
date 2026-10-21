@@ -32,34 +32,40 @@ class MigrationRunnerTest {
     }
 
     @Test
-    void sqliteV1MigrationCreatesTablesIndexesAndQueryableHistory() {
-        assertEquals(1, runner(SqliteSchema.migrations()).migrate());
+    void sqliteV2MigrationCreatesDiscoveryAndMarketTables() {
+        assertEquals(2, runner(SqliteSchema.migrations()).migrate());
         assertTrue(tableExists("discoveries"));
         assertTrue(tableExists("recipe_grants"));
-        assertEquals(1, JdbcTransactions.run(connections, false, MigrationRunner::currentVersion));
+        assertTrue(tableExists("market_transactions"));
+        assertTrue(tableExists("market_escrow"));
+        assertEquals(2, JdbcTransactions.run(connections, false, MigrationRunner::currentVersion));
         int indexes = JdbcTransactions.run(connections, false, connection -> {
             try (var statement = connection.prepareStatement(
                     "SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name IN "
-                            + "('discoveries_owner_idx','discoveries_visibility_idx','grants_recipient_idx')");
+                            + "('discoveries_owner_idx','discoveries_visibility_idx','grants_recipient_idx',"
+                            + "'market_transactions_status_idx','market_transactions_player_idx','market_escrow_state_idx')");
                  var rows = statement.executeQuery()) {
                 assertTrue(rows.next()); return rows.getInt(1);
             }
         });
-        assertEquals(3, indexes);
+        assertEquals(6, indexes);
     }
 
     @Test
     void repeatedMigrationsAreIdempotentAndRecordedExactlyOnce() {
         var runner = runner(SqliteSchema.migrations());
-        assertEquals(1, runner.migrate());
-        assertEquals(1, runner.migrate());
-        assertEquals(1, runner.migrate());
+        assertEquals(2, runner.migrate());
+        assertEquals(2, runner.migrate());
+        assertEquals(2, runner.migrate());
         JdbcTransactions.run(connections, false, connection -> {
             try (var statement = connection.prepareStatement("SELECT version, checksum FROM schema_migrations");
                  var rows = statement.executeQuery()) {
                 assertTrue(rows.next());
                 assertEquals(1, rows.getInt(1));
                 assertEquals(SqliteSchema.migrations().getFirst().checksum(), rows.getString(2));
+                assertTrue(rows.next());
+                assertEquals(2, rows.getInt(1));
+                assertEquals(SqliteSchema.migrations().get(1).checksum(), rows.getString(2));
                 assertFalse(rows.next());
             }
             return null;
@@ -69,11 +75,11 @@ class MigrationRunnerTest {
     @Test
     void failedMigrationRollsBackDdlAndHistoryAndRetainsPriorVersion() {
         runner(SqliteSchema.migrations()).migrate();
-        var broken = new SqlMigration(2, List.of("CREATE TABLE must_rollback (id INTEGER)", "THIS IS NOT VALID SQL"));
-        var runner = runner(List.of(SqliteSchema.migrations().getFirst(), broken));
+        var broken = new SqlMigration(3, List.of("CREATE TABLE must_rollback (id INTEGER)", "THIS IS NOT VALID SQL"));
+        var runner = runner(List.of(SqliteSchema.migrations().get(0), SqliteSchema.migrations().get(1), broken));
         assertThrows(StorageException.class, runner::migrate);
         assertFalse(tableExists("must_rollback"));
-        assertEquals(1, JdbcTransactions.run(connections, false, MigrationRunner::currentVersion));
+        assertEquals(2, JdbcTransactions.run(connections, false, MigrationRunner::currentVersion));
         assertTrue(tableExists("discoveries"));
     }
 
@@ -107,7 +113,7 @@ class MigrationRunnerTest {
         runner(SqliteSchema.migrations()).migrate();
         JdbcTransactions.run(connections, true, connection -> {
             try (var statement = connection.prepareStatement("INSERT INTO schema_migrations(version, checksum) VALUES (?, ?)")) {
-                statement.setInt(1, 2); statement.setString(2, "future"); statement.executeUpdate();
+                statement.setInt(1, 3); statement.setString(2, "future"); statement.executeUpdate();
             }
             return null;
         });
@@ -124,8 +130,8 @@ class MigrationRunnerTest {
             };
             var first = pool.submit(migrate); var second = pool.submit(migrate); start.countDown();
             assertEquals(1, first.get(15, TimeUnit.SECONDS));
-            assertEquals(1, second.get(15, TimeUnit.SECONDS));
-            assertEquals(1, JdbcTransactions.run(connections, false, MigrationRunner::currentVersion));
+            assertEquals(2, second.get(15, TimeUnit.SECONDS));
+            assertEquals(2, JdbcTransactions.run(connections, false, MigrationRunner::currentVersion));
         }
     }
 }
