@@ -30,3 +30,17 @@ jobs:
 
       - name: Build ArcaneEconomy
         run: mvn --batch-mode -f arcane-economy/pom.xml clean verify
+
+      - name: Upload ArcaneBrewery JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: ArcaneBrewery
+          path: target/ArcaneBrewery-*.jar
+          if-no-files-found: error
+
+      - name: Upload ArcaneEconomy JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: ArcaneEconomy
+          path: arcane-economy/target/ArcaneEconomy-*.jar
+          if-no-files-found: error
