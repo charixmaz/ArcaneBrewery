@@ -89,4 +89,16 @@ class AgingServiceTest {
         assertEquals(a.simulation().fingerprint(), b.simulation().fingerprint());
         assertNotEquals(a.simulation().quality(), b.simulation().quality());
     }
+
+    @Test
+    void preparedAdditiveChangesFinalIdentity() {
+        var state = new AgingBatchState(AgingBatchState.VERSION, UUID.randomUUID(),
+                new AgingSettings("oak", 12, 18, 95), 1_000);
+        var plain = service.finish(source(), state, 121_000, lots(), AgingBalance.wood("oak"),
+                0, AgingBalance.targets(), 42);
+        var prepared = service.finish(source(), state, 121_000, lots(), AgingBalance.wood("oak"),
+                0, AgingBalance.targets(), 42,
+                Map.of("arcanebrewery:fire_catalyst", 1.0));
+        assertNotEquals(plain.simulation().fingerprint(), prepared.simulation().fingerprint());
+    }
 }
