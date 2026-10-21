@@ -129,7 +129,7 @@ class MigrationRunnerTest {
                 return runner(SqliteSchema.migrations()).migrate();
             };
             var first = pool.submit(migrate); var second = pool.submit(migrate); start.countDown();
-            assertEquals(1, first.get(15, TimeUnit.SECONDS));
+            assertEquals(2, first.get(15, TimeUnit.SECONDS));
             assertEquals(2, second.get(15, TimeUnit.SECONDS));
             assertEquals(2, JdbcTransactions.run(connections, false, MigrationRunner::currentVersion));
         }
