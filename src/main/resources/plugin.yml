@@ -8,12 +8,20 @@ softdepend: [ArcaneEconomy]
 
 commands:
   brew:
-    description: ArcaneBrewery discovery and recipe commands.
+    description: ArcaneBrewery player commands.
     usage: /brew help
     aliases: [arcanebrewery]
     permission: arcanebrewery.use
+  brewmarket:
+    description: ArcaneBrewery market recovery diagnostics.
+    usage: /brewmarket help
+    permission: arcanebrewery.admin.market
 
 permissions:
   arcanebrewery.use:
     description: Allows access to ArcaneBrewery player commands.
     default: true
+
+  arcanebrewery.admin.market:
+    description: Allows read-only inspection of market recovery records.
+    default: op
