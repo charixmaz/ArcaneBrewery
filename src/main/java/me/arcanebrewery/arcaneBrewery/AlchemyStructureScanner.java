@@ -12,11 +12,16 @@ public final class AlchemyStructureScanner {
     private AlchemyStructureScanner() {}
 
     public static boolean isValid(Block core) {
-        if (core == null || core.getType() != Material.ENCHANTING_TABLE) return false;
-        if (core.getRelative(BlockFace.DOWN).getType() != Material.CRYING_OBSIDIAN) return false;
+        if (core == null || !loaded(core) || core.getType() != Material.ENCHANTING_TABLE) return false;
+        Block support = core.getRelative(BlockFace.DOWN);
+        if (!loaded(support) || support.getType() != Material.CRYING_OBSIDIAN) return false;
         for (BlockFace face : HORIZONTAL) {
-            if (core.getRelative(face).getType() == Material.AMETHYST_BLOCK) return true;
+            Block adjacent = core.getRelative(face);
+            if (loaded(adjacent) && adjacent.getType() == Material.AMETHYST_BLOCK) return true;
         }
         return false;
+    }
+    private static boolean loaded(Block block) {
+        return block.getWorld().isChunkLoaded(block.getX() >> 4, block.getZ() >> 4);
     }
 }

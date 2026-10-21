@@ -1,385 +1,346 @@
 package me.arcanebrewery.arcaneBrewery;
 
-import me.arcanebrewery.arcaneBrewery.adapter.bukkit.alchemy.AlchemyPreparationMetadata;
-import me.arcanebrewery.arcaneBrewery.adapter.bukkit.fermentation.FermentationBatchMetadata;
+import me.arcanebrewery.arcaneBrewery.adapter.bukkit.alchemy.*;
 import me.arcanebrewery.arcaneBrewery.application.alchemy.*;
-import me.arcanebrewery.arcaneBrewery.application.fermentation.FermentationBatchState;
+import me.arcanebrewery.arcaneBrewery.application.distillery.MachineLocation;
 import org.bukkit.*;
 import org.bukkit.block.Block;
-import org.bukkit.block.TileState;
 import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.Listener;
-import org.bukkit.event.block.Action;
-import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.*;
+import org.bukkit.event.block.*;
+import org.bukkit.event.entity.EntityExplodeEvent;
+import org.bukkit.event.inventory.*;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.world.*;
 import org.bukkit.inventory.*;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.inventory.meta.PotionMeta;
-import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.util.io.BukkitObjectInputStream;
-import org.bukkit.util.io.BukkitObjectOutputStream;
-
-import java.io.*;
 import java.util.*;
 
+/** Main-thread coordinator. Every machine owns exactly one shared GUI and one atomic persisted snapshot. */
 public final class AlchemyMachineHandler implements Listener {
     private static final String TITLE = "§5Arcane Infusion Crucible";
-    private static final long PROCESS_DURATION_MILLIS = 8_000L;
-    private static final int BASE_SLOT = 2;
-    private static final int CATALYST_A = 4;
-    private static final int CATALYST_B = 6;
-    private static final int START_SLOT = 8;
-
+    private static final int[] INPUTS = {2, 4, 6};
     private final JavaPlugin plugin;
-    private final FermentationBatchMetadata fermentation;
-    private final AlchemyPreparationMetadata preparation;
-    private final AlchemyMachineService service = new AlchemyMachineService();
-    private final NamespacedKey stateFormatKey;
-    private final NamespacedKey stateBatchKey;
-    private final NamespacedKey stateStartKey;
-    private final NamespacedKey stateDurationKey;
-    private final NamespacedKey stateStatusKey;
-    private final NamespacedKey inventoryKey;
+    private final String namespace;
+    private final AlchemyMachineItems items = new AlchemyMachineItems();
+    private final AlchemyMachineStorage storage;
+    private final Map<MachineLocation, Session> sessions = new HashMap<>();
+    private final Map<MachineLocation, BukkitRunnable> tasks = new HashMap<>();
+    private boolean shuttingDown;
 
-    private final Map<Inventory, Block> sources = new HashMap<>();
-    private final Map<String, BukkitRunnable> activeTasks = new HashMap<>();
+    private static final class Holder implements InventoryHolder {
+        final MachineLocation key;
+        Inventory inventory;
+        Holder(MachineLocation key) { this.key = key; }
+        public Inventory getInventory() { return inventory; }
+    }
+    private static final class Session {
+        final Block core;
+        final Inventory gui;
+        AlchemyMachineSnapshot snapshot;
+        byte[] persisted;
+        boolean blocked;
+        Session(Block core, Inventory gui, AlchemyMachineStorage.Loaded loaded) {
+            this.core = core; this.gui = gui; this.snapshot = loaded.snapshot(); this.persisted = loaded.persisted();
+        }
+        boolean processing() {
+            return snapshot.operation().map(op -> op.state().status() == AlchemyMachineState.Status.PROCESSING).orElse(false);
+        }
+    }
 
     public AlchemyMachineHandler(JavaPlugin plugin) {
         this.plugin = Objects.requireNonNull(plugin);
-        this.fermentation = new FermentationBatchMetadata(plugin);
-        this.preparation = new AlchemyPreparationMetadata(plugin);
-        this.stateFormatKey = new NamespacedKey(plugin, "alchemy_machine_format");
-        this.stateBatchKey = new NamespacedKey(plugin, "alchemy_machine_batch");
-        this.stateStartKey = new NamespacedKey(plugin, "alchemy_machine_started");
-        this.stateDurationKey = new NamespacedKey(plugin, "alchemy_machine_duration");
-        this.stateStatusKey = new NamespacedKey(plugin, "alchemy_machine_status");
-        this.inventoryKey = new NamespacedKey(plugin, "alchemy_machine_inventory");
+        this.namespace = plugin.getName().toLowerCase(Locale.ROOT);
+        this.storage = new AlchemyMachineStorage(namespace, items);
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onOpen(PlayerInteractEvent event) {
-        if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
+        if (shuttingDown || event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
         Block core = event.getClickedBlock();
-        if (core == null || core.getType() != Material.ENCHANTING_TABLE) return;
-        if (!AlchemyStructureScanner.isValid(core)) return;
-
+        if (!AlchemyStructureScanner.isValid(core)) return; // Leave normal enchanting entirely alone.
         event.setCancelled(true);
-        Inventory gui = Bukkit.createInventory(null, 9, TITLE);
-        sources.put(gui, core);
-        loadInventory(core, gui);
-        recover(core, gui);
-        paint(gui, isProcessing(core));
-        event.getPlayer().openInventory(gui);
+        if (event.getHand() != EquipmentSlot.HAND) return;
+        try {
+            Session session = session(core);
+            if (session.blocked) throw new IllegalStateException("machine unavailable");
+            recover(session);
+            if (!session.blocked) event.getPlayer().openInventory(session.gui);
+        } catch (RuntimeException failure) {
+            warn(core);
+            event.getPlayer().sendMessage("§c[Alchemy] Machine data is unavailable; stored items have been retained.");
+        }
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onClick(InventoryClickEvent event) {
-        Inventory gui = event.getInventory();
-        if (!TITLE.equals(event.getView().getTitle())) return;
-        Block core = sources.get(gui);
-        if (core == null) return;
-
-        int slot = event.getSlot();
-        boolean top = event.getClickedInventory() == gui;
-        boolean processing = isProcessing(core);
-
-        if (processing && event.isShiftClick()) {
-            event.setCancelled(true);
-            ((Player) event.getWhoClicked()).sendMessage("§c[Alchemy] Inputs are locked while infusing.");
-            return;
-        }
-
-        if (top && slot == START_SLOT) {
-            event.setCancelled(true);
-            if (processing) {
-                ((Player) event.getWhoClicked()).sendMessage("§e[Alchemy] Infusion already in progress.");
-                return;
-            }
-            start((Player) event.getWhoClicked(), core, gui);
-            return;
-        }
-
-        if (top && slot != BASE_SLOT && slot != CATALYST_A && slot != CATALYST_B) {
+        Inventory gui = event.getView().getTopInventory();
+        if (!(gui.getHolder() instanceof Holder holder)) return;
+        Session session = sessions.get(holder.key);
+        if (event.isCancelled()) return;
+        if (shuttingDown || session == null || session.gui != gui || session.blocked
+                || !AlchemyStructureScanner.isValid(session.core) || event instanceof InventoryCreativeEvent) {
             event.setCancelled(true);
             return;
         }
-
-        if (processing && top && (slot == BASE_SLOT || slot == CATALYST_A || slot == CATALYST_B)) {
-            event.setCancelled(true);
-            ((Player) event.getWhoClicked()).sendMessage("§c[Alchemy] Inputs are locked while infusing.");
-            return;
+        var decision = AlchemyInventoryPolicy.click(event.getClickedInventory() == gui, event.getSlot(),
+                session.processing(), event.getClick(), event.getAction());
+        if (decision == AlchemyInventoryPolicy.Decision.PASS) return;
+        event.setCancelled(true);
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+        if (decision == AlchemyInventoryPolicy.Decision.START) { start(player, session); return; }
+        if (decision != AlchemyInventoryPolicy.Decision.EDIT) return;
+        int index = event.getSlot() == 2 ? 0 : event.getSlot() == 4 ? 1 : 2;
+        var move = AlchemySlotTransfer.move(gui.getItem(event.getSlot()), player.getItemOnCursor(),
+                event.getClick() == ClickType.RIGHT, index == 0 ? 1 : 64);
+        ItemStack[] next = contents(gui);
+        next[index] = move.slot();
+        try {
+            commit(session, next, Optional.empty()); // Any idle edit acknowledges/removes historical completion.
+            player.setItemOnCursor(move.cursor()); // Only after the machine snapshot is accepted.
+        } catch (RuntimeException failure) {
+            fault(session);
+            player.sendMessage("§c[Alchemy] Transfer rejected; machine items were retained.");
         }
+    }
 
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            paint(gui, isProcessing(core));
-            saveInventory(core, gui);
-        }, 1L);
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onDrag(InventoryDragEvent event) {
+        if (event.getView().getTopInventory().getHolder() instanceof Holder
+                && AlchemyInventoryPolicy.dragTouchesMachine(event.getRawSlots(), 9)) event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onMove(InventoryMoveItemEvent event) {
+        if (event.getSource().getHolder() instanceof Holder || event.getDestination().getHolder() instanceof Holder)
+            event.setCancelled(true);
     }
 
     @EventHandler
     public void onClose(InventoryCloseEvent event) {
-        Inventory gui = event.getInventory();
-        Block core = sources.remove(gui);
-        if (core != null) saveInventory(core, gui);
+        if (!(event.getInventory().getHolder() instanceof Holder holder) || shuttingDown) return;
+        Session session = sessions.get(holder.key);
+        if (session == null || session.gui != event.getInventory()) return;
+        // There is no stale GUI-to-disk write on close: every accepted edit was already persisted.
+        Bukkit.getScheduler().runTask(plugin, () -> evictIdle(session));
     }
 
-    private void start(Player player, Block core, Inventory gui) {
-        try {
-            ItemStack base = gui.getItem(BASE_SLOT);
-            if (base == null || base.getType() != Material.POTION || !(base.getItemMeta() instanceof PotionMeta meta)) {
-                player.sendMessage("§c[Alchemy] Slot 2 requires a completed fermented base.");
-                return;
-            }
-
-            var fermented = fermentation.read(meta);
-            if (fermented.isEmpty() || fermented.get().status() != FermentationBatchState.Status.COMPLETED) {
-                player.sendMessage("§c[Alchemy] The base has not completed fermentation.");
-                return;
-            }
-            if (preparation.read(meta).isPresent()) {
-                player.sendMessage("§c[Alchemy] This base was already infused.");
-                return;
-            }
-
-            List<AlchemyCatalyst> catalysts = catalysts(gui);
-            if (catalysts.isEmpty()) {
-                player.sendMessage("§c[Alchemy] Add at least one supported catalyst.");
-                return;
-            }
-
-            double preview = service.previewInstability(catalysts);
-            AlchemyMachineState state = service.start(
-                    System.currentTimeMillis(), PROCESS_DURATION_MILLIS, UUID.randomUUID());
-            writeState(core, state);
-            saveInventory(core, gui);
-            paint(gui, true);
-            schedule(core, state);
-            player.sendMessage("§d[Alchemy] Infusion started. Instability estimate: §f"
-                    + Math.round(preview) + "/100");
-        } catch (RuntimeException failure) {
-            player.sendMessage("§c[Alchemy] Unable to start infusion: " + failure.getMessage());
-        }
+    private Session session(Block core) {
+        MachineLocation key = key(core);
+        Session existing = sessions.get(key);
+        if (existing != null) return existing;
+        var loaded = storage.load(core);
+        ItemStack[] decoded = items.decode(loaded.snapshot().items());
+        if (loaded.snapshot().operation().map(op -> op.state().status() == AlchemyMachineState.Status.PROCESSING).orElse(false))
+            AlchemyMachineInputs.validateLocked(decoded, namespace, loaded.snapshot().operation().orElseThrow());
+        else if (loaded.snapshot().operation().isPresent())
+            AlchemyMachineInputs.validateCompleted(decoded, namespace, loaded.snapshot().operation().orElseThrow());
+        var holder = new Holder(key);
+        Inventory gui = Bukkit.createInventory(holder, 9, TITLE);
+        holder.inventory = gui;
+        var session = new Session(core, gui, loaded);
+        apply(gui, decoded);
+        if (loaded.persisted() == null && storage.hasData(core))
+            session.persisted = storage.save(core, null, session.snapshot); // Successful legacy import, no empty fallback.
+        paint(session);
+        sessions.put(key, session);
+        return session;
     }
 
-    private void recover(Block core, Inventory gui) {
-        AlchemyMachineState state = readState(core);
-        if (state == null || state.status() == AlchemyMachineState.Status.COMPLETED) return;
-        if (state.ready(System.currentTimeMillis())) complete(core, gui, state);
-        else schedule(core, state);
-    }
-
-    private void schedule(Block core, AlchemyMachineState state) {
-        String key = machineKey(core);
-        if (activeTasks.containsKey(key)) return;
-
-        BukkitRunnable task = new BukkitRunnable() {
-            @Override
-            public void run() {
-                if (!AlchemyStructureScanner.isValid(core)) {
-                    activeTasks.remove(key);
-                    cancel();
-                    return;
-                }
-
-                AlchemyMachineState current = readState(core);
-                if (current == null || current.status() == AlchemyMachineState.Status.COMPLETED) {
-                    activeTasks.remove(key);
-                    cancel();
-                    return;
-                }
-
-                if (core.getWorld().isChunkLoaded(core.getX() >> 4, core.getZ() >> 4)) {
-                    core.getWorld().spawnParticle(Particle.ENCHANT, core.getLocation().add(0.5, 1.0, 0.5),
-                            10, 0.35, 0.25, 0.35, 0.05);
-                    core.getWorld().playSound(core.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.5f, 1.1f);
-                }
-
-                if (current.ready(System.currentTimeMillis())) {
-                    Inventory gui = openInventory(core);
-                    if (gui == null) {
-                        gui = Bukkit.createInventory(null, 9, TITLE);
-                        loadInventory(core, gui);
-                    }
-                    complete(core, gui, current);
-                    if (!sources.containsKey(gui)) saveInventory(core, gui);
-                    activeTasks.remove(key);
-                    cancel();
-                }
-            }
-        };
-        activeTasks.put(key, task);
-        task.runTaskTimer(plugin, 0L, 20L);
-    }
-
-    private void complete(Block core, Inventory gui, AlchemyMachineState expected) {
-        AlchemyMachineState current = readState(core);
-        if (current == null || current.status() == AlchemyMachineState.Status.COMPLETED) return;
-        if (!current.batchId().equals(expected.batchId()) || !current.ready(System.currentTimeMillis())) return;
-
-        ItemStack base = gui.getItem(BASE_SLOT);
-        if (base == null || base.getType() != Material.POTION || !(base.getItemMeta() instanceof PotionMeta meta)) return;
-
-        if (preparation.read(meta).isPresent()) {
-            writeState(core, current.complete(System.currentTimeMillis()));
-            paint(gui, false);
+    private void start(Player player, Session session) {
+        if (session.processing()) return;
+        AlchemyMachineOperation operation;
+        try { operation = AlchemyMachineInputs.start(contents(session.gui), namespace, System.currentTimeMillis(), 8000); }
+        catch (RuntimeException invalid) {
+            player.sendMessage("§c[Alchemy] Use one completed, uninfused fermented base and one or two supported catalysts.");
             return;
         }
+        try {
+            commit(session, contents(session.gui), Optional.of(operation));
+            schedule(session);
+            double preview = new AlchemyMachineService().previewInstability(AlchemyMachineInputs.catalysts(contents(session.gui)));
+            player.sendMessage("§d[Alchemy] Infusion started. Instability estimate: §f" + Math.round(preview) + "/100");
+        } catch (RuntimeException failure) { fault(session); }
+    }
 
-        List<AlchemyCatalyst> catalysts = catalysts(gui);
-        if (catalysts.isEmpty()) return;
+    private void recover(Session session) {
+        if (!session.processing() || !AlchemyStructureScanner.isValid(session.core)) return;
+        if (session.snapshot.operation().orElseThrow().state().ready(System.currentTimeMillis())) complete(session);
+        else schedule(session);
+    }
 
-        AlchemyPreparation prepared = service.combine(catalysts);
-        preparation.write(meta, prepared);
-
-        List<String> lore = meta.hasLore() && meta.getLore() != null
-                ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
-        lore.add("§dArcane Infusion: §f" + prepared.additives().size() + " catalyst type(s)");
-        meta.setLore(lore);
-        base.setItemMeta(meta);
-
-        consumeOne(gui, CATALYST_A);
-        consumeOne(gui, CATALYST_B);
-        saveInventory(core, gui);
-        writeState(core, current.complete(System.currentTimeMillis()));
-        paint(gui, false);
-
-        for (var viewer : gui.getViewers()) {
-            if (viewer instanceof Player player) {
-                player.sendMessage("§d[Alchemy] Infusion complete. The base is ready for cask aging.");
+    private void schedule(Session session) {
+        MachineLocation key = key(session.core);
+        if (tasks.containsKey(key)) return;
+        BukkitRunnable task = new BukkitRunnable() {
+            public void run() {
+                try {
+                    if (sessions.get(key) != session || session.blocked || !session.processing()
+                            || !AlchemyStructureScanner.isValid(session.core)) {
+                        detach(session); return;
+                    }
+                    if (session.snapshot.operation().orElseThrow().state().ready(System.currentTimeMillis())) {
+                        complete(session);
+                        stop(key);
+                        evictIdle(session);
+                    } else {
+                        session.core.getWorld().spawnParticle(Particle.ENCHANT,
+                                session.core.getLocation().add(0.5, 1.0, 0.5), 10, 0.35, 0.25, 0.35, 0.05);
+                    }
+                } catch (RuntimeException failure) { fault(session); }
             }
-        }
+        };
+        tasks.put(key, task);
+        try { task.runTaskTimer(plugin, 1L, 20L); }
+        catch (RuntimeException failure) { tasks.remove(key); throw failure; }
     }
 
-    private List<AlchemyCatalyst> catalysts(Inventory gui) {
-        var result = new ArrayList<AlchemyCatalyst>();
-        for (int slot : new int[]{CATALYST_A, CATALYST_B}) {
-            ItemStack item = gui.getItem(slot);
-            if (item == null || item.getType() == Material.AIR) continue;
-            String external = "minecraft:" + item.getType().name().toLowerCase(Locale.ROOT);
-            var catalyst = BuiltInAlchemyCatalysts.resolveExternal(external);
-            if (catalyst.isEmpty()) throw new IllegalArgumentException("unsupported catalyst in slot " + slot);
-            result.add(catalyst.get());
-        }
-        return List.copyOf(result);
+    private void complete(Session session) {
+        if (session.blocked || !session.processing() || !AlchemyStructureScanner.isValid(session.core)) return;
+        var operation = session.snapshot.operation().orElseThrow();
+        long now = System.currentTimeMillis();
+        ItemStack[] result = AlchemyMachineInputs.complete(contents(session.gui), namespace, operation, now);
+        commit(session, result, Optional.of(operation.complete(now)));
+        for (var viewer : session.gui.getViewers())
+            viewer.sendMessage("§d[Alchemy] Infusion complete. The base is ready for cask aging.");
     }
 
-    private void consumeOne(Inventory gui, int slot) {
-        ItemStack item = gui.getItem(slot);
-        if (item == null) return;
-        if (item.getAmount() > 1) item.setAmount(item.getAmount() - 1);
-        else gui.setItem(slot, null);
+    private void commit(Session session, ItemStack[] next, Optional<AlchemyMachineOperation> operation) {
+        var snapshot = new AlchemyMachineSnapshot(operation, items.encode(next));
+        byte[] persisted = storage.save(session.core, session.persisted, snapshot);
+        session.persisted = persisted;
+        session.snapshot = snapshot;
+        apply(session.gui, next);
+        paint(session);
     }
 
-    private void paint(Inventory gui, boolean processing) {
-        for (int i = 0; i < 9; i++) {
-            if (i == BASE_SLOT || i == CATALYST_A || i == CATALYST_B) continue;
-            Material material = i == START_SLOT
-                    ? (processing ? Material.CLOCK : Material.NETHER_STAR)
-                    : (processing ? Material.PURPLE_STAINED_GLASS_PANE : Material.BLACK_STAINED_GLASS_PANE);
-            ItemStack item = new ItemStack(material);
+    private void apply(Inventory gui, ItemStack[] contents) {
+        for (int i = 0; i < 3; i++) gui.setItem(INPUTS[i], contents[i]);
+    }
+    private ItemStack[] contents(Inventory gui) {
+        return Arrays.stream(INPUTS).mapToObj(gui::getItem).map(item -> item == null ? null : item.clone()).toArray(ItemStack[]::new);
+    }
+    private void paint(Session session) {
+        for (int slot = 0; slot < 9; slot++) {
+            if (slot == 2 || slot == 4 || slot == 6) continue;
+            var item = new ItemStack(slot == 8 ? (session.processing() ? Material.CLOCK : Material.NETHER_STAR)
+                    : Material.PURPLE_STAINED_GLASS_PANE);
             ItemMeta meta = item.getItemMeta();
             if (meta != null) {
-                if (i == START_SLOT) {
-                    meta.setDisplayName(processing ? "§eInfusion in progress" : "§d§lBegin Arcane Infusion");
-                    meta.setLore(List.of(processing
-                            ? "§7Inputs are locked until completion."
-                            : "§7Base: slot 2 §8| §7Catalysts: slots 4 and 6"));
-                } else {
-                    meta.setDisplayName("§5Arcane Conduit");
-                }
+                meta.setDisplayName(slot == 8 ? (session.processing() ? "§eInfusion in progress" : "§d§lBegin Arcane Infusion") : "§5Arcane Conduit");
                 item.setItemMeta(meta);
             }
-            gui.setItem(i, item);
+            session.gui.setItem(slot, item);
         }
     }
 
-    private boolean isProcessing(Block core) {
-        AlchemyMachineState state = readState(core);
-        return state != null && state.status() == AlchemyMachineState.Status.PROCESSING;
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onBreak(BlockBreakEvent event) {
+        Block block = event.getBlock();
+        if (block.getType() == Material.ENCHANTING_TABLE && occupied(block)) {
+            event.setCancelled(true);
+            event.getPlayer().sendMessage("§c[Alchemy] Remove machine items before breaking its core.");
+            return;
+        }
+        for (Session session : List.copyOf(sessions.values())) {
+            if (touches(session.core, block)) detach(session);
+        }
     }
 
-    private void writeState(Block core, AlchemyMachineState state) {
-        if (!(core.getState() instanceof TileState tile)) return;
-        var pdc = tile.getPersistentDataContainer();
-        pdc.set(stateFormatKey, PersistentDataType.INTEGER, AlchemyMachineState.VERSION);
-        pdc.set(stateBatchKey, PersistentDataType.STRING, state.batchId().toString());
-        pdc.set(stateStartKey, PersistentDataType.LONG, state.startedAtEpochMillis());
-        pdc.set(stateDurationKey, PersistentDataType.LONG, state.durationMillis());
-        pdc.set(stateStatusKey, PersistentDataType.STRING, state.status().name());
-        tile.update();
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPlace(BlockPlaceEvent event) {
+        Block block = event.getBlock();
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            for (int[] offset : new int[][]{{0,0,0}, {0,1,0}, {1,0,0}, {-1,0,0}, {0,0,1}, {0,0,-1}})
+                resume(block.getRelative(offset[0], offset[1], offset[2]));
+        });
     }
-
-    private AlchemyMachineState readState(Block core) {
-        if (!(core.getState() instanceof TileState tile)) return null;
-        var pdc = tile.getPersistentDataContainer();
-        Integer version = pdc.get(stateFormatKey, PersistentDataType.INTEGER);
-        if (version == null) return null;
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onExplosion(EntityExplodeEvent event) { protectExplosion(event.blockList()); }
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onBlockExplosion(BlockExplodeEvent event) { protectExplosion(event.blockList()); }
+    private void protectExplosion(List<Block> blocks) {
+        blocks.removeIf(block -> block.getType() == Material.ENCHANTING_TABLE && occupied(block));
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            for (Session session : List.copyOf(sessions.values()))
+                if (!AlchemyStructureScanner.isValid(session.core)) detach(session);
+        });
+    }
+    private boolean occupied(Block core) {
         try {
-            String batch = pdc.get(stateBatchKey, PersistentDataType.STRING);
-            Long start = pdc.get(stateStartKey, PersistentDataType.LONG);
-            Long duration = pdc.get(stateDurationKey, PersistentDataType.LONG);
-            String status = pdc.get(stateStatusKey, PersistentDataType.STRING);
-            if (batch == null || start == null || duration == null || status == null)
-                throw new IllegalArgumentException("incomplete alchemy machine state");
-            return new AlchemyMachineState(version, UUID.fromString(batch), start, duration,
-                    AlchemyMachineState.Status.valueOf(status));
-        } catch (RuntimeException malformed) {
-            plugin.getLogger().warning("Ignoring corrupt alchemy machine state at " + core.getLocation());
-            return null;
+            if (!sessions.containsKey(key(core)) && !storage.hasData(core)) return false;
+            Session session = session(core);
+            return session.blocked || session.processing() || Arrays.stream(contents(session.gui)).anyMatch(i -> !AlchemyMachineItems.empty(i));
+        } catch (RuntimeException corrupt) { return true; } // Never destroy a quarantined inventory.
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onUnload(ChunkUnloadEvent event) {
+        for (Session session : List.copyOf(sessions.values())) {
+            if (session.core.getWorld().equals(event.getWorld()) && session.core.getX() >> 4 == event.getChunk().getX()
+                    && session.core.getZ() >> 4 == event.getChunk().getZ()) detach(session);
         }
     }
-
-    private Inventory openInventory(Block core) {
-        for (var entry : sources.entrySet()) {
-            if (entry.getValue().equals(core)) return entry.getKey();
-        }
-        return null;
-    }
-
-    private String machineKey(Block core) {
-        return core.getWorld().getUID() + ":" + core.getX() + ":" + core.getY() + ":" + core.getZ();
-    }
-
-    private void saveInventory(Block core, Inventory gui) {
-        if (!(core.getState() instanceof TileState tile)) return;
-        try {
-            var bytes = new ByteArrayOutputStream();
-            try (var out = new BukkitObjectOutputStream(bytes)) {
-                out.writeInt(3);
-                out.writeObject(gui.getItem(BASE_SLOT));
-                out.writeObject(gui.getItem(CATALYST_A));
-                out.writeObject(gui.getItem(CATALYST_B));
+    @EventHandler
+    public void onLoad(ChunkLoadEvent event) {
+        // A structure can span a chunk border; reload must wake the neighboring loaded core too.
+        for (int x = event.getChunk().getX() - 1; x <= event.getChunk().getX() + 1; x++)
+            for (int z = event.getChunk().getZ() - 1; z <= event.getChunk().getZ() + 1; z++) {
+                if (!event.getWorld().isChunkLoaded(x, z)) continue;
+                for (var tile : event.getWorld().getChunkAt(x, z).getTileEntities())
+                    if (tile.getType() == Material.ENCHANTING_TABLE) resume(tile.getBlock());
             }
-            byte[] raw = bytes.toByteArray();
-            if (raw.length > 1_048_576) throw new IllegalArgumentException("alchemy inventory too large");
-            tile.getPersistentDataContainer().set(inventoryKey, PersistentDataType.STRING,
-                    Base64.getEncoder().encodeToString(raw));
-            tile.update();
-        } catch (Exception failure) {
-            plugin.getLogger().warning("Failed to save alchemy inventory: " + failure.getMessage());
+    }
+    public void resumeLoadedMachines() {
+        for (World world : Bukkit.getWorlds()) for (Chunk chunk : world.getLoadedChunks())
+            for (var tile : chunk.getTileEntities()) if (tile.getType() == Material.ENCHANTING_TABLE) resume(tile.getBlock());
+    }
+    private void resume(Block core) {
+        if (shuttingDown || !AlchemyStructureScanner.isValid(core)) return;
+        try {
+            if (!storage.hasData(core)) return;
+            Session session = session(core);
+            recover(session);
+            evictIdle(session);
+        } catch (RuntimeException failure) { warn(core); }
+    }
+    private void fault(Session session) {
+        session.blocked = true;
+        warn(session.core);
+        stop(key(session.core));
+        Bukkit.getScheduler().runTask(plugin, () -> detach(session));
+    }
+    private void warn(Block core) {
+        plugin.getLogger().warning("Alchemy machine locked; original persisted data retained at "
+                + core.getWorld().getName() + " " + core.getX() + "," + core.getY() + "," + core.getZ());
+    }
+    private void stop(MachineLocation key) {
+        var task = tasks.remove(key);
+        if (task != null) task.cancel();
+    }
+    private void evictIdle(Session session) {
+        if (!session.processing() && session.gui.getViewers().isEmpty()) {
+            stop(key(session.core)); sessions.remove(key(session.core), session);
         }
     }
-
-    private void loadInventory(Block core, Inventory gui) {
-        if (!(core.getState() instanceof TileState tile)) return;
-        String encoded = tile.getPersistentDataContainer().get(inventoryKey, PersistentDataType.STRING);
-        if (encoded == null || encoded.isBlank()) return;
-        try {
-            byte[] raw = Base64.getDecoder().decode(encoded);
-            if (raw.length > 1_048_576) throw new IllegalArgumentException("alchemy inventory too large");
-            try (var in = new BukkitObjectInputStream(new ByteArrayInputStream(raw))) {
-                int count = in.readInt();
-                if (count != 3) throw new IllegalArgumentException("invalid alchemy inventory format");
-                gui.setItem(BASE_SLOT, (ItemStack) in.readObject());
-                gui.setItem(CATALYST_A, (ItemStack) in.readObject());
-                gui.setItem(CATALYST_B, (ItemStack) in.readObject());
-            }
-        } catch (Exception failure) {
-            plugin.getLogger().warning("Ignoring invalid alchemy inventory: " + failure.getMessage());
-        }
+    private void detach(Session session) {
+        stop(key(session.core));
+        for (var viewer : List.copyOf(session.gui.getViewers())) viewer.closeInventory();
+        sessions.remove(key(session.core), session);
+    }
+    public void shutdown() {
+        shuttingDown = true;
+        for (Session session : List.copyOf(sessions.values())) detach(session);
+        tasks.values().forEach(BukkitRunnable::cancel); tasks.clear(); sessions.clear();
+    }
+    private MachineLocation key(Block core) {
+        return new MachineLocation(core.getWorld().getUID(), core.getX(), core.getY(), core.getZ());
+    }
+    private boolean touches(Block core, Block changed) {
+        if (!core.getWorld().equals(changed.getWorld())) return false;
+        int x = core.getX() - changed.getX(), y = core.getY() - changed.getY(), z = core.getZ() - changed.getZ();
+        return y == 0 && Math.abs(x) + Math.abs(z) <= 1 || y == 1 && x == 0 && z == 0;
     }
 }

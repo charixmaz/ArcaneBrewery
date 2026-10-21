@@ -11,10 +11,10 @@ import java.util.*;
 import java.util.function.Consumer;
 
 /** Small API-boundary doubles, not a server emulator. Metadata copies match ItemStack's contract. */
-final class TestItems {
+public final class TestItems {
     private TestItems() {}
-    static Stack stack(Material material, int amount) { return new Stack(material, amount, new Meta(false)); }
-    static Stack water() {
+    public static Stack stack(Material material, int amount) { return new Stack(material, amount, new Meta(false)); }
+    public static Stack water() {
         var item = new Stack(Material.POTION, 1, new Meta(true));
         item.edit(meta -> ((PotionMeta) meta).setBasePotionType(PotionType.WATER));
         return item;
@@ -28,13 +28,18 @@ final class TestItems {
                 });
     }
 
-    static final class Stack extends ItemStack {
+    public static final class Stack extends ItemStack {
         private final Material material;
         private int amount;
         private Meta meta;
         Stack(Material material, int amount, Meta meta) { super(); this.material = material; this.amount = amount; this.meta = meta; }
         @Override public Material getType() { return material; }
         @Override public int getAmount() { return amount; }
+        @Override public int getMaxStackSize() { return material == Material.POTION ? 1 : 64; }
+        @Override public boolean isSimilar(ItemStack other) {
+            return other instanceof Stack stack && material == stack.material && meta.values.equals(stack.meta.values)
+                    && meta.data.entries.equals(stack.meta.data.entries);
+        }
         @Override public void setAmount(int amount) { this.amount = amount; }
         @Override public boolean hasItemMeta() { return !meta.values.isEmpty() || !meta.data.entries.isEmpty(); }
         @Override public ItemMeta getItemMeta() { return meta.copy().proxy(); }
@@ -43,7 +48,7 @@ final class TestItems {
             return true;
         }
         @Override public Stack clone() { return new Stack(material, amount, meta.copy()); }
-        void edit(Consumer<ItemMeta> editor) {
+        public void edit(Consumer<ItemMeta> editor) {
             var value = getItemMeta(); editor.accept(value); setItemMeta(value);
         }
     }

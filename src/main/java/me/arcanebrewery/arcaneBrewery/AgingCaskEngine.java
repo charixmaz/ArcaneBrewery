@@ -351,6 +351,14 @@ public class AgingCaskEngine implements Listener {
                 event.setCancelled(true);
 
                 var canonical = finishCanonicalBatch(meta, physicalWood, isInfected);
+                boolean canonicalMetadata = meta.getPersistentDataContainer().getKeys().stream().anyMatch(key ->
+                        key.getNamespace().equals(fermentationMetadata.key("fermentation_format").getNamespace())
+                                && (key.getKey().startsWith("fermentation_") || key.getKey().startsWith("aging_")
+                                || key.getKey().startsWith("alchemy_prep") || key.getKey().startsWith("alchemy_additive_")));
+                if (canonical == null && canonicalMetadata) {
+                    player.sendMessage("§c[Brewery] Canonical batch could not be harvested; its contents were retained.");
+                    return;
+                }
                 event.setCurrentItem(null);
                 clearCompanionPane(inv, slot);
                 saveInventoryToBarrel(barrelBlock, inv);

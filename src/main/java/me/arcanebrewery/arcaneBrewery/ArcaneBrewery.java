@@ -13,6 +13,7 @@ public final class ArcaneBrewery extends JavaPlugin {
     private DiscoveryRuntime discoveries;
     private DiscoveryQueryRuntime discoveryQueries;
     private DiscoveryMutationRuntime discoveryMutations;
+    private AlchemyMachineHandler alchemyMachines;
 
     public IngredientItemAdapter ingredientItems() {
         return java.util.Objects.requireNonNull(ingredientItems, "ingredient adapter not initialized");
@@ -44,7 +45,9 @@ public final class ArcaneBrewery extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new CauldronWasherEngine(ingredientItems), this);
         getServer().getPluginManager().registerEvents(new DistilleryMenuHandler(this, ingredientItems), this);
         getServer().getPluginManager().registerEvents(new BreweryListener(this), this);
-        getServer().getPluginManager().registerEvents(new AlchemyMachineHandler(this), this);
+        alchemyMachines = new AlchemyMachineHandler(this);
+        getServer().getPluginManager().registerEvents(alchemyMachines, this);
+        getServer().getScheduler().runTask(this, alchemyMachines::resumeLoadedMachines);
         getServer().getPluginManager().registerEvents(new AgingCaskEngine(this, ingredientItems, discoveries), this);
         var consumption = new ConsumptionListener(this);
         getServer().getPluginManager().registerEvents(consumption, this);
@@ -64,6 +67,10 @@ public final class ArcaneBrewery extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (alchemyMachines != null) {
+            alchemyMachines.shutdown();
+            alchemyMachines = null;
+        }
         if (storage != null) {
             try {
                 storage.close();
