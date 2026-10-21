@@ -42,6 +42,7 @@ public final class OptionalArcaneEconomy implements EconomyPort, Listener, AutoC
         delegate = UnavailableEconomyPort.INSTANCE;
         if (connection != null) { connection.close(); connection = null; }
     }
+    public boolean isAvailable() { return delegate != UnavailableEconomyPort.INSTANCE; }
     public boolean canAfford(UUID player, BigDecimal amount) { return delegate.canAfford(player, amount); }
     public boolean deposit(UUID player, BigDecimal amount, UUID id) { return delegate.deposit(player, amount, id); }
     public boolean withdraw(UUID player, BigDecimal amount, UUID id) { return delegate.withdraw(player, amount, id); }
