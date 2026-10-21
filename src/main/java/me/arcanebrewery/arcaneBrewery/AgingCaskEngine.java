@@ -5,7 +5,9 @@ import me.arcanebrewery.arcaneBrewery.adapter.bukkit.aging.FinalDrinkMetadata;
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.fermentation.FermentationBatchMetadata;
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.ingredient.IngredientItemAdapter;
 import me.arcanebrewery.arcaneBrewery.application.aging.*;
+import me.arcanebrewery.arcaneBrewery.application.discovery.DiscoveryRuntime;
 import me.arcanebrewery.arcaneBrewery.application.fermentation.FermentationBatchState;
+import me.arcanebrewery.arcaneBrewery.application.storage.RegistrationResult;
 import me.arcanebrewery.arcaneBrewery.domain.discovery.DescriptiveNameGenerator;
 import me.arcanebrewery.arcaneBrewery.domain.quality.IngredientLot;
 
@@ -42,10 +44,12 @@ import org.bukkit.util.io.BukkitObjectOutputStream;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 public class AgingCaskEngine implements Listener {
 
@@ -54,6 +58,7 @@ public class AgingCaskEngine implements Listener {
     private final FermentationBatchMetadata fermentationMetadata;
     private final AgingBatchMetadata agingMetadata;
     private final FinalDrinkMetadata finalDrinkMetadata;
+    private final DiscoveryRuntime discoveries;
     private final AgingService agingService = new AgingService();
     private final NamespacedKey slotTimeKey;
     private final NamespacedKey recipeTypeKey;
@@ -62,9 +67,10 @@ public class AgingCaskEngine implements Listener {
     private final Map<Inventory, Block> inventorySourceMap = new HashMap<>();
     private final Map<Inventory, BukkitRunnable> liveVisualTasks = new HashMap<>();
 
-    public AgingCaskEngine(JavaPlugin plugin, IngredientItemAdapter ingredientItems) {
+    public AgingCaskEngine(JavaPlugin plugin, IngredientItemAdapter ingredientItems, DiscoveryRuntime discoveries) {
         this.plugin = plugin;
         this.ingredientItems = java.util.Objects.requireNonNull(ingredientItems);
+        this.discoveries = java.util.Objects.requireNonNull(discoveries);
         this.fermentationMetadata = new FermentationBatchMetadata(plugin);
         this.agingMetadata = new AgingBatchMetadata(plugin);
         this.finalDrinkMetadata = new FinalDrinkMetadata(plugin);
@@ -568,6 +574,29 @@ public class AgingCaskEngine implements Listener {
 
         player.getInventory().addItem(alcohol);
         player.sendMessage("§a[Brewery] Bottled: " + drinkName + " (" + Math.round(score) + "/100)");
+        registerDiscovery(player.getUniqueId(), result, drinkName);
+    }
+
+    private void registerDiscovery(UUID playerId, AgingResult result, String drinkName) {
+        discoveries.register(playerId, result.process(), Instant.now()).whenComplete((registration, failure) ->
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    Player online = Bukkit.getPlayer(playerId);
+                    if (failure != null) {
+                        plugin.getLogger().warning("Discovery registration failed for "
+                                + result.simulation().fingerprint().value() + ": " + failure.getMessage());
+                        if (online != null) {
+                            online.sendMessage("§c[Discovery] Your drink was bottled, but recipe ownership could not be saved.");
+                        }
+                        return;
+                    }
+                    if (online == null) return;
+                    if (registration.status() == RegistrationResult.Status.REGISTERED) {
+                        online.sendMessage("§d§l[Discovery] New recipe discovered: §f" + drinkName);
+                        online.sendMessage("§7This recipe is private to you by default.");
+                    } else {
+                        online.sendMessage("§7[Discovery] Recipe reproduced. The original discovery already exists.");
+                    }
+                }));
     }
 
     private int qualityStars(double score) {
