@@ -48,7 +48,7 @@ class AlchemyMachineSnapshotCodecTest {
         ByteBuffer.wrap(bytes).putInt(4, 99); resign(bytes);
         assertThrows(IllegalArgumentException.class, () -> codec.decode(bytes));
         byte[] invalidLength = codec.encode(idle);
-        ByteBuffer.wrap(invalidLength).putInt(9, Integer.MAX_VALUE); resign(invalidLength);
+        ByteBuffer.wrap(invalidLength).putInt(25, Integer.MAX_VALUE); resign(invalidLength);
         assertThrows(IllegalArgumentException.class, () -> codec.decode(invalidLength));
         byte[] invalidMarker = codec.encode(idle); invalidMarker[8] = 2; resign(invalidMarker);
         assertThrows(IllegalArgumentException.class, () -> codec.decode(invalidMarker));
