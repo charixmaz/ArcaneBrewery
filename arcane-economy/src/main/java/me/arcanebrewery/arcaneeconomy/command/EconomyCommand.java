@@ -122,14 +122,17 @@ public final class EconomyCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage("§cYou do not have permission.");
             return true;
         }
+        if (args.length >= 1 && args[0].equalsIgnoreCase("history")) {
+            return history(sender, args);
+        }
         if (args.length != 3) {
-            sender.sendMessage("§cUsage: /eco <give|take|set> <player> <amount>");
+            sender.sendMessage("§cUsage: /eco <give|take|set> <player> <amount> or /eco history <player> [limit]");
             return true;
         }
 
         String action = args[0].toLowerCase(Locale.ROOT);
         if (!Set.of("give", "take", "set").contains(action)) {
-            sender.sendMessage("§cUnknown action. Use give, take, or set.");
+            sender.sendMessage("§cUnknown action. Use give, take, set, or history.");
             return true;
         }
 
@@ -158,6 +161,64 @@ public final class EconomyCommand implements CommandExecutor, TabCompleter {
                                 + "§a balance to §f" + format(result.balance()) + "§a.");
                     } else {
                         sender.sendMessage("§cEconomy update failed: " + readable(result));
+                    }
+                });
+            } catch (RuntimeException failure) {
+                failure(sender, failure);
+            }
+        });
+        return true;
+    }
+
+
+    private boolean history(CommandSender sender, String[] args) {
+        if (args.length < 2 || args.length > 3) {
+            sender.sendMessage("§cUsage: /eco history <player> [limit]");
+            return true;
+        }
+
+        Player target = Bukkit.getPlayerExact(args[1]);
+        if (target == null) {
+            sender.sendMessage("§cThat player is not online.");
+            return true;
+        }
+
+        int limit = 10;
+        if (args.length == 3) {
+            try {
+                limit = Integer.parseInt(args[2]);
+            } catch (NumberFormatException invalid) {
+                sender.sendMessage("§cHistory limit must be a number from 1 to 50.");
+                return true;
+            }
+            if (limit < 1 || limit > 50) {
+                sender.sendMessage("§cHistory limit must be from 1 to 50.");
+                return true;
+            }
+        }
+
+        UUID targetId = target.getUniqueId();
+        String targetName = target.getName();
+        int requestedLimit = limit;
+        async.execute(() -> {
+            try {
+                var history = economy.history(targetId, requestedLimit);
+                sync(() -> {
+                    sender.sendMessage("§6ArcaneEconomy history for §f" + targetName + "§6:");
+                    if (history.isEmpty()) {
+                        sender.sendMessage("§7No transactions recorded.");
+                        return;
+                    }
+                    for (var entry : history) {
+                        String direction = switch (entry.type()) {
+                            case TRANSFER -> entry.sourcePlayerId().equals(targetId) ? "OUT" : "IN";
+                            case DEPOSIT -> "IN";
+                            case WITHDRAW -> "OUT";
+                            case SET -> "SET";
+                        };
+                        sender.sendMessage("§7" + direction + " §f" + format(entry.amount())
+                                + " §8[" + entry.type() + "] §7tx "
+                                + entry.transactionId().toString().substring(0, 8));
                     }
                 });
             } catch (RuntimeException failure) {
@@ -204,11 +265,16 @@ public final class EconomyCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (command.getName().equalsIgnoreCase("eco") && args.length == 1) {
-            return prefix(args[0], List.of("give", "take", "set"));
+            return prefix(args[0], List.of("give", "take", "set", "history"));
         }
         int playerArgument = command.getName().equalsIgnoreCase("eco") ? 2 : 1;
         if (args.length == playerArgument) {
             return prefix(args[args.length - 1], Bukkit.getOnlinePlayers().stream().map(Player::getName).toList());
+        }
+        if (command.getName().equalsIgnoreCase("eco")
+                && args.length == 3
+                && args[0].equalsIgnoreCase("history")) {
+            return prefix(args[2], List.of("5", "10", "20", "50"));
         }
         return List.of();
     }
