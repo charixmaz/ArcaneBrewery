@@ -103,6 +103,12 @@ An in-memory implementation would not be sufficient for a production economy bec
 
 ## Buy-side scope
 
+The shared API and optional ArcaneEconomy adapter now have a dedicated
+[integration review](economy-api-integration.md). The exact-money port and async
+settlement boundary are implemented there. The durable market journal and real
+inventory asset adapter remain prerequisites for production sales; this does not
+introduce a new player-facing market phase.
+
 V1.19 provides deterministic PLAYER_BUYS quotes, but does not yet implement purchase settlement/item creation.
 
 Purchase settlement requires a canonical item-creation source and refund/reconciliation behavior and should be added together with the persistent transaction journal rather than approximated now.

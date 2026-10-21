@@ -42,6 +42,40 @@ The initial command layer intentionally targets online players only. The Java AP
 
 ## Java service API
 
+The public types now live in the independent
+[`arcane-economy-api`](../arcane-economy-api/README.md) Maven artifact. ArcaneEconomy
+depends on and packages that artifact; integration plugins use `provided` scope.
+ArcaneEconomy does not depend on ArcaneBrewery. ArcaneBrewery's optional adapter
+uses the shared service without packaging any economy API/implementation classes.
+
+Build all projects from the repository root:
+
+```sh
+mvn --batch-mode -f arcane-economy-api/pom.xml clean install
+mvn --batch-mode clean verify
+mvn --batch-mode -f arcane-economy/pom.xml clean verify
+python3 scripts/verify-economy-packaging.py
+```
+
+The API may also be verified independently with `clean verify`. Installing the API
+is a local build prerequisite; no external service or mandatory server plugin was
+added. CI verifies all three projects and publishes three separate artifacts.
+Install only the desired plugin JARs on the server, not the API JAR.
+
+Supported runtime: Java 25, ordinary Paper 26.1.x Bukkit plugin loading. The
+provider owns the runtime API classloader. Consumers use `softdepend`, guarded
+lazy API linkage and lifecycle-aware ServicesManager bindings. Same-classloader
+disable/re-enable and service re-registration are handled; arbitrary hot JAR
+replacement requires a server restart. Already executing ledger operations may
+finish during disable; new calls through retained ledger references fail closed.
+
+ArcaneBrewery starts normally without the provider. Its settlement entry point
+schedules journal/economy calls on a bounded dedicated worker and inventory
+operations on the server thread. It does not introduce a GUI, marketplace command,
+durable market journal or player-inventory asset adapter. Those remain explicit
+prerequisites for exposing production sales. See the
+[integration review](../docs/economy-api-integration.md).
+
 Other Paper plugins may obtain:
 
 `ArcaneEconomyService`
@@ -64,6 +98,11 @@ Mutating integrations should generate and persist stable transaction IDs for ret
 Replaying the same transaction ID with the same request returns a duplicate result and cannot apply the mutation twice.
 
 Reusing the same transaction ID for a different amount, operation, source or target is rejected as invalid.
+
+Treat `APPLIED` and a verified exact `DUPLICATE` as successful settlement, but never
+`INVALID`, `OUT_OF_RANGE` or `INSUFFICIENT_FUNDS`. If a write throws, its result may
+be uncertain: reconcile `transaction(originalId)` before restoring an asset or
+retrying. The API README documents the full threading and idempotency contract.
 
 ## Storage
 
