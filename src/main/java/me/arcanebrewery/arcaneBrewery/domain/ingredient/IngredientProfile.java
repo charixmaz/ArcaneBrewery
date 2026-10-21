@@ -1,6 +1,7 @@
 package me.arcanebrewery.arcaneBrewery.domain.ingredient;
 
 import java.util.Objects;
+import me.arcanebrewery.arcaneBrewery.domain.process.DomainValues;
 
 public record IngredientProfile(
         String id,
@@ -25,6 +26,6 @@ public record IngredientProfile(
     }
 
     private static double clamp(double value) {
-        return Math.max(0.0, Math.min(100.0, value));
+        return DomainValues.percent(value);
     }
 }

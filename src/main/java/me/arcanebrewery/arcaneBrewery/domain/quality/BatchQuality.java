@@ -1,5 +1,7 @@
 package me.arcanebrewery.arcaneBrewery.domain.quality;
 
+import me.arcanebrewery.arcaneBrewery.domain.process.DomainValues;
+
 public record BatchQuality(
         double purity,
         double flavor,
@@ -24,6 +26,6 @@ public record BatchQuality(
     }
 
     private static double clamp(double value) {
-        return Math.max(0.0, Math.min(100.0, value));
+        return DomainValues.percent(value);
     }
 }
