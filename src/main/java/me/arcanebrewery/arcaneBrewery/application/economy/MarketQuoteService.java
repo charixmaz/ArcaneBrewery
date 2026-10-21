@@ -10,19 +10,20 @@ public final class MarketQuoteService {
         this.pricing = Objects.requireNonNull(pricing);
     }
 
-    public MarketQuote quote(String fingerprint, DrinkValue value, MarketSide side,
+    public MarketQuote quote(MarketAsset asset, MarketSide side,
             long nowEpochMillis, UUID quoteId) {
-        Objects.requireNonNull(value);
+        Objects.requireNonNull(asset);
         Objects.requireNonNull(side);
         double multiplier = side == MarketSide.PLAYER_SELLS
                 ? pricing.sellMultiplier() : pricing.buyMultiplier();
-        double price = clamp(value.units() * multiplier);
+        double price = clamp(asset.value().units() * multiplier);
         return new MarketQuote(
                 MarketQuote.VERSION,
                 quoteId,
-                fingerprint,
+                asset.fingerprint(),
+                asset.token(),
                 side,
-                value.units(),
+                asset.value().units(),
                 round2(price),
                 nowEpochMillis
         );
