@@ -56,6 +56,10 @@ public final class BukkitMarketPlayerService implements Listener {
             player.sendMessage("§c[Brewery] Player drink selling is currently disabled or unavailable.");
             return;
         }
+        if (!player.hasPermission("arcanebrewery.market.sell")) {
+            player.sendMessage("§c[Brewery] You do not have permission to sell drinks.");
+            return;
+        }
 
         var asset = bottles.read(player.getInventory().getItemInMainHand());
         if (asset.isEmpty()) {
