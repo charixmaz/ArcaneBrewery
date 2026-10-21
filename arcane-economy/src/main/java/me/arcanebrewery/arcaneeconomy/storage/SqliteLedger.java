@@ -44,17 +44,17 @@ public final class SqliteLedger implements ArcaneEconomyService, TransactionLook
     }
 
     @Override
-    public EconomyResult deposit(UUID playerId, BigDecimal amount, UUID transactionId) {
+    public synchronized EconomyResult deposit(UUID playerId, BigDecimal amount, UUID transactionId) {
         return mutate(playerId, amount, transactionId, "DEPOSIT", false);
     }
 
     @Override
-    public EconomyResult withdraw(UUID playerId, BigDecimal amount, UUID transactionId) {
+    public synchronized EconomyResult withdraw(UUID playerId, BigDecimal amount, UUID transactionId) {
         return mutate(playerId, amount, transactionId, "WITHDRAW", true);
     }
 
     @Override
-    public EconomyResult setBalance(UUID playerId, BigDecimal balance, UUID transactionId) {
+    public synchronized EconomyResult setBalance(UUID playerId, BigDecimal balance, UUID transactionId) {
         Objects.requireNonNull(playerId);
         Objects.requireNonNull(transactionId);
         final long requested;
@@ -101,7 +101,7 @@ public final class SqliteLedger implements ArcaneEconomyService, TransactionLook
     }
 
     @Override
-    public EconomyResult transfer(UUID fromPlayerId, UUID toPlayerId, BigDecimal amount, UUID transactionId) {
+    public synchronized EconomyResult transfer(UUID fromPlayerId, UUID toPlayerId, BigDecimal amount, UUID transactionId) {
         Objects.requireNonNull(fromPlayerId);
         Objects.requireNonNull(toPlayerId);
         Objects.requireNonNull(transactionId);
