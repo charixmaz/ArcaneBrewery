@@ -4,6 +4,9 @@ import me.arcanebrewery.arcaneBrewery.ArcaneBrewery;
 import me.arcanebrewery.arcaneBrewery.application.economy.*;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerQuitEvent;
 
 import java.util.Locale;
 import java.util.Objects;
@@ -11,7 +14,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BooleanSupplier;
 
-public final class BukkitMarketPlayerService {
+public final class BukkitMarketPlayerService implements Listener {
     private final ArcaneBrewery plugin;
     private final MarketQuoteService quotes;
     private final CanonicalMarketBottleReader bottles;
@@ -124,6 +127,11 @@ public final class BukkitMarketPlayerService {
 
     public void clear(UUID playerId) {
         pending.remove(playerId);
+    }
+
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        clear(event.getPlayer().getUniqueId());
     }
 
     private static String safeReason(String reason) {
