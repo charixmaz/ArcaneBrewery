@@ -74,6 +74,15 @@ public final class AlchemyPreparationCodec {
     private String readText(DataInputStream in) throws IOException {
         int length = in.readInt();
         if (length < 1 || length > MAX_TEXT) throw new IllegalArgumentException("invalid text length");
-        return new String(in.readNBytes(length), StandardCharsets.UTF_8);
+        byte[] bytes = in.readNBytes(length);
+        if (bytes.length != length) throw new EOFException("truncated text");
+        var decoder = StandardCharsets.UTF_8.newDecoder();
+        decoder.onMalformedInput(java.nio.charset.CodingErrorAction.REPORT);
+        decoder.onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT);
+        try {
+            return decoder.decode(java.nio.ByteBuffer.wrap(bytes)).toString();
+        } catch (java.nio.charset.CharacterCodingException malformed) {
+            throw new IllegalArgumentException("invalid UTF-8 text", malformed);
+        }
     }
 }
