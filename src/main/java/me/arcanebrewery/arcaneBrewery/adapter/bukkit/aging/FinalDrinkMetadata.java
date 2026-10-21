@@ -106,4 +106,29 @@ public final class FinalDrinkMetadata {
             return Optional.empty();
         }
     }
+
+    public Optional<DrinkValue> readValue(ItemMeta meta) {
+        var data = meta.getPersistentDataContainer();
+        Integer version = data.get(key("drink_format"), PersistentDataType.INTEGER);
+        if (version == null || version < 4) return Optional.empty();
+
+        Integer valueVersion = data.get(key("drink_value_version"), PersistentDataType.INTEGER);
+        Double units = data.get(key("drink_value_units"), PersistentDataType.DOUBLE);
+        Double quality = data.get(key("drink_value_quality"), PersistentDataType.DOUBLE);
+        Double process = data.get(key("drink_value_process"), PersistentDataType.DOUBLE);
+        Double alchemy = data.get(key("drink_value_alchemy"), PersistentDataType.DOUBLE);
+        Double penalty = data.get(key("drink_value_contamination_penalty"), PersistentDataType.DOUBLE);
+        if (valueVersion == null || units == null || quality == null
+                || process == null || alchemy == null || penalty == null) {
+            return Optional.empty();
+        }
+
+        try {
+            return Optional.of(new DrinkValue(
+                    valueVersion, units, quality, process, alchemy, penalty));
+        } catch (IllegalArgumentException malformed) {
+            return Optional.empty();
+        }
+    }
+
 }
