@@ -25,3 +25,7 @@ permissions:
   arcanebrewery.admin.market:
     description: Allows read-only inspection of market recovery records.
     default: op
+
+  arcanebrewery.market.sell:
+    description: Allows a player to sell canonical drinks when the server market is enabled.
+    default: true
