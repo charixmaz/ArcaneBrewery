@@ -160,8 +160,12 @@ public final class AlchemyMachineHandler implements Listener {
         try {
             commit(session, contents(session.gui), Optional.of(operation));
             schedule(session);
-            double preview = new AlchemyMachineService().previewInstability(AlchemyMachineInputs.catalysts(contents(session.gui)));
-            player.sendMessage("§d[Alchemy] Infusion started. Instability estimate: §f" + Math.round(preview) + "/100");
+            var service = new AlchemyMachineService();
+            var assessment = service.assess(
+                    AlchemyMachineInputs.catalysts(contents(session.gui)), session.snapshot.condition());
+            player.sendMessage("§d[Alchemy] Infusion started. Instability: §f"
+                    + Math.round(assessment.instability()) + "/100 §7| Integrity: §f"
+                    + Math.round(session.snapshot.condition().integrity()) + "/100");
         } catch (RuntimeException failure) { fault(session); }
     }
 
@@ -201,14 +205,59 @@ public final class AlchemyMachineHandler implements Listener {
         if (session.blocked || !session.processing() || !AlchemyStructureScanner.isValid(session.core)) return;
         var operation = session.snapshot.operation().orElseThrow();
         long now = System.currentTimeMillis();
-        ItemStack[] result = AlchemyMachineInputs.complete(contents(session.gui), namespace, operation, now);
-        commit(session, result, Optional.of(operation.complete(now)));
-        for (var viewer : session.gui.getViewers())
-            viewer.sendMessage("§d[Alchemy] Infusion complete. The base is ready for cask aging.");
+        var service = new AlchemyMachineService();
+        AlchemyFailureAssessment assessment = service.assess(
+                operation.preparation(), session.snapshot.condition());
+        AlchemyMachineCondition nextCondition = session.snapshot.condition().wear(
+                assessment.integrityDamage(), assessment.contaminationGain());
+
+        ItemStack[] result;
+        Optional<AlchemyMachineOperation> completedOperation;
+        if (assessment.producesPreparedBase()) {
+            result = AlchemyMachineInputs.complete(contents(session.gui), namespace, operation, now);
+            completedOperation = Optional.of(operation.complete(now));
+        } else {
+            result = AlchemyMachineInputs.fail(
+                    contents(session.gui), namespace, operation, now, assessment.outcome());
+            completedOperation = Optional.empty();
+        }
+
+        commit(session, result, completedOperation, nextCondition);
+        feedback(session, assessment);
+    }
+
+    private void feedback(Session session, AlchemyFailureAssessment assessment) {
+        String message = switch (assessment.outcome()) {
+            case STABLE_SUCCESS -> "§d[Alchemy] Infusion complete. The base is ready for cask aging.";
+            case UNSTABLE_SUCCESS -> "§6[Alchemy] Infusion succeeded, but the crucible was strained.";
+            case FAILED_INFUSION -> "§c[Alchemy] Infusion failed. Catalysts were consumed; the base survived.";
+            case CRITICAL_FAILURE -> "§4§l[Alchemy] Critical reaction! The batch was destroyed.";
+        };
+        for (var viewer : session.gui.getViewers()) viewer.sendMessage(message);
+
+        var world = session.core.getWorld();
+        var location = session.core.getLocation().add(0.5, 1.0, 0.5);
+        switch (assessment.outcome()) {
+            case STABLE_SUCCESS -> world.playSound(location, Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.7f, 1.4f);
+            case UNSTABLE_SUCCESS -> {
+                world.spawnParticle(Particle.SMOKE, location, 18, 0.35, 0.35, 0.35, 0.03);
+                world.playSound(location, Sound.BLOCK_RESPAWN_ANCHOR_DEPLETE, 0.8f, 1.2f);
+            }
+            case FAILED_INFUSION -> {
+                world.spawnParticle(Particle.SMOKE, location, 30, 0.45, 0.45, 0.45, 0.05);
+                world.playSound(location, Sound.BLOCK_FIRE_EXTINGUISH, 1.0f, 0.8f);
+            }
+            case CRITICAL_FAILURE -> world.createExplosion(location, 1.5f, false, false);
+        }
     }
 
     private void commit(Session session, ItemStack[] next, Optional<AlchemyMachineOperation> operation) {
-        var snapshot = new AlchemyMachineSnapshot(operation, items.encode(next));
+        commit(session, next, operation, session.snapshot.condition());
+    }
+
+    private void commit(Session session, ItemStack[] next, Optional<AlchemyMachineOperation> operation,
+            AlchemyMachineCondition condition) {
+        var snapshot = new AlchemyMachineSnapshot(operation, condition, items.encode(next));
         byte[] persisted = storage.save(session.core, session.persisted, snapshot);
         session.persisted = persisted;
         session.snapshot = snapshot;
@@ -229,7 +278,15 @@ public final class AlchemyMachineHandler implements Listener {
                     : Material.PURPLE_STAINED_GLASS_PANE);
             ItemMeta meta = item.getItemMeta();
             if (meta != null) {
-                meta.setDisplayName(slot == 8 ? (session.processing() ? "§eInfusion in progress" : "§d§lBegin Arcane Infusion") : "§5Arcane Conduit");
+                meta.setDisplayName(slot == 8
+                        ? (session.processing() ? "§eInfusion in progress" : "§d§lBegin Arcane Infusion")
+                        : "§5Arcane Conduit");
+                if (slot == 8) {
+                    meta.setLore(List.of(
+                            "§7Integrity: §f" + Math.round(session.snapshot.condition().integrity()) + "/100",
+                            "§7Contamination: §f" + Math.round(session.snapshot.condition().contamination()) + "/100"
+                    ));
+                }
                 item.setItemMeta(meta);
             }
             session.gui.setItem(slot, item);
