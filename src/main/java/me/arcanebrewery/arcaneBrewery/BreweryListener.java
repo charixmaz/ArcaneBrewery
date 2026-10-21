@@ -1,104 +1,118 @@
 package me.arcanebrewery.arcaneBrewery;
 
+import me.arcanebrewery.arcaneBrewery.adapter.bukkit.distillery.DistilleryBatchMetadata;
+import me.arcanebrewery.arcaneBrewery.adapter.bukkit.fermentation.FermentationBatchMetadata;
+import me.arcanebrewery.arcaneBrewery.application.fermentation.*;
+
 import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
 import org.bukkit.block.Barrel;
-import org.bukkit.block.Block;
-import org.bukkit.block.BlockFace;
-import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.block.Action;
 import org.bukkit.event.inventory.InventoryCloseEvent;
-import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.PotionMeta;
-import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
-public class BreweryListener implements Listener {
+import java.util.List;
+import java.util.UUID;
 
+/**
+ * Canonical fermentation bridge. Only V1.5 distillery outputs participate;
+ * arbitrary legacy barrel contents no longer create fermentation state.
+ */
+public final class BreweryListener implements Listener {
     private final JavaPlugin plugin;
-    private final NamespacedKey fermentTimeKey;
-    private final NamespacedKey ingredientCountKey;
-    private final NamespacedKey isFermentingKey;
+    private final DistilleryBatchMetadata distilleryMetadata;
+    private final FermentationBatchMetadata fermentationMetadata;
+    private final FermentationService fermentation = new FermentationService();
 
     public BreweryListener(JavaPlugin plugin) {
         this.plugin = plugin;
-        this.fermentTimeKey = new NamespacedKey(plugin, "ferment_time");
-        this.ingredientCountKey = new NamespacedKey(plugin, "ingredient_count");
-        this.isFermentingKey = new NamespacedKey(plugin, "is_fermenting");
+        this.distilleryMetadata = new DistilleryBatchMetadata(plugin);
+        this.fermentationMetadata = new FermentationBatchMetadata(plugin);
+    }
+
+    @EventHandler
+    public void onBarrelOpen(InventoryOpenEvent event) {
+        if (!(event.getInventory().getHolder() instanceof Barrel barrel)) return;
+        if (refresh(event.getInventory())) barrel.update();
     }
 
     @EventHandler
     public void onBarrelClose(InventoryCloseEvent event) {
-        // Check if the closed inventory belongs to a Barrel block
         if (!(event.getInventory().getHolder() instanceof Barrel barrel)) return;
+        boolean changed = refresh(event.getInventory());
+        boolean started = startEligible(event.getInventory());
+        if (changed || started) barrel.update();
 
-        Inventory inv = event.getInventory();
-        int ingredientCount = 0;
-        boolean hasBaseLiquidContainer = false;
-
-        // Scan the barrel slots
-        for (ItemStack item : inv.getContents()) {
-            if (item == null) continue;
-
-            Material type = item.getType();
-
-            // Detect any items that act as a bottle, liquid base, or juice container
-            if (type == Material.HONEY_BOTTLE ||
-                    type == Material.POTION ||
-                    type == Material.SPLASH_POTION ||
-                    type == Material.LINGERING_POTION ||
-                    type == Material.GLASS_BOTTLE ||
-                    type == Material.MILK_BUCKET ||
-                    type == Material.BOWL) {
-
-                hasBaseLiquidContainer = true;
-            } else {
-                // Count any other items (Wheat, Berries, Sugar, etc.) as brewing ingredients
-                ingredientCount += item.getAmount();
-            }
-        }
-
-        // Get the block data storage
-        var data = barrel.getPersistentDataContainer();
-
-        // If it has a valid bottle/liquid and at least 3 ingredients, start fermenting!
-        if (hasBaseLiquidContainer && ingredientCount >= 3) {
-            if (!data.has(isFermentingKey, PersistentDataType.BOOLEAN)) {
-                data.set(isFermentingKey, PersistentDataType.BOOLEAN, true);
-                data.set(fermentTimeKey, PersistentDataType.INTEGER, 0); // 0 nights passed
-                barrel.update(); // Save changes to the block status
-
-                event.getPlayer().sendMessage("§6[Brewery] The mixture bubbles... Fermentation has begun! It will take 6 nights.");
-            }
+        if (started) {
+            event.getPlayer().sendMessage("§6[Brewery] Fermentation has begun. The batch will continue while you are away.");
         }
     }
 
-    @EventHandler
-    public void onCauldronInteract(PlayerInteractEvent event) {
-        // We only care if the player RIGHT-CLICKS a block
-        if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
+    private boolean startEligible(Inventory inventory) {
+        boolean changed = false;
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            ItemStack item = inventory.getItem(slot);
+            if (item == null || item.getType() != Material.POTION || !item.hasItemMeta()) continue;
+            PotionMeta meta = (PotionMeta) item.getItemMeta();
+            if (meta == null || fermentationMetadata.read(meta).isPresent()) continue;
 
-        Block clickedBlock = event.getClickedBlock();
-        if (clickedBlock == null) return;
+            var distillery = distilleryMetadata.read(meta);
+            if (distillery.isEmpty() || !"DISTILLED_BASE".equals(distilleryMetadata.stage(meta))) continue;
 
-        // Check if the clicked block is a Cauldron
-        if (clickedBlock.getType() == Material.CAULDRON ||
-                clickedBlock.getType() == Material.WATER_CAULDRON) {
+            var source = distillery.get();
+            if (source.status() != me.arcanebrewery.arcaneBrewery.application.distillery.DistilleryBatchState.Status.COMPLETED) {
+                continue;
+            }
 
-            Player player = event.getPlayer();
+            var state = fermentation.start(UUID.randomUUID(), source.draft(),
+                    FermentationSettings.DEFAULT, System.currentTimeMillis());
+            fermentationMetadata.write(meta, state);
+            meta.setDisplayName("§6Fermenting Brewing Base");
+            meta.setLore(List.of(
+                    "§7Stage: §6Fermenting",
+                    "§7Catalyst: §fWild Yeast",
+                    "§7Progress continues while offline.",
+                    "",
+                    "§8Canonical process data stored internally."
+            ));
+            item.setItemMeta(meta);
+            inventory.setItem(slot, item);
+            changed = true;
+        }
+        return changed;
+    }
 
-            // Check the multi-block structure: Is there fire underneath?
-            Block blockUnderneath = clickedBlock.getRelative(BlockFace.DOWN);
+    private boolean refresh(Inventory inventory) {
+        boolean changed = false;
+        long now = System.currentTimeMillis();
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            ItemStack item = inventory.getItem(slot);
+            if (item == null || item.getType() != Material.POTION || !item.hasItemMeta()) continue;
+            PotionMeta meta = (PotionMeta) item.getItemMeta();
+            if (meta == null) continue;
 
-            if (blockUnderneath.getType() == Material.FIRE || blockUnderneath.getType() == Material.CAMPFIRE) {
-                player.sendMessage("§a[Brewery] This cauldron is hot and ready for brewing!");
-            } else {
-                player.sendMessage("§c[Brewery] The cauldron needs a heat source (Fire or Campfire) underneath it!");
+            var stored = fermentationMetadata.read(meta);
+            if (stored.isEmpty()) continue;
+            var state = stored.get();
+            if (state.status() == FermentationBatchState.Status.FERMENTING && state.ready(now)) {
+                var completed = state.complete(now);
+                fermentationMetadata.write(meta, completed);
+                meta.setDisplayName("§aFermented Brewing Base");
+                meta.setLore(List.of(
+                        "§7Stage: §aFermented",
+                        "§7Ready for aging.",
+                        "",
+                        "§8Canonical process data stored internally."
+                ));
+                item.setItemMeta(meta);
+                inventory.setItem(slot, item);
+                changed = true;
             }
         }
+        return changed;
     }
 }

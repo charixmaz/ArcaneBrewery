@@ -19,6 +19,7 @@ public final class ArcaneBrewery extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new AgricultureListener(ingredientItems), this);
         getServer().getPluginManager().registerEvents(new CauldronWasherEngine(ingredientItems), this);
         getServer().getPluginManager().registerEvents(new DistilleryMenuHandler(this, ingredientItems), this);
+        getServer().getPluginManager().registerEvents(new BreweryListener(this), this);
         getServer().getPluginManager().registerEvents(new AgingCaskEngine(this), this);
         getServer().getPluginManager().registerEvents(new CaskHygieneEngine(this), this);
         getServer().getPluginManager().registerEvents(new MethanolProducerEngine(this), this);
