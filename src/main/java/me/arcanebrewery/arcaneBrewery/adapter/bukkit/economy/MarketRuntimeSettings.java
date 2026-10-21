@@ -5,7 +5,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 
 import java.util.Objects;
 
-public record MarketRuntimeSettings(MarketPricingProfile pricing) {
+public record MarketRuntimeSettings(MarketPricingProfile pricing, boolean playerSalesEnabled) {
     public MarketRuntimeSettings {
         Objects.requireNonNull(pricing);
     }
@@ -23,7 +23,7 @@ public record MarketRuntimeSettings(MarketPricingProfile pricing) {
                 number(config, "market.minimum-price", 0.01),
                 number(config, "market.maximum-price", 100_000.0),
                 quoteMillis
-        ));
+        ), config.getBoolean("market.player-sales-enabled", false));
     }
 
     private static double number(FileConfiguration config, String path, double fallback) {
