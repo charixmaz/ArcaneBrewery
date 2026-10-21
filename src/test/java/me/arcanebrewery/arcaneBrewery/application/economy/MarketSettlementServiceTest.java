@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.*;
 import java.util.UUID;
+import java.math.BigDecimal;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -177,10 +178,10 @@ class MarketSettlementServiceTest {
         boolean depositSucceeds = true;
         int deposits;
 
-        public boolean canAfford(UUID playerId, double amount) { return true; }
-        public boolean withdraw(UUID playerId, double amount, UUID transactionId) { return true; }
+        public boolean canAfford(UUID playerId, BigDecimal amount) { return true; }
+        public boolean withdraw(UUID playerId, BigDecimal amount, UUID transactionId) { return true; }
 
-        public boolean deposit(UUID playerId, double amount, UUID transactionId) {
+        public boolean deposit(UUID playerId, BigDecimal amount, UUID transactionId) {
             deposits++;
             if (depositSucceeds) events.add("deposit");
             return depositSucceeds;

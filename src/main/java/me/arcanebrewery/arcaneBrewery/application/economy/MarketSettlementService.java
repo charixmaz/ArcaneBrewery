@@ -47,7 +47,9 @@ public final class MarketSettlementService {
                     transactionId, MarketSettlementResult.Status.REJECTED, 0, "asset removal failed");
         }
 
-        if (!economy.deposit(playerId, quote.price(), transactionId)) {
+        // Pricing remains unchanged. Enter the exact-money boundary once, using
+        // the decimal representation of the existing, already rounded quote.
+        if (!economy.deposit(playerId, java.math.BigDecimal.valueOf(quote.price()), transactionId)) {
             boolean restored = assets.restoreAfterFailedSale(playerId, asset, transactionId);
             journal.reject(transactionId, restored
                     ? "economy deposit failed; asset restored"

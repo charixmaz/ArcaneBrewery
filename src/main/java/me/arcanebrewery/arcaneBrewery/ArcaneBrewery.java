@@ -4,6 +4,10 @@ import me.arcanebrewery.arcaneBrewery.adapter.bukkit.ingredient.*;
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.alchemy.AlchemyRuntimeSettings;
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.economy.MarketRuntimeSettings;
 import me.arcanebrewery.arcaneBrewery.application.economy.MarketQuoteService;
+import me.arcanebrewery.arcaneBrewery.application.economy.*;
+import me.arcanebrewery.arcaneBrewery.adapter.bukkit.economy.OptionalArcaneEconomy;
+import java.util.UUID;
+import java.util.concurrent.*;
 import me.arcanebrewery.arcaneBrewery.application.discovery.*;
 import me.arcanebrewery.arcaneBrewery.application.ingredient.BuiltInIngredients;
 import me.arcanebrewery.arcaneBrewery.application.storage.StorageProvider;
@@ -18,6 +22,22 @@ public final class ArcaneBrewery extends JavaPlugin {
     private DiscoveryMutationRuntime discoveryMutations;
     private AlchemyMachineHandler alchemyMachines;
     private MarketQuoteService marketQuotes;
+    private OptionalArcaneEconomy economy;
+    private MarketSettlementRuntime marketSettlements;
+    private ExecutorService marketWorker;
+
+    /** Integration entry point only: no market commands or inventory adapter yet.
+     * Journal must be durable/idempotent; assets are invoked on the server thread.
+     * Never block the server thread waiting on the returned future. */
+    public CompletableFuture<MarketSettlementResult> settleMarketSale(
+            MarketTransactionJournal journal, MarketAssetPort assets, UUID player,
+            MarketAsset asset, MarketQuote quote, UUID transactionId) {
+        var runtime = marketSettlements;
+        var currentEconomy = economy;
+        if (runtime == null || currentEconomy == null)
+            return CompletableFuture.failedFuture(new IllegalStateException("market runtime unavailable"));
+        return runtime.settleSale(journal, assets, currentEconomy, player, asset, quote, transactionId);
+    }
 
     public IngredientItemAdapter ingredientItems() {
         return java.util.Objects.requireNonNull(ingredientItems, "ingredient adapter not initialized");
@@ -58,6 +78,16 @@ public final class ArcaneBrewery extends JavaPlugin {
             return;
         }
 
+        economy = new OptionalArcaneEconomy(this);
+        marketWorker = new ThreadPoolExecutor(1, 1, 0, TimeUnit.MILLISECONDS,
+                new ArrayBlockingQueue<>(256), task -> {
+                    var thread = new Thread(task, "ArcaneBrewery-market");
+                    thread.setDaemon(true);
+                    return thread;
+                });
+        marketSettlements = new MarketSettlementRuntime(marketWorker,
+                task -> getServer().getScheduler().runTask(this, task), getServer()::isPrimaryThread, System::currentTimeMillis);
+
         getServer().getPluginManager().registerEvents(new AgricultureListener(ingredientItems), this);
         getServer().getPluginManager().registerEvents(new CauldronWasherEngine(ingredientItems), this);
         getServer().getPluginManager().registerEvents(new DistilleryMenuHandler(this, ingredientItems), this);
@@ -84,6 +114,9 @@ public final class ArcaneBrewery extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (marketSettlements != null) { marketSettlements.close(); marketSettlements = null; }
+        if (economy != null) { economy.close(); economy = null; }
+        if (marketWorker != null) { marketWorker.shutdownNow(); marketWorker = null; }
         if (alchemyMachines != null) {
             alchemyMachines.shutdown();
             alchemyMachines = null;
