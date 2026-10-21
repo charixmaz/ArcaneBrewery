@@ -2,6 +2,8 @@ package me.arcanebrewery.arcaneBrewery;
 
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.ingredient.*;
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.alchemy.AlchemyRuntimeSettings;
+import me.arcanebrewery.arcaneBrewery.adapter.bukkit.economy.MarketRuntimeSettings;
+import me.arcanebrewery.arcaneBrewery.application.economy.MarketQuoteService;
 import me.arcanebrewery.arcaneBrewery.application.discovery.*;
 import me.arcanebrewery.arcaneBrewery.application.ingredient.BuiltInIngredients;
 import me.arcanebrewery.arcaneBrewery.application.storage.StorageProvider;
@@ -15,6 +17,7 @@ public final class ArcaneBrewery extends JavaPlugin {
     private DiscoveryQueryRuntime discoveryQueries;
     private DiscoveryMutationRuntime discoveryMutations;
     private AlchemyMachineHandler alchemyMachines;
+    private MarketQuoteService marketQuotes;
 
     public IngredientItemAdapter ingredientItems() {
         return java.util.Objects.requireNonNull(ingredientItems, "ingredient adapter not initialized");
@@ -27,8 +30,11 @@ public final class ArcaneBrewery extends JavaPlugin {
         ingredientItems = new IngredientItemAdapter(BuiltInIngredients.registry(), new IngredientMetadataCodec(this));
 
         AlchemyRuntimeSettings alchemySettings;
+        MarketRuntimeSettings marketSettings;
         try {
             alchemySettings = AlchemyRuntimeSettings.from(getConfig());
+            marketSettings = MarketRuntimeSettings.from(getConfig());
+            marketQuotes = new MarketQuoteService(marketSettings.pricing());
         } catch (RuntimeException failure) {
             getLogger().severe("ArcaneBrewery configuration is invalid: " + failure.getMessage());
             getServer().getPluginManager().disablePlugin(this);
@@ -91,6 +97,7 @@ public final class ArcaneBrewery extends JavaPlugin {
                 storage = null;
             }
         }
+        marketQuotes = null;
         getLogger().info("ArcaneBrewery systems offline.");
     }
 }
