@@ -5,7 +5,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.util.*;
 
-/** ABAM V2: checksummed operation + fixed three native item blobs. No Java object deserialization. */
+/** ABAM V3: checksummed operation + machine condition + fixed three native item blobs. */
 public final class AlchemyMachineSnapshotCodec {
     public static final int MAX_BYTES = 1_048_576;
     private static final int MAGIC = 0x4142414d;
@@ -15,7 +15,7 @@ public final class AlchemyMachineSnapshotCodec {
         try {
             var buffer = new ByteArrayOutputStream();
             var out = new DataOutputStream(buffer);
-            out.writeInt(MAGIC); out.writeInt(2);
+            out.writeInt(MAGIC); out.writeInt(3);
             out.writeBoolean(snapshot.operation().isPresent());
             if (snapshot.operation().isPresent()) {
                 var operation = snapshot.operation().orElseThrow();
@@ -26,6 +26,8 @@ public final class AlchemyMachineSnapshotCodec {
                 byte[] preparation = preparations.encodeBase64(operation.preparation()).getBytes(StandardCharsets.US_ASCII);
                 out.writeInt(preparation.length); out.write(preparation);
             }
+            out.writeDouble(snapshot.condition().integrity());
+            out.writeDouble(snapshot.condition().contamination());
             for (byte[] item : snapshot.items()) { out.writeInt(item.length); out.write(item); }
             out.flush();
             byte[] body = buffer.toByteArray();
@@ -42,7 +44,10 @@ public final class AlchemyMachineSnapshotCodec {
         if (!MessageDigest.isEqual(digest(body), Arrays.copyOfRange(payload, body.length, payload.length)))
             throw new IllegalArgumentException("machine snapshot checksum mismatch");
         try (var in = new DataInputStream(new ByteArrayInputStream(body))) {
-            if (in.readInt() != MAGIC || in.readInt() != 2) throw new IllegalArgumentException("unsupported machine snapshot");
+            if (in.readInt() != MAGIC) throw new IllegalArgumentException("unsupported machine snapshot");
+            int version = in.readInt();
+            if (version != 2 && version != 3) throw new IllegalArgumentException("unsupported machine snapshot");
+
             int present = in.readUnsignedByte();
             if (present > 1) throw new IllegalArgumentException("invalid operation marker");
             Optional<AlchemyMachineOperation> operation = Optional.empty();
@@ -58,10 +63,19 @@ public final class AlchemyMachineSnapshotCodec {
                         status == 0 ? AlchemyMachineState.Status.PROCESSING : AlchemyMachineState.Status.COMPLETED),
                         source, preparations.decodeBase64(new String(prep, StandardCharsets.US_ASCII))));
             }
+
+            AlchemyMachineCondition condition = version == 3
+                    ? new AlchemyMachineCondition(in.readDouble(), in.readDouble())
+                    : AlchemyMachineCondition.PRISTINE;
+
             var items = List.of(blob(in, 262144), blob(in, 262144), blob(in, 262144));
             if (in.available() != 0) throw new IllegalArgumentException("trailing machine snapshot bytes");
-            return new AlchemyMachineSnapshot(operation, items);
-        } catch (IOException failure) { throw new IllegalArgumentException("truncated machine snapshot", failure); }
+            return new AlchemyMachineSnapshot(operation, condition, items);
+        } catch (EOFException failure) {
+            throw new IllegalArgumentException("truncated machine snapshot", failure);
+        } catch (IOException failure) {
+            throw new IllegalArgumentException("truncated machine snapshot", failure);
+        }
     }
 
     private byte[] blob(DataInputStream in, int limit) throws IOException {
