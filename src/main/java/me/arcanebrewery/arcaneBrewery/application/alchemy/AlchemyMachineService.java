@@ -17,12 +17,19 @@ public final class AlchemyMachineService {
     }
 
     public double previewInstability(List<AlchemyCatalyst> catalysts) {
+        return assess(catalysts, AlchemyMachineCondition.PRISTINE).instability();
+    }
+
+    public AlchemyFailureAssessment assess(
+            List<AlchemyCatalyst> catalysts, AlchemyMachineCondition condition) {
         Objects.requireNonNull(catalysts, "catalysts");
-        if (catalysts.isEmpty()) return 0;
-        combine(catalysts); // Apply the same supported count/dose validation as a real start.
-        double load = catalysts.stream().mapToDouble(AlchemyCatalyst::dose).sum();
-        double diversity = catalysts.stream().map(AlchemyCatalyst::additiveId).distinct().count();
-        return Math.min(100.0, 12.5 * load + 15.0 * Math.max(0, diversity - 1));
+        Objects.requireNonNull(condition, "condition");
+        return new AlchemyFailureModel().assess(combine(catalysts), condition);
+    }
+
+    public AlchemyFailureAssessment assess(
+            AlchemyPreparation preparation, AlchemyMachineCondition condition) {
+        return new AlchemyFailureModel().assess(preparation, condition);
     }
 
     public AlchemyMachineState start(long nowEpochMillis, long durationMillis, UUID batchId) {
