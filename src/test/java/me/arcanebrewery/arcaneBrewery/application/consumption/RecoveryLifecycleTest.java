@@ -11,7 +11,7 @@ class RecoveryLifecycleTest {
     void heavyDrinkCreatesHangoverLoad() {
         var condition = lifecycle.afterDrink(
                 RecoveryCondition.sober(),
-                new DrinkConsumptionProfile(80, 70, 20, 0),
+                new DrinkConsumptionProfile(100, 70, 20, 0),
                 1_000
         );
         assertTrue(condition.hangover() > 0);
