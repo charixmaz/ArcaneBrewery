@@ -9,23 +9,24 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BooleanSupplier;
 
 public final class BukkitMarketPlayerService {
     private final ArcaneBrewery plugin;
     private final MarketQuoteService quotes;
     private final CanonicalMarketBottleReader bottles;
-    private final boolean salesEnabled;
+    private final BooleanSupplier salesAvailable;
     private final ConcurrentHashMap<UUID, PendingSale> pending = new ConcurrentHashMap<>();
 
     public BukkitMarketPlayerService(
             ArcaneBrewery plugin,
             MarketQuoteService quotes,
             CanonicalMarketBottleReader bottles,
-            boolean salesEnabled) {
+            BooleanSupplier salesAvailable) {
         this.plugin = Objects.requireNonNull(plugin);
         this.quotes = Objects.requireNonNull(quotes);
         this.bottles = Objects.requireNonNull(bottles);
-        this.salesEnabled = salesEnabled;
+        this.salesAvailable = Objects.requireNonNull(salesAvailable);
     }
 
     public void value(Player player) {
@@ -41,15 +42,15 @@ public final class BukkitMarketPlayerService {
         player.sendMessage("§d§lArcane Market Value");
         player.sendMessage("§7Intrinsic value: §f" + format(asset.get().value().units()) + " units");
         player.sendMessage("§7Current server sell quote: §6" + format(quote.price()));
-        if (!salesEnabled) {
-            player.sendMessage("§7Player selling is disabled on this server.");
+        if (!salesAvailable.getAsBoolean()) {
+            player.sendMessage("§7Player selling is currently disabled or unavailable.");
         }
     }
 
     public void quoteSale(Player player) {
         requireMainThread();
-        if (!salesEnabled) {
-            player.sendMessage("§c[Brewery] Player drink selling is disabled by the server.");
+        if (!salesAvailable.getAsBoolean()) {
+            player.sendMessage("§c[Brewery] Player drink selling is currently disabled or unavailable.");
             return;
         }
 
@@ -72,7 +73,7 @@ public final class BukkitMarketPlayerService {
 
     public void confirmSale(Player player) {
         requireMainThread();
-        if (!salesEnabled) {
+        if (!salesAvailable.getAsBoolean()) {
             player.sendMessage("§c[Brewery] Player drink selling is disabled by the server.");
             return;
         }
