@@ -140,6 +140,7 @@ public final class ArcaneBrewery extends JavaPlugin {
         var marketPlayer = new BukkitMarketPlayerService(
                 this, marketQuotes, marketBottleReader,
                 () -> marketSettings.playerSalesEnabled() && economy != null && economy.isAvailable());
+        getServer().getPluginManager().registerEvents(marketPlayer, this);
 
         var brew = java.util.Objects.requireNonNull(getCommand("brew"), "brew command missing from plugin.yml");
         var discoveryCommand = new DiscoveryCommand(
