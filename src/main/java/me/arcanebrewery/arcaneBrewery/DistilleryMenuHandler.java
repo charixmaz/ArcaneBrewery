@@ -190,13 +190,18 @@ public class DistilleryMenuHandler implements Listener {
         if (current == null || current.status() == DistilleryBatchState.Status.COMPLETED) return;
         if (!current.batchId().equals(expected.batchId()) || !current.ready(System.currentTimeMillis())) return;
 
+        long completedAt = System.currentTimeMillis();
+        DistilleryBatchState completed = current.complete(completedAt);
+
         if (isAttemptingPhaseTwoRefinement(inv)) {
             executeLegacyRefinement(inv);
         } else {
-            executeCanonicalDistillation(inv, current);
+            // Bottle metadata must carry the terminal batch state. Fermentation
+            // intentionally rejects PROCESSING distillery outputs.
+            executeCanonicalDistillation(inv, completed);
         }
 
-        writeState(block, current.complete(System.currentTimeMillis()));
+        writeState(block, completed);
         saveDistilleryToBlock(block, inv);
         setupBaseGuiLayout(inv, false);
 
