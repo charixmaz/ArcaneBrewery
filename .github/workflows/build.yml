@@ -31,10 +31,7 @@ jobs:
       - name: Build ArcaneBrewery
         run: mvn --batch-mode clean verify
 
-      - name: Build ArcaneEconomy
-        run: mvn --batch-mode -f arcane-economy/pom.xml clean verify
-
-      - name: Verify economy API class ownership and optional packaging
+      - name: Verify optional economy API packaging
         run: python3 scripts/verify-economy-packaging.py
 
       - name: Upload ArcaneBrewery JAR
@@ -42,13 +39,6 @@ jobs:
         with:
           name: ArcaneBrewery
           path: target/ArcaneBrewery-*.jar
-          if-no-files-found: error
-
-      - name: Upload ArcaneEconomy JAR
-        uses: actions/upload-artifact@v4
-        with:
-          name: ArcaneEconomy
-          path: arcane-economy/target/ArcaneEconomy-*.jar
           if-no-files-found: error
 
       - name: Upload economy API artifact
