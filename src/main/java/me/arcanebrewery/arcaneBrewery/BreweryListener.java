@@ -36,16 +36,15 @@ public final class BreweryListener implements Listener {
 
     @EventHandler
     public void onBarrelOpen(InventoryOpenEvent event) {
-        if (!(event.getInventory().getHolder() instanceof Barrel barrel)) return;
-        if (refresh(event.getInventory())) barrel.update();
+        if (!(event.getInventory().getHolder() instanceof Barrel)) return;
+        refresh(event.getInventory());
     }
 
     @EventHandler
     public void onBarrelClose(InventoryCloseEvent event) {
-        if (!(event.getInventory().getHolder() instanceof Barrel barrel)) return;
-        boolean changed = refresh(event.getInventory());
+        if (!(event.getInventory().getHolder() instanceof Barrel)) return;
+        refresh(event.getInventory());
         boolean started = startEligible(event.getInventory());
-        if (changed || started) barrel.update();
 
         if (started) {
             event.getPlayer().sendMessage("§6[Brewery] Fermentation has begun. The batch will continue while you are away.");
