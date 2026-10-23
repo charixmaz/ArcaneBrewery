@@ -49,8 +49,15 @@ public final class AlchemyMachineInputs {
         if (AlchemyMachineItems.empty(base) || base.getType() != Material.POTION || base.getAmount() != 1
                 || !(base.getItemMeta() instanceof PotionMeta meta))
             throw new IllegalArgumentException("one completed fermented base is required");
-        var source = new FermentationBatchMetadata(namespace).read(meta).orElseThrow(
+        var metadata = new FermentationBatchMetadata(namespace);
+        var source = metadata.read(meta).orElseThrow(
                 () -> new IllegalArgumentException("base is not canonical"));
+        if (source.status() == FermentationBatchState.Status.FERMENTING
+                && source.ready(System.currentTimeMillis())) {
+            source = source.complete(System.currentTimeMillis());
+            metadata.write(meta, source);
+            base.setItemMeta(meta);
+        }
         if (source.status() != FermentationBatchState.Status.COMPLETED)
             throw new IllegalArgumentException("base fermentation is incomplete");
         return source;
