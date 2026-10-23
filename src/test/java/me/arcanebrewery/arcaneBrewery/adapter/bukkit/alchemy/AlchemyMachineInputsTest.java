@@ -27,6 +27,24 @@ class AlchemyMachineInputsTest {
         base.edit(meta -> new FermentationBatchMetadata(NAMESPACE).write(meta, source()));
         return new ItemStack[]{base, TestItems.stack(Material.BLAZE_POWDER, 3), TestItems.stack(Material.AMETHYST_SHARD, 2)};
     }
+    @Test void readyFermentationIsFinalizedLazilyBeforeAlchemyStart() {
+        var base = TestItems.water();
+        var ready = new FermentationBatchState(
+                FermentationBatchState.VERSION,
+                new UUID(0, 23),
+                source().distillery(),
+                FermentationSettings.DEFAULT,
+                System.currentTimeMillis() - (FermentationSettings.DEFAULT.durationSeconds() * 1000L) - 1000L,
+                FermentationBatchState.Status.FERMENTING
+        );
+        base.edit(meta -> new FermentationBatchMetadata(NAMESPACE).write(meta, ready));
+        var inputs = new ItemStack[]{base, TestItems.stack(Material.BLAZE_POWDER, 1), null};
+
+        assertDoesNotThrow(() -> AlchemyMachineInputs.start(inputs, NAMESPACE, System.currentTimeMillis(), 8000));
+        var stored = new FermentationBatchMetadata(NAMESPACE).read(inputs[0].getItemMeta()).orElseThrow();
+        assertEquals(FermentationBatchState.Status.COMPLETED, stored.status());
+    }
+
     @Test void completionConsumesExactlyOneFromEachCatalystAndNeverMutatesInputs() {
         var inputs = inputs();
         var operation = AlchemyMachineInputs.start(inputs, NAMESPACE, 1000, 8000);
