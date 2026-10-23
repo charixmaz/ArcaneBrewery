@@ -168,7 +168,7 @@ public final class AlchemyMachineHandler implements Listener {
         try { operation = AlchemyMachineInputs.start(contents(session.gui), namespace,
                 System.currentTimeMillis(), settings.balance().processingDurationMillis()); }
         catch (RuntimeException invalid) {
-            player.sendMessage("§c[Alchemy] Use one completed, uninfused fermented base and one or two supported catalysts.");
+            player.sendMessage("§c[Alchemy] Cannot start infusion: §f" + invalid.getMessage());
             return;
         }
         try {
