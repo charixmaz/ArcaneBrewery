@@ -38,11 +38,19 @@ public final class AgingService {
                 source.fermentation(),
                 new DistillationProfile(controls.headsCutPercent(), controls.heartsCutPercent(),
                         controls.tailsCutPercent(), controls.temperatureCelsius(), controls.passes()),
-                aging.settings().profile(aging.elapsedSeconds(nowEpochMillis)),
+                aging.settings().profile(identityAgingSeconds(
+                        aging.elapsedSeconds(nowEpochMillis), targets.agingSeconds())),
                 additives
         );
         var conditions = new BatchConditions(lots, contaminationLoad, 90.0, wood);
         var simulation = calculator.calculate(process, targets, conditions, BatchVariation.fromSeed(variationSeed));
         return new AgingResult(process, simulation);
+    }
+
+    static long identityAgingSeconds(long elapsedSeconds, long maturitySeconds) {
+        if (elapsedSeconds < 0 || maturitySeconds < 0) throw new IllegalArgumentException("invalid aging duration");
+        if (elapsedSeconds < maturitySeconds) return elapsedSeconds;
+        long stageSeconds = 30L;
+        return maturitySeconds + ((elapsedSeconds - maturitySeconds) / stageSeconds) * stageSeconds;
     }
 }
