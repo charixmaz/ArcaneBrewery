@@ -42,7 +42,8 @@ public final class AgingBatchMetadata {
             double temperature = required(data, "aging_storage_temperature", PersistentDataType.DOUBLE);
             double cleanliness = required(data, "aging_cleanliness", PersistentDataType.DOUBLE);
             return Optional.of(new AgingBatchState(VERSION, batchId,
-                    new AgingSettings(wood, oxidation, temperature, cleanliness), started));
+                    new AgingSettings(wood, oxidation, temperature, cleanliness), started,
+                    data.getOrDefault(key("aging_maturation_seconds"), PersistentDataType.LONG,120L)));
         } catch (RuntimeException failure) {
             throw new IllegalArgumentException("malformed aging metadata", failure);
         }
@@ -54,6 +55,7 @@ public final class AgingBatchMetadata {
         data.set(key("aging_batch_id"), PersistentDataType.STRING, state.batchId().toString());
         data.set(key("aging_wood"), PersistentDataType.STRING, state.settings().woodType());
         data.set(key("aging_started_at"), PersistentDataType.LONG, state.startedAtEpochMillis());
+        data.set(key("aging_maturation_seconds"), PersistentDataType.LONG, state.maturationSeconds());
         data.set(key("aging_oxidation"), PersistentDataType.DOUBLE, state.settings().oxidation());
         data.set(key("aging_storage_temperature"), PersistentDataType.DOUBLE, state.settings().storageTemperatureCelsius());
         data.set(key("aging_cleanliness"), PersistentDataType.DOUBLE, state.settings().caskCleanliness());

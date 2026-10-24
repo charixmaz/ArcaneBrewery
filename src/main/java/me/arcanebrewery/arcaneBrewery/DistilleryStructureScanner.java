@@ -8,6 +8,7 @@ public class DistilleryStructureScanner {
 
     public static boolean isValidDistillery(Block block) {
         if (block == null) return false;
+        if (!block.getWorld().isChunkLoaded(block.getX() >> 4,block.getZ() >> 4)) return false;
 
         // If clicking brewing stand, check underneath
         if (block.getType() == Material.BREWING_STAND) {

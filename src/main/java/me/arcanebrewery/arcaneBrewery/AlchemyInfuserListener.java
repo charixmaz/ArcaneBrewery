@@ -38,22 +38,22 @@ public final class AlchemyInfuserListener implements Listener {
 
         var fermented = fermentation.read(meta);
         if (fermented.isEmpty() || fermented.get().status() != FermentationBatchState.Status.COMPLETED) {
-            event.getPlayer().sendMessage("§c[Alchemy] Only completed fermented bases can be infused.");
+            event.getPlayer().sendMessage("§c[ArcaneBrewery] Only completed cultivated bases can be infused.");
             return;
         }
         if (preparation.read(meta).isPresent()) {
-            event.getPlayer().sendMessage("§c[Alchemy] This batch already contains an alchemical catalyst.");
+            event.getPlayer().sendMessage("§c[ArcaneBrewery] This batch already contains an alchemical catalyst.");
             return;
         }
         if (catalystStack.getType() == Material.AIR) {
-            event.getPlayer().sendMessage("§7[Alchemy] Hold a supported catalyst in your off-hand.");
+            event.getPlayer().sendMessage("§7[ArcaneBrewery] Hold a supported catalyst in your off-hand.");
             return;
         }
 
         String external = "minecraft:" + catalystStack.getType().name().toLowerCase(Locale.ROOT);
         var catalyst = BuiltInAlchemyCatalysts.resolveExternal(external);
         if (catalyst.isEmpty()) {
-            event.getPlayer().sendMessage("§c[Alchemy] That item is not a recognized catalyst.");
+            event.getPlayer().sendMessage("§c[ArcaneBrewery] That item is not a recognized catalyst.");
             return;
         }
 
@@ -69,6 +69,6 @@ public final class AlchemyInfuserListener implements Listener {
         if (catalystStack.getAmount() > 1) catalystStack.setAmount(catalystStack.getAmount() - 1);
         else event.getPlayer().getInventory().setItemInOffHand(new ItemStack(Material.AIR));
 
-        event.getPlayer().sendMessage("§d[Alchemy] Infused with " + catalyst.get().displayName() + ".");
+        event.getPlayer().sendMessage("§d[ArcaneBrewery] Infused with " + catalyst.get().displayName() + ".");
     }
 }

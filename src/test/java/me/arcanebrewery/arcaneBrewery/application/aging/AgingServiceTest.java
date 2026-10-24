@@ -13,6 +13,17 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class AgingServiceTest {
     private final AgingService service = new AgingService();
+    @Test void capturedMaturityControlsIdentityWithoutReinterpretingOldStages() {
+        var old=new AgingBatchState(1,UUID.randomUUID(),new AgingSettings("oak",12,18,95),1000);
+        var configured=new AgingBatchState(1,UUID.randomUUID(),new AgingSettings("oak",12,18,95),1000,240);
+        var at121=service.finish(source(),old,122_000,lots(),AgingBalance.wood("oak"),0,AgingBalance.targets(),42);
+        var at126=service.finish(source(),old,127_000,lots(),AgingBalance.wood("oak"),0,AgingBalance.targets(),42);
+        assertEquals(at121.simulation().fingerprint(),at126.simulation().fingerprint());
+        var longer=service.finish(source(),configured,242_000,lots(),AgingBalance.wood("oak"),0,AgingBalance.targets(),42);
+        assertEquals(240,longer.process().aging().durationSeconds());
+        assertEquals(120,at121.process().aging().durationSeconds());
+        assertNotEquals(longer.simulation().fingerprint(),at121.simulation().fingerprint());
+    }
 
     private FermentedProcessDraft source() {
         var distillery = new DistilleryProcessDraft(

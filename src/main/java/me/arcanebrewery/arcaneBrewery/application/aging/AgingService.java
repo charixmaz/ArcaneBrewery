@@ -39,7 +39,7 @@ public final class AgingService {
                 new DistillationProfile(controls.headsCutPercent(), controls.heartsCutPercent(),
                         controls.tailsCutPercent(), controls.temperatureCelsius(), controls.passes()),
                 aging.settings().profile(identityAgingSeconds(
-                        aging.elapsedSeconds(nowEpochMillis), targets.agingSeconds())),
+                        aging.elapsedSeconds(nowEpochMillis), aging.maturationSeconds())),
                 additives
         );
         var conditions = new BatchConditions(lots, contaminationLoad, 90.0, wood);

@@ -36,7 +36,7 @@ public final class BukkitMarketPlayerService implements Listener {
         requireMainThread();
         var asset = bottles.read(player.getInventory().getItemInMainHand());
         if (asset.isEmpty()) {
-            player.sendMessage("§c[Brewery] Hold one finished canonical drink bottle in your main hand.");
+            player.sendMessage("§c[ArcaneBrewery] Hold one finished canonical elixir bottle in your main hand.");
             return;
         }
 
@@ -53,17 +53,17 @@ public final class BukkitMarketPlayerService implements Listener {
     public void quoteSale(Player player) {
         requireMainThread();
         if (!salesAvailable.getAsBoolean()) {
-            player.sendMessage("§c[Brewery] Player drink selling is currently disabled or unavailable.");
+            player.sendMessage("§c[ArcaneBrewery] Player elixir selling is currently disabled or unavailable.");
             return;
         }
         if (!player.hasPermission("arcanebrewery.market.sell")) {
-            player.sendMessage("§c[Brewery] You do not have permission to sell drinks.");
+            player.sendMessage("§c[ArcaneBrewery] You do not have permission to sell drinks.");
             return;
         }
 
         var asset = bottles.read(player.getInventory().getItemInMainHand());
         if (asset.isEmpty()) {
-            player.sendMessage("§c[Brewery] Hold one finished canonical drink bottle in your main hand.");
+            player.sendMessage("§c[ArcaneBrewery] Hold one finished canonical elixir bottle in your main hand.");
             return;
         }
 
@@ -75,36 +75,36 @@ public final class BukkitMarketPlayerService implements Listener {
         player.sendMessage("§d§lArcane Market Quote");
         player.sendMessage("§7Sell price: §6" + format(quote.price()));
         player.sendMessage("§7Expires in: §f" + seconds + "s");
-        player.sendMessage("§7Confirm with §f/brew sell confirm §7while holding the same drink.");
+        player.sendMessage("§7Confirm with §f/brew sell confirm §7while holding the same elixir.");
     }
 
     public void confirmSale(Player player) {
         requireMainThread();
         if (!salesAvailable.getAsBoolean()) {
-            player.sendMessage("§c[Brewery] Player drink selling is disabled by the server.");
+            player.sendMessage("§c[ArcaneBrewery] Player elixir selling is disabled by the server.");
             return;
         }
 
         PendingSale sale = pending.remove(player.getUniqueId());
         if (sale == null) {
-            player.sendMessage("§c[Brewery] You do not have an active sell quote. Use /brew sell first.");
+            player.sendMessage("§c[ArcaneBrewery] You do not have an active sell quote. Use /brew sell first.");
             return;
         }
 
         long now = System.currentTimeMillis();
         if (sale.quote().expired(now)) {
-            player.sendMessage("§c[Brewery] That sell quote expired. Request a new quote.");
+            player.sendMessage("§c[ArcaneBrewery] That sell quote expired. Request a new quote.");
             return;
         }
 
         var held = bottles.read(player.getInventory().getItemInMainHand());
         if (held.isEmpty() || !held.get().equals(sale.asset())) {
-            player.sendMessage("§c[Brewery] Hold the same quoted drink in your main hand to confirm.");
+            player.sendMessage("§c[ArcaneBrewery] Hold the same quoted elixir in your main hand to confirm.");
             return;
         }
 
         UUID transactionId = UUID.randomUUID();
-        player.sendMessage("§7[Brewery] Processing sale...");
+        player.sendMessage("§7[ArcaneBrewery] Processing sale...");
         plugin.settleMarketSale(
                 player.getUniqueId(), sale.asset(), sale.quote(), transactionId)
                 .whenComplete((result, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
@@ -114,17 +114,17 @@ public final class BukkitMarketPlayerService implements Listener {
                     if (failure != null) {
                         plugin.getLogger().warning("Market sale " + transactionId
                                 + " requires review: " + rootMessage(failure));
-                        online.sendMessage("§c[Brewery] Sale outcome is uncertain. Transaction §f"
+                        online.sendMessage("§c[ArcaneBrewery] Sale outcome is uncertain. Transaction §f"
                                 + shortId(transactionId) + "§c was preserved for admin reconciliation.");
                         return;
                     }
 
                     switch (result.status()) {
-                        case COMMITTED -> online.sendMessage("§a[Brewery] Drink sold for §6"
+                        case COMMITTED -> online.sendMessage("§a[ArcaneBrewery] Elixir sold for §6"
                                 + format(result.amount()) + "§a.");
-                        case REJECTED -> online.sendMessage("§c[Brewery] Sale rejected: "
+                        case REJECTED -> online.sendMessage("§c[ArcaneBrewery] Sale rejected: "
                                 + safeReason(result.reason()));
-                        case DUPLICATE -> online.sendMessage("§e[Brewery] This transaction was already processed.");
+                        case DUPLICATE -> online.sendMessage("§e[ArcaneBrewery] This transaction was already processed.");
                     }
                 }));
     }

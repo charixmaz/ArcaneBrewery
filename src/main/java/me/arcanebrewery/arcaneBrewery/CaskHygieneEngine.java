@@ -56,8 +56,8 @@ public class CaskHygieneEngine implements Listener {
                 tileState.getPersistentDataContainer().set(contKey, PersistentDataType.INTEGER, 1);
 
                 // FIXED: Instantiated locally and dynamically to prevent early initialization crashes!
-                NamespacedKey storageKey = new NamespacedKey(plugin, "barrel_inventory_storage");
-                tileState.getPersistentDataContainer().remove(storageKey);
+                // Retain quarantined contents; contamination must not erase an
+                // inventory payload silently, including before legacy migration.
                 tileState.update();
 
                 // Play custom fungal collapse effects
@@ -129,8 +129,8 @@ public class CaskHygieneEngine implements Listener {
                                 if (firstLine.contains("[Producer]") || firstLine.contains("Refinery")) {
                                     frontSide.setLine(0, "§8§l[Refinery Stats]");
                                     frontSide.setLine(1, "§aUNIT: OPERATIONAL");
-                                    frontSide.setLine(2, "§7Methanol: §b99.8%");
-                                    frontSide.setLine(3, "§7Pressure: §f1.2 atm");
+                                    frontSide.setLine(2, "§7Cleansing Solution");
+                                    frontSide.setLine(3, "§7Cleaning control ready");
                                 } else {
                                     frontSide.setLine(0, "§2§l[Diagnostics]");
                                     frontSide.setLine(1, "§aSTATUS: PURE");
@@ -150,7 +150,7 @@ public class CaskHygieneEngine implements Listener {
      * Handles right-clicking infected machinery with 4★+ high-proof custom alcohol
      * to sanitize the casing, remove structural mutations, and flush background NBT storage.
      */
-    @EventHandler
+    @EventHandler(ignoreCancelled=true)
     public void onCaskSanitize(PlayerInteractEvent event) {
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
         Block clicked = event.getClickedBlock();
@@ -164,7 +164,7 @@ public class CaskHygieneEngine implements Listener {
 
         if (heldItem.getType() != Material.POTION || !heldItem.hasItemMeta()) return;
 
-        TileState tileState = (TileState) clicked.getState();
+        if (!(clicked.getState() instanceof TileState tileState)) return;
         if (tileState.getPersistentDataContainer().getOrDefault(contaminationKey, PersistentDataType.INTEGER, 0) == 0) {
             return; // Casing structure is already fully sterile
         }
@@ -176,7 +176,7 @@ public class CaskHygieneEngine implements Listener {
 
         // HARDCORE MINIMUM PROOF CEILING: Rejects cheap 1-3 star variants
         if (qualityStars < 4) {
-            player.sendMessage("§c[Brewery] This alcohol proof is too low! You need a 4★+ high-purity brew to dissolve the contamination.");
+            player.sendMessage("§c[ArcaneBrewery] This cleansing quality is too low! You need a 4★+ high-quality elixir to dissolve the contamination.");
             return;
         }
 
@@ -206,7 +206,7 @@ public class CaskHygieneEngine implements Listener {
             player.getInventory().setItemInMainHand(new ItemStack(Material.GLASS_BOTTLE));
         }
 
-        player.sendMessage("§a§l[Brewery] ✔ Core unit successfully sanitized! The chemical balance has been restored.");
+        player.sendMessage("§a§l[ArcaneBrewery] ✔ Core unit successfully sanitized! The chemical balance has been restored.");
         updateExternalSigns(plugin, clicked);
     }
 }

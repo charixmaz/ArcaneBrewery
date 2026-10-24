@@ -1,147 +1,60 @@
 package me.arcanebrewery.arcaneBrewery;
 
-import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
-import org.bukkit.block.Block;
-import org.bukkit.block.TileState;
-import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.inventory.meta.PotionMeta;
+import me.arcanebrewery.arcaneBrewery.adapter.bukkit.aging.AgingBatchMetadata;
+import org.bukkit.*;
+import org.bukkit.block.*;
+import org.bukkit.inventory.*;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
+import java.util.*;
 
-import java.util.List;
-
-public class CaskVisualEngine {
-
-    public static void updateCaskInterface(JavaPlugin plugin, Inventory inv, Block barrelBlock) {
-        NamespacedKey slotTimeKey = new NamespacedKey(plugin, "slot_start_time");
-        NamespacedKey recipeTypeKey = new NamespacedKey(plugin, "brew_stage");
-        NamespacedKey spoilTimeKey = new NamespacedKey(plugin, "cask_spoil_timestamp");
-
-        boolean isInfected = CaskHygieneEngine.checkInfectionStatus(plugin, barrelBlock);
-        int[] storageSlots = {0, 2, 4, 6};
-
-        // --- CONDENSER VALVE PORT (SLOT 8) ---
-        if (isInfected) {
-            setCustomPane(inv, 8, Material.HOPPER, "§4§l☣ CHEMICAL INJECTOR VALVE", List.of(
-                    "§7Status: §cBLOCKED BY CONTAMINATION",
-                    "",
-                    "§e[DRAG & DROP] §fIndustrial Methanol Fluid",
-                    "§7directly over this slot to flush the core lines."
-            ));
-        } else {
-            setCustomPane(inv, 8, Material.CHARCOAL, "§a⚙ Ventilation Input Pure", List.of(
-                    "§7Status: §2OPERATIONAL",
-                    "§7Atmospheric inner pressure balanced."
-            ));
-        }
-
-        // Dividers
-        int[] dividers = {1, 3, 5, 7};
-        for (int div : dividers) {
-            if (isInfected) {
-                setCustomPane(inv, div, Material.LIME_STAINED_GLASS_PANE, "§c☣ Clogged Line", List.of("§7Purify via the injector input."));
-            } else {
-                setCustomPane(inv, div, Material.GRAY_STAINED_GLASS_PANE, "§8| Separator Line", List.of("§7Isolates fluid pressure."));
-            }
-        }
-
-        for (int slot : storageSlots) {
-            ItemStack bottle = inv.getItem(slot);
-            int indicatorSlot = slot + 1;
-
-            if (bottle != null && bottle.getType().name().endsWith("_GLASS_PANE")) continue;
-
-            // FIX: Draw the barrier on the INDICATOR pane, leaving the real potion in the slot alone!
-            if (isInfected) {
-                setCustomPane(inv, indicatorSlot, Material.BARRIER, "§c☣ UNIT LOCKED", List.of("§7Methanol flush required."));
-                continue;
-            }
-
-            if (bottle == null || bottle.getType() == Material.AIR) {
-                setCustomPane(inv, indicatorSlot, Material.GRAY_STAINED_GLASS_PANE, "§8空 §7Storage Available", List.of("§7Drop unfermented bottles directly to left."));
-                continue;
-            }
-
-            if (bottle.getType() == Material.POTION) {
-                PotionMeta meta = (PotionMeta) bottle.getItemMeta();
-                if (meta != null && meta.getPersistentDataContainer().has(slotTimeKey, PersistentDataType.LONG)) {
-                    long startTime = meta.getPersistentDataContainer().getOrDefault(slotTimeKey, PersistentDataType.LONG, System.currentTimeMillis());
-                    long elapsed = (System.currentTimeMillis() - startTime) / 1000;
-                    String recipeKey = meta.getPersistentDataContainer().getOrDefault(recipeTypeKey, PersistentDataType.STRING, "UNKNOWN");
-
-                    NamespacedKey agingFormatKey = new NamespacedKey(plugin, "aging_format");
-                    NamespacedKey agingStartKey = new NamespacedKey(plugin, "aging_started_at");
-                    if (meta.getPersistentDataContainer().has(agingFormatKey, PersistentDataType.INTEGER)
-                            && meta.getPersistentDataContainer().has(agingStartKey, PersistentDataType.LONG)) {
-                        long canonicalStart = meta.getPersistentDataContainer().getOrDefault(
-                                agingStartKey, PersistentDataType.LONG, System.currentTimeMillis());
-                        long canonicalElapsed = Math.max(0, (System.currentTimeMillis() - canonicalStart) / 1000);
-                        long targetTime = me.arcanebrewery.arcaneBrewery.application.aging.AgingBalance.targets().agingSeconds();
-                        if (canonicalElapsed < targetTime) {
-                            setCustomPane(inv, indicatorSlot, Material.BLUE_STAINED_GLASS_PANE,
-                                    "§b● Canonical Aging Active", List.of(
-                                            "§7Progress: §e" + canonicalElapsed + "s / " + targetTime + "s",
-                                            "§7Quality is process-driven, not randomly rolled."
-                                    ));
-                        } else {
-                            setCustomPane(inv, indicatorSlot, Material.GREEN_STAINED_GLASS_PANE,
-                                    "§a● MATURED — READY TO BOTTLE", List.of(
-                                            "§7Shift-click potion left to finish the batch.",
-                                            "§7Further aging may alter final quality."
-                                    ));
+public final class CaskVisualEngine {
+    private CaskVisualEngine() { }
+    public static void updateCaskInterface(JavaPlugin plugin,Inventory inv,Block core,String owner) {
+        boolean infected=CaskHygieneEngine.checkInfectionStatus(plugin,core);
+        pane(inv,8,infected?Material.HOPPER:Material.CHARCOAL,"Cleaning / Ventilation",List.of(
+                "§7Owner: §f"+owner+"§r","§7Status: §f"+(infected?"CONTAMINATED":"CLEAN")+"§r",
+                "§7Apply Cleansing Solution from your cursor.§r","§7Then reopen using the [Brewery] sign.§r"));
+        for (int lane=0;lane<4;lane++) {
+            int slot=lane*2; ItemStack bottle=inv.getItem(slot);
+            String state="EMPTY"; Material type=Material.GRAY_STAINED_GLASS_PANE;
+            var lore=new ArrayList<String>(); lore.add("§7Storage: §fLane "+(lane+1)+"§r");
+            if (infected) { state="CONTAMINATED"; type=Material.BARRIER; lore.add("§eContents retained. Clean before use.§r"); }
+            else if (bottle!=null && bottle.getType()==Material.POTION && bottle.getItemMeta()!=null) {
+                try {
+                    var meta=bottle.getItemMeta(); var aging=new AgingBatchMetadata(plugin).read(meta);
+                    long started=meta.getPersistentDataContainer().getOrDefault(new NamespacedKey(plugin,"slot_start_time"),PersistentDataType.LONG,System.currentTimeMillis());
+                    long elapsed=Math.max(0,(System.currentTimeMillis()-started)/1000);
+                    long target=120;
+                    if (aging.isPresent()) { elapsed=aging.get().elapsedSeconds(System.currentTimeMillis()); target=aging.get().maturationSeconds(); }
+                    else {
+                        String stage=meta.getPersistentDataContainer().getOrDefault(new NamespacedKey(plugin,"brew_stage"),PersistentDataType.STRING,"");
+                        var profile=BreweryData.RECIPES.get(stage);
+                        boolean legacy=new me.arcanebrewery.arcaneBrewery.adapter.bukkit.aging.MaturationInputPolicy(plugin.getName().toLowerCase(Locale.ROOT)).legacyEligible(meta);
+                        if (profile==null || !legacy) {
+                            pane(inv,slot+1,Material.GRAY_STAINED_GLASS_PANE,"Lane "+(lane+1)+" — PRESERVED INPUT",
+                                    List.of("§7Stored input retained; no maturity stats available.§r","§7Withdraw it and complete the required process.§r"));
+                            continue;
                         }
-                        continue;
-                    }
-
-                    BreweryData.RecipeProfile profile = BreweryData.RECIPES.get(recipeKey);
-
-                    if (recipeKey.equals("RUINED_UNWASHED") || profile == null) {
-                        setCustomPane(inv, indicatorSlot, Material.BROWN_STAINED_GLASS_PANE, "§c● BATCH SPOILED", List.of("§7Unwashed toxic compounds detected."));
-                        continue;
-                    }
-
-                    int targetTime = profile.baseDuration;
-
-                    if (elapsed < targetTime) {
-                        setCustomPane(inv, indicatorSlot, Material.BLUE_STAINED_GLASS_PANE, "§b● Fermentation Active", List.of(
-                                "§7Product: §f" + profile.name,
-                                "§7Progress: §e" + elapsed + "s / " + targetTime + "s"
-                        ));
-                    } else if (elapsed >= targetTime && elapsed <= (targetTime + 15)) {
-                        setCustomPane(inv, indicatorSlot, Material.GREEN_STAINED_GLASS_PANE, "§a● PEAK PURITY WINDOW", List.of("§7The sweet spot achieved. Shift-click potion left to bottle product."));
-                    } else {
-                        if (barrelBlock != null && barrelBlock.getState() instanceof TileState state) {
-                            if (!state.getPersistentDataContainer().has(spoilTimeKey, PersistentDataType.LONG)) {
-                                state.getPersistentDataContainer().set(spoilTimeKey, PersistentDataType.LONG, System.currentTimeMillis());
-                                state.update();
+                        if (profile!=null) target=profile.baseDuration;
+                        if (profile!=null && elapsed>target+15 && core.getState() instanceof TileState tile) {
+                            var key=new NamespacedKey(plugin,"cask_spoil_timestamp");
+                            if (!tile.getPersistentDataContainer().has(key)) {
+                                tile.getPersistentDataContainer().set(key,PersistentDataType.LONG,System.currentTimeMillis()); tile.update(false,false);
                             }
                         }
-                        long spoilTimer = 0;
-                        if (barrelBlock != null && barrelBlock.getState() instanceof TileState state) {
-                            long startSpoil = state.getPersistentDataContainer().getOrDefault(spoilTimeKey, PersistentDataType.LONG, System.currentTimeMillis());
-                            spoilTimer = 600 - ((System.currentTimeMillis() - startSpoil) / 1000);
-                        }
-                        setCustomPane(inv, indicatorSlot, Material.BLACK_STAINED_GLASS_PANE, "§8● STAGNANT ACME", List.of(
-                                "§7Yeast carbonation collapsed.",
-                                "§c☣ Contamination fuse ticking: §f" + Math.max(0, spoilTimer) + "s / 600s"
-                        ));
                     }
-                }
-            }
+                    state=elapsed>=target?"READY":"AGING"; type=elapsed>=target?Material.LIME_STAINED_GLASS_PANE:Material.BLUE_STAINED_GLASS_PANE;
+                    lore.add("§7Elapsed: §b"+elapsed+"s§r"); lore.add("§7Remaining: §f"+Math.max(0,target-elapsed)+"s§r");
+                    lore.add("§7Click or shift-click the bottle to withdraw.§r");
+                    lore.add("§eEarly withdrawal: Unfinished Elixir; no discovery.§r");
+                } catch (RuntimeException corrupt) { state="DATA LOCKED"; type=Material.BARRIER; lore.add("§eStored bottle retained for inspection.§r"); }
+            } else if (bottle!=null) { state="PRESERVED INPUT"; lore.add("§7Withdraw this unsupported legacy item.§r"); }
+            else lore.add("§7Place a cultivated base in the slot to the left.§r");
+            pane(inv,slot+1,type,"Lane "+(lane+1)+" — "+state,lore);
         }
     }
-
-    private static void setCustomPane(Inventory inv, int index, Material material, String name, List<String> lore) {
-        ItemStack pane = new ItemStack(material);
-        ItemMeta meta = pane.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName(name);
-            meta.setLore(lore);
-            pane.setItemMeta(meta);
-        }
-        inv.setItem(index, pane);
+    private static void pane(Inventory inv,int slot,Material material,String name,List<String> lore) {
+        var item=new ItemStack(material); var meta=item.getItemMeta(); meta.setDisplayName("§b§l"+name+"§r"); meta.setLore(lore); me.arcanebrewery.arcaneBrewery.adapter.bukkit.PresentationStyle.apply(meta); item.setItemMeta(meta); inv.setItem(slot,item);
     }
 }

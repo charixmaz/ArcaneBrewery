@@ -3,6 +3,8 @@ package me.arcanebrewery.arcaneBrewery;
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.alchemy.*;
 import me.arcanebrewery.arcaneBrewery.application.alchemy.*;
 import me.arcanebrewery.arcaneBrewery.application.distillery.MachineLocation;
+import me.arcanebrewery.arcaneBrewery.adapter.bukkit.machine.BukkitMachineAccess;
+import me.arcanebrewery.arcaneBrewery.application.machine.MachineIdentity.Kind;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
@@ -20,7 +22,6 @@ import java.util.*;
 
 /** Main-thread coordinator. Every machine owns exactly one shared GUI and one atomic persisted snapshot. */
 public final class AlchemyMachineHandler implements Listener {
-    private static final String TITLE = "§5Arcane Infusion Crucible";
     private static final int[] INPUTS = {2, 4, 6};
     private final JavaPlugin plugin;
     private final String namespace;
@@ -29,11 +30,12 @@ public final class AlchemyMachineHandler implements Listener {
     private final AlchemyRuntimeSettings settings;
     private final AlchemyMachineService machineService;
     private final AlchemyMaintenanceService maintenanceService;
+    private final BukkitMachineAccess access;
     private final Map<MachineLocation, Session> sessions = new HashMap<>();
     private final Map<MachineLocation, BukkitRunnable> tasks = new HashMap<>();
     private boolean shuttingDown;
 
-    private static final class Holder implements InventoryHolder {
+    private static final class Holder implements me.arcanebrewery.arcaneBrewery.adapter.bukkit.machine.MachineGuiHolder {
         final MachineLocation key;
         Inventory inventory;
         Holder(MachineLocation key) { this.key = key; }
@@ -59,12 +61,17 @@ public final class AlchemyMachineHandler implements Listener {
     }
 
     public AlchemyMachineHandler(JavaPlugin plugin, AlchemyRuntimeSettings settings) {
+        this(plugin,settings,((ArcaneBrewery)plugin).machineAccess());
+    }
+    public AlchemyMachineHandler(JavaPlugin plugin, AlchemyRuntimeSettings settings,BukkitMachineAccess access) {
         this.plugin = Objects.requireNonNull(plugin);
         this.settings = Objects.requireNonNull(settings);
         this.namespace = plugin.getName().toLowerCase(Locale.ROOT);
         this.storage = new AlchemyMachineStorage(namespace, items);
         this.machineService = new AlchemyMachineService(settings.balance());
         this.maintenanceService = new AlchemyMaintenanceService(settings.balance());
+        this.access=Objects.requireNonNull(access);
+        access.occupancy(Kind.INFUSER,this::occupied);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -74,16 +81,21 @@ public final class AlchemyMachineHandler implements Listener {
         if (!AlchemyStructureScanner.isValid(core)) return; // Leave normal enchanting entirely alone.
         event.setCancelled(true);
         if (event.getHand() != EquipmentSlot.HAND) return;
+        if (!access.authorize(event.getPlayer(),core,Kind.INFUSER,false)) return;
         try {
             Session session = session(core);
             if (session.blocked) throw new IllegalStateException("machine unavailable");
-            recover(session);
-            if (session.blocked) return;
-            if (event.getPlayer().isSneaking() && maintain(event.getPlayer(), session)) return;
-            event.getPlayer().openInventory(session.gui);
+            access.open(event.getPlayer(),core,Kind.INFUSER,() -> {
+                recover(session);
+                if (session.blocked) throw new IllegalStateException("machine unavailable");
+                if (event.getPlayer().isSneaking()) maintain(event.getPlayer(),session);
+                paint(session);
+                return session.gui;
+            });
+            evictIdle(session);
         } catch (RuntimeException failure) {
             warn(core);
-            event.getPlayer().sendMessage("§c[Alchemy] Machine data is unavailable; stored items have been retained.");
+            event.getPlayer().sendMessage("§c[ArcaneBrewery] Machine data is unavailable; stored items have been retained.");
         }
     }
 
@@ -94,6 +106,7 @@ public final class AlchemyMachineHandler implements Listener {
         Session session = sessions.get(holder.key);
         if (event.isCancelled()) return;
         if (shuttingDown || session == null || session.gui != gui || session.blocked
+                || !access.active(gui,event.getWhoClicked().getUniqueId())
                 || !AlchemyStructureScanner.isValid(session.core) || event instanceof InventoryCreativeEvent) {
             event.setCancelled(true);
             return;
@@ -115,7 +128,7 @@ public final class AlchemyMachineHandler implements Listener {
             player.setItemOnCursor(move.cursor()); // Only after the machine snapshot is accepted.
         } catch (RuntimeException failure) {
             fault(session);
-            player.sendMessage("§c[Alchemy] Transfer rejected; machine items were retained.");
+            player.sendMessage("§c[ArcaneBrewery] Transfer rejected; machine items were retained.");
         }
     }
 
@@ -151,7 +164,7 @@ public final class AlchemyMachineHandler implements Listener {
         else if (loaded.snapshot().operation().isPresent())
             AlchemyMachineInputs.validateCompleted(decoded, namespace, loaded.snapshot().operation().orElseThrow());
         var holder = new Holder(key);
-        Inventory gui = Bukkit.createInventory(holder, 9, TITLE);
+        Inventory gui = Bukkit.createInventory(holder, 9, MessageConfig.title("infuser"));
         holder.inventory = gui;
         var session = new Session(core, gui, loaded);
         apply(gui, decoded);
@@ -168,7 +181,7 @@ public final class AlchemyMachineHandler implements Listener {
         try { operation = AlchemyMachineInputs.start(contents(session.gui), namespace,
                 System.currentTimeMillis(), settings.balance().processingDurationMillis()); }
         catch (RuntimeException invalid) {
-            player.sendMessage("§c[Alchemy] Cannot start infusion: §f" + invalid.getMessage());
+            player.sendMessage("§c[ArcaneBrewery] Cannot start infusion: §f" + invalid.getMessage());
             return;
         }
         try {
@@ -176,7 +189,7 @@ public final class AlchemyMachineHandler implements Listener {
             schedule(session);
             var assessment = machineService.assess(
                     AlchemyMachineInputs.catalysts(contents(session.gui)), session.snapshot.condition());
-            player.sendMessage("§d[Alchemy] Infusion started. Instability: §f"
+            player.sendMessage("§d[ArcaneBrewery] Infusion started. Instability: §f"
                     + Math.round(assessment.instability()) + "/100 §7| Integrity: §f"
                     + Math.round(session.snapshot.condition().integrity()) + "/100");
         } catch (RuntimeException failure) { fault(session); }
@@ -189,7 +202,7 @@ public final class AlchemyMachineHandler implements Listener {
         if (!repair && !clean) return false;
 
         if (session.processing()) {
-            player.sendMessage("§c[Alchemy] The crucible cannot be serviced while processing.");
+            player.sendMessage("§c[ArcaneBrewery] The infuser cannot be serviced while processing.");
             return true;
         }
 
@@ -199,8 +212,8 @@ public final class AlchemyMachineHandler implements Listener {
                 : maintenanceService.clean(current);
         if (next.equals(current)) {
             player.sendMessage(repair
-                    ? "§7[Alchemy] Crucible integrity is already full."
-                    : "§7[Alchemy] The crucible is already clean.");
+                    ? "§7[ArcaneBrewery] Infuser integrity is already full."
+                    : "§7[ArcaneBrewery] The infuser is already clean.");
             return true;
         }
 
@@ -211,14 +224,16 @@ public final class AlchemyMachineHandler implements Listener {
             held.setAmount(held.getAmount() - 1);
         }
         player.sendMessage(repair
-                ? "§a[Alchemy] Crucible repaired to §f" + Math.round(next.integrity()) + "/100§a integrity."
-                : "§b[Alchemy] Crucible cleaned to §f" + Math.round(next.contamination()) + "/100§b contamination.");
+                ? "§a[ArcaneBrewery] Infuser repaired to §f" + Math.round(next.integrity()) + "/100§a integrity."
+                : "§b[ArcaneBrewery] Infuser cleaned to §f" + Math.round(next.contamination()) + "/100§b contamination.");
         return true;
     }
 
     private void recover(Session session) {
         if (!session.processing() || !AlchemyStructureScanner.isValid(session.core)) return;
-        if (session.snapshot.operation().orElseThrow().state().ready(System.currentTimeMillis())) complete(session);
+        if (session.snapshot.operation().orElseThrow().state().ready(System.currentTimeMillis())) {
+            complete(session); stop(key(session.core));
+        }
         else schedule(session);
     }
 
@@ -237,6 +252,7 @@ public final class AlchemyMachineHandler implements Listener {
                         stop(key);
                         evictIdle(session);
                     } else {
+                        paint(session);
                         session.core.getWorld().spawnParticle(Particle.ENCHANT,
                                 session.core.getLocation().add(0.5, 1.0, 0.5), 10, 0.35, 0.25, 0.35, 0.05);
                     }
@@ -274,10 +290,10 @@ public final class AlchemyMachineHandler implements Listener {
 
     private void feedback(Session session, AlchemyFailureAssessment assessment) {
         String message = switch (assessment.outcome()) {
-            case STABLE_SUCCESS -> "§d[Alchemy] Infusion complete. The base is ready for cask aging.";
-            case UNSTABLE_SUCCESS -> "§6[Alchemy] Infusion succeeded, but the crucible was strained.";
-            case FAILED_INFUSION -> "§c[Alchemy] Infusion failed. Catalysts were consumed; the base survived.";
-            case CRITICAL_FAILURE -> "§4§l[Alchemy] Critical reaction! The batch was destroyed.";
+            case STABLE_SUCCESS -> "§d[ArcaneBrewery] Infusion complete. The base is ready for maturation.";
+            case UNSTABLE_SUCCESS -> "§6[ArcaneBrewery] Infusion succeeded, but the infuser was strained.";
+            case FAILED_INFUSION -> "§c[ArcaneBrewery] Infusion failed. Catalysts were consumed; the base survived.";
+            case CRITICAL_FAILURE -> "§4§l[ArcaneBrewery] Critical reaction! The batch was destroyed.";
         };
         for (var viewer : session.gui.getViewers()) viewer.sendMessage(message);
 
@@ -319,25 +335,52 @@ public final class AlchemyMachineHandler implements Listener {
         return Arrays.stream(INPUTS).mapToObj(gui::getItem).map(item -> item == null ? null : item.clone()).toArray(ItemStack[]::new);
     }
     private void paint(Session session) {
+        try { render(session); }
+        catch (RuntimeException visualFailure) { plugin.getLogger().warning("Infuser display refresh failed; saved contents retained."); }
+    }
+    private void render(Session session) {
         for (int slot = 0; slot < 9; slot++) {
             if (slot == 2 || slot == 4 || slot == 6) continue;
             var item = new ItemStack(slot == 8 ? (session.processing() ? Material.CLOCK : Material.NETHER_STAR)
                     : Material.PURPLE_STAINED_GLASS_PANE);
             ItemMeta meta = item.getItemMeta();
             if (meta != null) {
-                meta.setDisplayName(slot == 8
-                        ? (session.processing() ? "§eInfusion in progress" : "§d§lBegin Arcane Infusion")
-                        : "§5Arcane Conduit");
-                if (slot == 8) {
-                    meta.setLore(List.of(
-                            "§7Integrity: §f" + Math.round(session.snapshot.condition().integrity()) + "/100",
-                            "§7Contamination: §f" + Math.round(session.snapshot.condition().contamination()) + "/100"
-                    ));
+                String label=switch(slot) {
+                    case 0 -> "Base → Slot 3";
+                    case 1 -> "Catalyst I → Slot 5";
+                    case 3 -> "Catalyst II → Slot 7 (Optional)";
+                    case 5 -> "Owner: " + access.ownerLabel(session.core);
+                    case 7 -> session.processing()?"PROCESSING":idleStatus(session);
+                    default -> session.processing()?"Infusion Processing":idleStatus(session).equals("READY")?"Infusion Complete":"Start Infusion";
+                };
+                meta.setDisplayName("§d§l"+label+"§r");
+                var lore=new ArrayList<String>();
+                if (slot==0) lore.add("§7Insert one completed cultivated base.§r");
+                if (slot==1 || slot==3) lore.add("§7One catalyst is consumed from each selected slot.§r");
+                if (slot==8) {
+                    lore.add(idleStatus(session).equals("READY")?"§7Take the prepared base from slot 3.§r":"§7Click to validate inputs and start infusion.§r");
+                    lore.add("§7Integrity: §f"+Math.round(session.snapshot.condition().integrity())+"/100§r");
+                    lore.add("§7Contamination: §f"+Math.round(session.snapshot.condition().contamination())+"/100§r");
                 }
+                if (session.processing() && (slot==7 || slot==8)) {
+                    var state=session.snapshot.operation().orElseThrow().state();
+                    long elapsed=Math.max(0,System.currentTimeMillis()-state.startedAtEpochMillis());
+                    lore.add("§7Progress: §b"+Math.min(100,elapsed*100/state.durationMillis())+"%§r");
+                    lore.add("§7Remaining: §f"+Math.max(0,(state.durationMillis()-elapsed+999)/1000)+"s§r");
+                    lore.add("§eAll machine inputs are locked.§r");
+                }
+                meta.setLore(lore);
+                me.arcanebrewery.arcaneBrewery.adapter.bukkit.PresentationStyle.apply(meta);
                 item.setItemMeta(meta);
             }
             session.gui.setItem(slot, item);
         }
+    }
+    private String idleStatus(Session session) {
+        ItemStack base=session.gui.getItem(2);
+        if (!AlchemyMachineItems.empty(base) && base.getItemMeta()!=null
+                && new AlchemyPreparationMetadata(namespace).read(base.getItemMeta()).isPresent()) return "READY";
+        return Arrays.stream(contents(session.gui)).allMatch(AlchemyMachineItems::empty)?"EMPTY":"IDLE";
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -348,7 +391,7 @@ public final class AlchemyMachineHandler implements Listener {
             if (!touches(session.core, block)) continue;
             if (session.processing() || occupied(session.core)) {
                 event.setCancelled(true);
-                event.getPlayer().sendMessage("§c[Alchemy] This crucible is occupied or processing. Remove its contents before breaking the structure.");
+                event.getPlayer().sendMessage("§c[ArcaneBrewery] This infuser is occupied or processing. Remove its contents before breaking the structure.");
                 return;
             }
             detach(session);
@@ -356,7 +399,7 @@ public final class AlchemyMachineHandler implements Listener {
 
         if (block.getType() == Material.ENCHANTING_TABLE && occupied(block)) {
             event.setCancelled(true);
-            event.getPlayer().sendMessage("§c[Alchemy] Remove machine items before breaking its core.");
+            event.getPlayer().sendMessage("§c[ArcaneBrewery] Remove machine items before breaking its core.");
         }
     }
 

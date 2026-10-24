@@ -3,11 +3,16 @@ package me.arcanebrewery.arcaneBrewery;
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.distillery.DistilleryBatchMetadata;
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.fermentation.FermentationBatchMetadata;
 import me.arcanebrewery.arcaneBrewery.application.fermentation.*;
+import me.arcanebrewery.arcaneBrewery.adapter.bukkit.ProcessingTimes;
+import me.arcanebrewery.arcaneBrewery.adapter.bukkit.machine.BukkitMachineAccess;
+import me.arcanebrewery.arcaneBrewery.application.machine.MachineIdentity.Kind;
 
 import org.bukkit.Material;
 import org.bukkit.block.Barrel;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.EventPriority;
+import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
@@ -28,15 +33,18 @@ public final class BreweryListener implements Listener {
     private final DistilleryBatchMetadata distilleryMetadata;
     private final FermentationBatchMetadata fermentationMetadata;
     private final FermentationService fermentation = new FermentationService();
+    private final BukkitMachineAccess access;
+    private final ProcessingTimes timing;
 
-    public BreweryListener(JavaPlugin plugin) {
+    public BreweryListener(JavaPlugin plugin,BukkitMachineAccess access,ProcessingTimes timing) {
         this.plugin = plugin;
         this.distilleryMetadata = new DistilleryBatchMetadata(plugin);
         this.fermentationMetadata = new FermentationBatchMetadata(plugin);
+        this.access=access; this.timing=timing;
     }
 
 
-    @EventHandler
+    @EventHandler(ignoreCancelled=true)
     public void onFermentationBarrelBreak(BlockBreakEvent event) {
         if (!(event.getBlock().getState() instanceof Barrel barrel)) return;
 
@@ -44,30 +52,41 @@ public final class BreweryListener implements Listener {
             if (item == null || item.getType() != Material.POTION || !item.hasItemMeta()) continue;
             PotionMeta meta = (PotionMeta) item.getItemMeta();
             if (meta == null) continue;
-
-            var stored = fermentationMetadata.read(meta);
+            java.util.Optional<FermentationBatchState> stored;
+            try { stored=fermentationMetadata.read(meta); }
+            catch (RuntimeException corrupt) { event.setCancelled(true); return; }
             if (stored.isPresent() && stored.get().status() == FermentationBatchState.Status.FERMENTING) {
                 event.setCancelled(true);
-                event.getPlayer().sendMessage("§c[Brewery] This barrel contains an active fermentation batch. Remove or finish it before breaking the barrel.");
+                event.getPlayer().sendMessage("§c[ArcaneBrewery] This barrel contains an active cultivation batch. Remove or finish it before breaking the barrel.");
                 return;
             }
         }
     }
 
-    @EventHandler
+    @EventHandler(priority=EventPriority.HIGH,ignoreCancelled=true)
     public void onBarrelOpen(InventoryOpenEvent event) {
-        if (!(event.getInventory().getHolder() instanceof Barrel)) return;
-        refresh(event.getInventory());
+        if (!(event.getInventory().getHolder() instanceof Barrel barrel) || !(event.getPlayer() instanceof Player player)) return;
+        if (access.recognized(barrel.getBlock())!=Kind.CULTIVATION || !access.permitted(player,barrel.getBlock())) return;
+        try { refresh(event.getInventory()); }
+        catch (RuntimeException corrupt) {
+            event.setCancelled(true); player.sendMessage(MessageConfig.prefix()+"§cCultivation data is invalid; stored bottles were retained.§r"); return;
+        }
+        player.sendMessage(MessageConfig.prefix()+"§7Cultivation Barrel owner: §f"+access.ownerLabel(barrel.getBlock())+"§r");
+        plugin.getServer().getScheduler().runTask(plugin,() -> {
+            if (player.getOpenInventory().getTopInventory()==event.getInventory()) player.getOpenInventory().setTitle(MessageConfig.title("cultivation"));
+        });
     }
 
     @EventHandler
     public void onBarrelClose(InventoryCloseEvent event) {
-        if (!(event.getInventory().getHolder() instanceof Barrel)) return;
+        if (!(event.getInventory().getHolder() instanceof Barrel barrel) || !(event.getPlayer() instanceof Player player)) return;
+        if (access.recognized(barrel.getBlock())!=Kind.CULTIVATION
+                || !access.authorize(player,barrel.getBlock(),Kind.CULTIVATION,true)) return;
         refresh(event.getInventory());
         boolean started = startEligible(event.getInventory());
 
         if (started) {
-            event.getPlayer().sendMessage("§6[Brewery] Fermentation has begun. The batch will continue while you are away.");
+            event.getPlayer().sendMessage(MessageConfig.prefix()+"§aCultivation has begun. Progress continues while you are away.§r");
         }
     }
 
@@ -88,17 +107,15 @@ public final class BreweryListener implements Listener {
             }
 
             var state = fermentation.start(UUID.randomUUID(), source.draft(),
-                    FermentationSettings.DEFAULT, System.currentTimeMillis());
+                    new FermentationSettings(FermentationSettings.DEFAULT.yeastOrCatalyst(),22.0,timing.cultivationSeconds(),85.0,10.0), System.currentTimeMillis());
             fermentationMetadata.write(meta, state);
-            meta.setDisplayName("§6Fermenting Brewing Base");
+            meta.setDisplayName("§6§lCultivating Brewing Base§r");
             meta.setLore(List.of(
-                    "§7Stage: §6Fermenting",
-                    "§7Catalyst: §fWild Yeast",
-                    "§7Progress continues while offline.",
-                    "",
-                    "§8Canonical process data stored internally."
+                    "§7Stage: §6Cultivating§r",
+                    "§7Duration: §f"+state.settings().durationSeconds()+"s§r",
+                    "§7Progress continues while offline.§r"
             ));
-            item.setItemMeta(meta);
+            me.arcanebrewery.arcaneBrewery.adapter.bukkit.PresentationStyle.apply(meta); item.setItemMeta(meta);
             inventory.setItem(slot, item);
             changed = true;
         }
@@ -117,17 +134,24 @@ public final class BreweryListener implements Listener {
             var stored = fermentationMetadata.read(meta);
             if (stored.isEmpty()) continue;
             var state = stored.get();
+            if (state.status()==FermentationBatchState.Status.FERMENTING && !state.ready(now)) {
+                long elapsed=Math.max(0,(now-state.startedAtEpochMillis())/1000);
+                meta.setDisplayName("§6§lCultivating Brewing Base§r");
+                meta.setLore(List.of("§7Status: §bPROCESSING§r","§7Elapsed: §f"+elapsed+"s§r",
+                        "§7Remaining: §f"+Math.max(0,state.settings().durationSeconds()-elapsed)+"s§r","§7Progress continues while offline.§r"));
+                me.arcanebrewery.arcaneBrewery.adapter.bukkit.PresentationStyle.apply(meta); item.setItemMeta(meta); inventory.setItem(slot,item); changed=true;
+            }
             if (state.status() == FermentationBatchState.Status.FERMENTING && state.ready(now)) {
                 var completed = state.complete(now);
                 fermentationMetadata.write(meta, completed);
-                meta.setDisplayName("§aFermented Brewing Base");
+                meta.setDisplayName(MessageConfig.title("cultivated-base"));
                 meta.setLore(List.of(
-                        "§7Stage: §aFermented",
-                        "§7Ready for aging.",
+                        "§7Stage: §aCultivated§r",
+                        "§7Ready for infusion or maturation.§r",
                         "",
                         "§8Canonical process data stored internally."
                 ));
-                item.setItemMeta(meta);
+                me.arcanebrewery.arcaneBrewery.adapter.bukkit.PresentationStyle.apply(meta); item.setItemMeta(meta);
                 inventory.setItem(slot, item);
                 changed = true;
             }

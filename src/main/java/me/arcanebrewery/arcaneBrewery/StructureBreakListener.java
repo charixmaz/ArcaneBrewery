@@ -9,7 +9,7 @@ import org.bukkit.event.block.BlockBreakEvent;
 
 public class StructureBreakListener implements Listener {
 
-    @EventHandler
+    @EventHandler(priority=org.bukkit.event.EventPriority.MONITOR,ignoreCancelled=true)
     public void onStructureBreak(BlockBreakEvent event) {
         Block broken = event.getBlock();
         Material type = broken.getType();

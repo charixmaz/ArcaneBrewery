@@ -1,0 +1,60 @@
+package me.arcanebrewery.arcaneBrewery;
+
+import java.util.*;
+
+/** Concise, implemented-only help topics; no network or recipe-state access. */
+public final class BrewHelp {
+    public static final List<String> TOPICS=List.of("getting-started","machines","recipes","sharing","commands");
+    private BrewHelp() { }
+    public static List<String> lines(String topic) {
+        return switch (topic.toLowerCase(Locale.ROOT)) {
+            case "getting-started" -> List.of(
+                    "§5§lGetting Started§r",
+                    "§7Wash supported held ingredients by right-clicking a water cauldron.§r",
+                    "§7Essence Extractor → Cultivation Barrel → optional Arcane Infuser → Maturation Cask.§r",
+                    "§7Extract with bottles and a washed ingredient; cultivate bases in a plain Barrel, then close it.§r",
+                    "§7Infuse a completed base with one or two catalysts, or mature it directly.§r",
+                    "§7Mature withdrawal creates a finished elixir and attempts private discovery registration.§r",
+                    "§7Early cask withdrawal gives an Unfinished Elixir and never creates a discovery.§r",
+                    "§7Elixirs create temporary saturation; excessive exposure causes overload and recovery.§r");
+            case "machines" -> List.of(
+                    "§5§lMachines§r",
+                    "§bEssence Extractor: §fBrewing Stand directly above a Crafting Table.§r",
+                    "§7Bottle slots 1–3; washed ingredient in slot 5. Starts with valid inputs; locked while processing.§r",
+                    "§bCultivation Barrel: §fA plain Barrel holding canonical refined bases; close to begin.§r",
+                    "§bArcane Infuser: §fEnchanting Table, Crying Obsidian below, ≥1 horizontal Amethyst Block.§r",
+                    "§7One cultivated base, Catalyst I and optional Catalyst II; click Start Infusion.§r",
+                    "§bMaturation Cask: §fBarrel, adjacent [Brewery] sign and ≥12 matching wood stairs/slabs/planks/logs within 3×3×3.§r",
+                    "§7Use the sign. Four lanes; click/shift-click a bottle to withdraw; cleaning control uses Cleansing Solution.§r",
+                    "§7First valid use claims a machine. Owner-only, one viewer; automation is blocked for recognized machines.§r");
+            case "recipes" -> List.of(
+                    "§5§lRecipes§r",
+                    "§f/brew discoveries [page] §7— your discoveries, secret by default.§r",
+                    "§f/brew recipe <full fingerprint|shown id> §7— inspect only knowledge you may access.§r",
+                    "§7Short IDs resolve among your first 200 owned discoveries; supply ≥6 unambiguous hex characters.§r",
+                    "§7Use full fingerprints for shared recipes and all rename/visibility/share/revoke commands.§r",
+                    "§7Names and quality variation do not change the exact process identity.§r");
+            case "sharing" -> List.of(
+                    "§5§lSharing§r",
+                    "§f/brew rename <fingerprint> <name> §7— discoverer may rename once.§r",
+                    "§f/brew visibility <fingerprint> <private|shared|public>§r",
+                    "§f/brew share <fingerprint> <player|uuid> full§r",
+                    "§f/brew share <fingerprint> <player|uuid> partial <field,field,...>§r",
+                    "§f/brew revoke <fingerprint> <player|uuid>§r",
+                    "§7Public visibility does not transfer ownership or automatically expose a full process.§r");
+            case "commands" -> List.of(
+                    "§5§lCommands§r",
+                    "§f/brew status §7— temporary saturation, contamination and recovery.§r",
+                    "§f/brew value §7— calculated value of a supported held finished elixir.§r",
+                    "§f/brew sell §7then §f/brew sell confirm §7— sale when enabled and an economy provider is available.§r",
+                    "§7Economy is optional; brewing remains usable without it. Sales are disabled by default.§r",
+                    "§f/brew discoveries §7and §f/brew recipe §7— browse your recipe knowledge.§r");
+            default -> List.of("§5§lArcaneBrewery — Brewing & Alchemy§r",
+                    "§f/brew help getting-started §7— production and washing§r",
+                    "§f/brew help machines §7— structures, inputs and ownership§r",
+                    "§f/brew help recipes §7— discoveries and short IDs§r",
+                    "§f/brew help sharing §7— privacy and ownership controls§r",
+                    "§f/brew help commands §7— status, value and optional sales§r");
+        };
+    }
+}

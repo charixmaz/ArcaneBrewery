@@ -41,7 +41,7 @@ public class AgricultureListener implements Listener {
                             definition.defaultModifiers(), Optional.of(provenance)), false);
 
                     event.getBlock().getWorld().dropItemNaturally(event.getBlock().getLocation(), specialGrain);
-                    player.sendMessage("§d§l[Brewery] §7You discovered a rare §b§lExclusive Brewer's Grain§7!");
+                    player.sendMessage("§d§l[ArcaneBrewery] §7You discovered a rare §b§lExclusive Brewer's Grain§7!");
                 }
             }
         }

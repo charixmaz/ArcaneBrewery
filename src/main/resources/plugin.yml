@@ -3,7 +3,7 @@ version: 1.0
 main: me.arcanebrewery.arcaneBrewery.ArcaneBrewery
 api-version: '26.1'
 author: ArcaneBreweryTeam
-description: An advanced structural brewery plugin for version 26.1.2.
+description: Fantasy Brewing & Alchemy for Paper 26.1.2.
 softdepend: [ArcaneEconomy]
 
 commands:
@@ -18,6 +18,9 @@ commands:
     permission: arcanebrewery.admin.market
 
 permissions:
+  arcanebrewery.admin.bypass:
+    description: Access machines without changing ownership; exclusive sessions and safety locks still apply.
+    default: op
   arcanebrewery.use:
     description: Allows access to ArcaneBrewery player commands.
     default: true

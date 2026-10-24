@@ -21,7 +21,7 @@ public class ProducerVisualEngine {
         int[] decorativeSlots = {1, 3, 5, 7};
         for (int slot : decorativeSlots) {
             setCustomPane(inv, slot, Material.GRAY_STAINED_GLASS_PANE, "§8⚙ Automated Condenser",
-                    List.of("§7Processes refined industrial compounds into Methanol fluid."));
+                    List.of("§7Processes refined industrial compounds into Cleansing Solution fluid."));
         }
 
         // Slot 8 serves as our static ventilation control readout panel
@@ -36,7 +36,7 @@ public class ProducerVisualEngine {
 
             if (item == null || item.getType() == Material.AIR) {
                 setCustomPane(inv, indicatorSlot, Material.LIGHT_GRAY_STAINED_GLASS_PANE, "§7Refinery Line Idle",
-                        List.of("§7Drop Refined Industrial Alcohol here to begin condensation."));
+                        List.of("§7Drop Refined Catalyst Base here to begin condensation."));
                 continue;
             }
 
@@ -62,8 +62,8 @@ public class ProducerVisualEngine {
                     } else {
                         // Display completed ready state trigger
                         setCustomPane(inv, indicatorSlot, Material.GREEN_STAINED_GLASS_PANE, "§a✔ CHEMICAL REFINE COMPLETE", List.of(
-                                "§7Status: §aLiquid Methanol Settled",
-                                "§7Purity: §f99.8% Concentrate",
+                                "§7Status: §aLiquid Cleansing Solution Settled",
+                                "§7Purpose: §fCask cleansing§r",
                                 "",
                                 "§e[SHIFT-CLICK] §7potion bottle left to extract product."
                         ));
@@ -79,6 +79,7 @@ public class ProducerVisualEngine {
         if (meta != null) {
             meta.setDisplayName(name);
             meta.setLore(lore);
+            me.arcanebrewery.arcaneBrewery.adapter.bukkit.PresentationStyle.apply(meta);
             pane.setItemMeta(meta);
         }
         inv.setItem(index, pane);

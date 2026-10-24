@@ -17,6 +17,8 @@ import me.arcanebrewery.arcaneBrewery.application.ingredient.BuiltInIngredients;
 import me.arcanebrewery.arcaneBrewery.application.storage.StorageProvider;
 import me.arcanebrewery.arcaneBrewery.storage.sqlite.SqliteStorageProvider;
 import org.bukkit.plugin.java.JavaPlugin;
+import me.arcanebrewery.arcaneBrewery.adapter.bukkit.ProcessingTimes;
+import me.arcanebrewery.arcaneBrewery.adapter.bukkit.machine.BukkitMachineAccess;
 
 public final class ArcaneBrewery extends JavaPlugin {
     private IngredientItemAdapter ingredientItems;
@@ -31,6 +33,11 @@ public final class ArcaneBrewery extends JavaPlugin {
     private ExecutorService marketWorker;
     private RecoverableMarketTransactionJournal marketJournal;
     private MarketAssetPort marketAssets;
+    private BukkitMachineAccess machineAccess;
+    private DistilleryMenuHandler extractors;
+    private AgingCaskEngine casks;
+    private MethanolProducerEngine cleansers;
+    public BukkitMachineAccess machineAccess() { return java.util.Objects.requireNonNull(machineAccess); }
 
     /** Integration entry point only: no market commands or inventory adapter yet.
      * Journal must be durable/idempotent; assets are invoked on the server thread.
@@ -70,10 +77,14 @@ public final class ArcaneBrewery extends JavaPlugin {
 
         AlchemyRuntimeSettings alchemySettings;
         MarketRuntimeSettings marketSettings;
+        ProcessingTimes timing;
         try {
             alchemySettings = AlchemyRuntimeSettings.from(getConfig());
             marketSettings = MarketRuntimeSettings.from(getConfig());
             marketQuotes = new MarketQuoteService(marketSettings.pricing());
+            timing = ProcessingTimes.from(getConfig());
+            Object legacy=getConfig().get("consumption.legacy-alcohol-mechanics",false);
+            if (!(legacy instanceof Boolean)) throw new IllegalArgumentException("consumption.legacy-alcohol-mechanics must be true or false");
         } catch (RuntimeException failure) {
             getLogger().severe("ArcaneBrewery configuration is invalid: " + failure.getMessage());
             getServer().getPluginManager().disablePlugin(this);
@@ -119,21 +130,27 @@ public final class ArcaneBrewery extends JavaPlugin {
         marketSettlements = new MarketSettlementRuntime(marketWorker,
                 task -> getServer().getScheduler().runTask(this, task), getServer()::isPrimaryThread, System::currentTimeMillis);
 
+        machineAccess=new BukkitMachineAccess(this);
+        getServer().getPluginManager().registerEvents(machineAccess,this);
         getServer().getPluginManager().registerEvents(new AgricultureListener(ingredientItems), this);
         getServer().getPluginManager().registerEvents(new CauldronWasherEngine(ingredientItems), this);
-        getServer().getPluginManager().registerEvents(new DistilleryMenuHandler(this, ingredientItems), this);
-        getServer().getPluginManager().registerEvents(new BreweryListener(this), this);
-        alchemyMachines = new AlchemyMachineHandler(this, alchemySettings);
+        extractors=new DistilleryMenuHandler(this,ingredientItems,machineAccess,timing);
+        getServer().getPluginManager().registerEvents(extractors, this);
+        getServer().getPluginManager().registerEvents(new BreweryListener(this,machineAccess,timing), this);
+        alchemyMachines = new AlchemyMachineHandler(this, alchemySettings,machineAccess);
         getServer().getPluginManager().registerEvents(alchemyMachines, this);
         getServer().getScheduler().runTask(this, alchemyMachines::resumeLoadedMachines);
-        getServer().getPluginManager().registerEvents(new AgingCaskEngine(this, ingredientItems, discoveries), this);
+        casks=new AgingCaskEngine(this,ingredientItems,discoveries,machineAccess,timing);
+        getServer().getPluginManager().registerEvents(casks, this);
         var consumption = new ConsumptionListener(this);
         getServer().getPluginManager().registerEvents(consumption, this);
         getServer().getScheduler().runTaskTimer(this, new ConsumptionRecoveryTask(consumption), 200L, 200L);
+        getServer().getPluginManager().registerEvents(new me.arcanebrewery.arcaneBrewery.adapter.bukkit.PresentationRefreshListener(this),this);
         getServer().getPluginManager().registerEvents(new CaskHygieneEngine(this), this);
-        getServer().getPluginManager().registerEvents(new MethanolProducerEngine(this), this);
-        getServer().getPluginManager().registerEvents(new StructureBreakListener(), this);
-        getServer().getPluginManager().registerEvents(new CaskInteractListener(this), this);
+        cleansers=new MethanolProducerEngine(this);
+        getServer().getPluginManager().registerEvents(cleansers, this);
+        // Structure validation and cask reboot now run through the shared access
+        // boundary. Do not register the old broad sign-mutating/reboot listeners.
 
         var marketBottleReader = new CanonicalMarketBottleReader(
                 getName().toLowerCase(java.util.Locale.ROOT));
@@ -160,6 +177,9 @@ public final class ArcaneBrewery extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (extractors!=null) { extractors.close(); extractors=null; }
+        if (casks!=null) { casks.close(); casks=null; }
+        if (cleansers!=null) { cleansers.close(); cleansers=null; }
         if (marketSettlements != null) { marketSettlements.close(); marketSettlements = null; }
         if (economy != null) { economy.close(); economy = null; }
         if (marketWorker != null) { marketWorker.shutdownNow(); marketWorker = null; }
@@ -167,6 +187,7 @@ public final class ArcaneBrewery extends JavaPlugin {
             alchemyMachines.shutdown();
             alchemyMachines = null;
         }
+        if (machineAccess!=null) { machineAccess.close(); machineAccess=null; }
         if (storage != null) {
             try {
                 storage.close();

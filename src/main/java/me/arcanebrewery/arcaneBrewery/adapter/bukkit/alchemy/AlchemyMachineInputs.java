@@ -48,7 +48,7 @@ public final class AlchemyMachineInputs {
         var base = inputs[0];
         if (AlchemyMachineItems.empty(base) || base.getType() != Material.POTION || base.getAmount() != 1
                 || !(base.getItemMeta() instanceof PotionMeta meta))
-            throw new IllegalArgumentException("one completed fermented base is required");
+            throw new IllegalArgumentException("one completed cultivated base is required");
         var metadata = new FermentationBatchMetadata(namespace);
         var source = metadata.read(meta).orElseThrow(
                 () -> new IllegalArgumentException("base is not canonical"));
@@ -72,6 +72,7 @@ public final class AlchemyMachineInputs {
         var lore = new ArrayList<>(meta.hasLore() && meta.getLore() != null ? meta.getLore() : List.<String>of());
         lore.add("§dArcane Infusion: §f" + operation.preparation().additives().size() + " catalyst type(s)");
         meta.setLore(lore);
+        me.arcanebrewery.arcaneBrewery.adapter.bukkit.PresentationStyle.apply(meta);
         if (!output[0].setItemMeta(meta)) throw new IllegalStateException("unable to prepare base");
         for (int slot : new int[]{1, 2}) {
             if (AlchemyMachineItems.empty(output[slot])) continue;
@@ -104,6 +105,7 @@ public final class AlchemyMachineInputs {
                     ? meta.getLore() : List.<String>of());
             lore.add("§8Arcane residue: §cFailed infusion");
             meta.setLore(lore);
+            me.arcanebrewery.arcaneBrewery.adapter.bukkit.PresentationStyle.apply(meta);
             if (!output[0].setItemMeta(meta))
                 throw new IllegalStateException("unable to mark failed infusion");
         }

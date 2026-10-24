@@ -1,3 +1,12 @@
+consumption:
+  # Fantasy saturation/recovery is the default. Historical progression is opt-in.
+  legacy-alcohol-mechanics: false
+
+processing:
+  extraction-seconds: 10.0
+  cultivation-seconds: 60
+  maturation-seconds: 120
+
 alchemy:
   processing-seconds: 8.0
 

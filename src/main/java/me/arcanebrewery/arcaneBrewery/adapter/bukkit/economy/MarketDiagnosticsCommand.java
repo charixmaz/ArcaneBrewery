@@ -150,7 +150,7 @@ public final class MarketDiagnosticsCommand implements CommandExecutor, TabCompl
 
     private void fail(CommandSender sender, String context, RuntimeException failure) {
         plugin.getLogger().warning(context + ": " + failure.getMessage());
-        onMain(() -> sender.sendMessage("§c[Brewery] " + context + "."));
+        onMain(() -> sender.sendMessage("§c[ArcaneBrewery] " + context + "."));
     }
 
     private void onMain(Runnable action) {
