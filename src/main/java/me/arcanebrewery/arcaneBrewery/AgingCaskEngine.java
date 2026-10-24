@@ -351,15 +351,9 @@ public class AgingCaskEngine implements Listener {
                 event.setCancelled(true);
 
                 var agingState = agingMetadata.read(meta);
-                if (agingState.isPresent()) {
-                    long targetSeconds = AgingBalance.targets().agingSeconds();
-                    long elapsedSeconds = agingState.get().elapsedSeconds(System.currentTimeMillis());
-                    if (elapsedSeconds < targetSeconds) {
-                        player.sendMessage("§e[Brewery] This batch is still aging: §f"
-                                + elapsedSeconds + "s / " + targetSeconds + "s§e.");
-                        return;
-                    }
-                }
+                boolean mature = agingState.isPresent()
+                        && agingState.get().elapsedSeconds(System.currentTimeMillis())
+                        >= AgingBalance.targets().agingSeconds();
 
                 var canonical = finishCanonicalBatch(meta, physicalWood, isInfected);
                 boolean canonicalMetadata = meta.getPersistentDataContainer().getKeys().stream().anyMatch(key ->
@@ -375,7 +369,7 @@ public class AgingCaskEngine implements Listener {
                 saveInventoryToBarrel(barrelBlock, inv);
 
                 if (canonical != null) {
-                    giveCanonicalFinishedBooze(player, canonical);
+                    giveCanonicalFinishedBooze(player, canonical, mature);
                 } else {
                     int stars = CaskQualityEngine.calculateHarvestStars(plugin, clickedItem, physicalWood, barrelBlock);
                     String recipeKey = meta.getPersistentDataContainer().getOrDefault(recipeTypeKey, PersistentDataType.STRING, "WORT_BEER");
@@ -575,7 +569,7 @@ public class AgingCaskEngine implements Listener {
         }
     }
 
-    private void giveCanonicalFinishedBooze(Player player, AgingResult result) {
+    private void giveCanonicalFinishedBooze(Player player, AgingResult result, boolean mature) {
         ItemStack alcohol = new ItemStack(Material.POTION);
         PotionMeta meta = (PotionMeta) alcohol.getItemMeta();
         if (meta == null) meta = (PotionMeta) Bukkit.getItemFactory().getItemMeta(Material.POTION);
@@ -583,12 +577,16 @@ public class AgingCaskEngine implements Listener {
 
         double score = result.simulation().quality().overallScore();
         int stars = qualityStars(score);
-        String drinkName = new DescriptiveNameGenerator().generate(result.process()).value();
+        String drinkName = mature
+                ? new DescriptiveNameGenerator().generate(result.process()).value()
+                : "Undermatured Cask Batch";
 
-        meta.setDisplayName((score >= 75 ? "§6" : "§f") + drinkName);
+        meta.setDisplayName(mature && score >= 75 ? "§6" + drinkName : "§f" + drinkName);
         AlchemyResult alchemy = alchemyEngine.evaluate(result.process(), result.simulation().quality());
         var value = valueCalculator.calculate(result.process(), result.simulation().quality(), alchemy);
         meta.setLore(List.of(
+                mature ? "§7Quality: §f" + Math.round(score) + "/100"
+                        : "§cStatus: §fWithdrawn before full maturity",
                 "§7Quality: §f" + Math.round(score) + "/100",
                 "§7Contamination: §f" + Math.round(result.simulation().quality().contamination()) + "/100",
                 "§7Alchemy: §d" + alchemy.effect(),
@@ -604,8 +602,13 @@ public class AgingCaskEngine implements Listener {
         alcohol.setItemMeta(meta);
 
         player.getInventory().addItem(alcohol);
-        player.sendMessage("§a[Brewery] Bottled: " + drinkName + " (" + Math.round(score) + "/100)");
-        registerDiscovery(player.getUniqueId(), result, drinkName);
+        player.sendMessage((mature ? "§a" : "§e") + "[Brewery] Bottled: " + drinkName
+                + " (" + Math.round(score) + "/100)");
+        if (mature) {
+            registerDiscovery(player.getUniqueId(), result, drinkName);
+        } else {
+            player.sendMessage("§7[Brewery] Premature batches are not registered as recipe discoveries.");
+        }
     }
 
     private void registerDiscovery(UUID playerId, AgingResult result, String drinkName) {
