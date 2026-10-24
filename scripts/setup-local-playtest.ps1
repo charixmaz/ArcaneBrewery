@@ -20,10 +20,6 @@ if (-not (Get-Command mvn -ErrorAction SilentlyContinue)) {
     throw "Maven was not found in PATH."
 }
 
-Write-Host "Building ArcaneEconomy API contract..."
-& mvn --batch-mode -f (Join-Path $repoRoot "arcane-economy-api\pom.xml") clean install
-if ($LASTEXITCODE -ne 0) { throw "Economy API build failed." }
-
 Write-Host "Building ArcaneBrewery..."
 Push-Location $repoRoot
 try {
@@ -40,6 +36,10 @@ $jar = Get-ChildItem (Join-Path $repoRoot "target") -Filter "ArcaneBrewery-*.jar
 if (-not $jar) { throw "Built ArcaneBrewery JAR not found." }
 
 if (Test-Path $ServerDir) {
+    $resolvedServerDir = [IO.Path]::GetFullPath($ServerDir)
+    if ($resolvedServerDir -eq [IO.Path]::GetPathRoot($resolvedServerDir) -or $resolvedServerDir -eq $repoRoot) {
+        throw "Refusing to move the repository or a filesystem root as a test server."
+    }
     $backup = "$ServerDir-backup-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
     Write-Host "Existing test server found; moving it to $backup"
     Move-Item $ServerDir $backup
@@ -59,7 +59,8 @@ Write-Host "Downloading Paper..."
 Invoke-WebRequest -Uri $paperUrl -Headers $headers -OutFile (Join-Path $ServerDir "paper.jar")
 
 Copy-Item $jar.FullName (Join-Path $ServerDir "plugins\ArcaneBrewery.jar")
-Set-Content -Path (Join-Path $ServerDir "eula.txt") -Value "eula=true" -Encoding ascii
+Set-Content -Path (Join-Path $ServerDir "eula.txt") -Value "eula=false" -Encoding ascii
+Write-Host "EULA has NOT been accepted. The server owner must review and accept it before startup."
 
 $serverProps = @(
     "online-mode=false",
