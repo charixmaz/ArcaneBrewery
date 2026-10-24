@@ -54,6 +54,21 @@ class AgingServiceTest {
     }
 
     @Test
+    void matureAgingUsesThirtySecondIdentityStages() {
+        var state = new AgingBatchState(AgingBatchState.VERSION, UUID.randomUUID(),
+                new AgingSettings("oak", 12, 18, 95), 1_000);
+        var first = service.finish(source(), state, 122_000, lots(), AgingBalance.wood("oak"),
+                0, AgingBalance.targets(), 42);
+        var sameStage = service.finish(source(), state, 129_000, lots(), AgingBalance.wood("oak"),
+                0, AgingBalance.targets(), 42);
+        var laterStage = service.finish(source(), state, 151_000, lots(), AgingBalance.wood("oak"),
+                0, AgingBalance.targets(), 42);
+
+        assertEquals(first.simulation().fingerprint(), sameStage.simulation().fingerprint());
+        assertNotEquals(first.simulation().fingerprint(), laterStage.simulation().fingerprint());
+    }
+
+    @Test
     void physicalWoodChangesIdentity() {
         var oak = new AgingBatchState(AgingBatchState.VERSION, UUID.randomUUID(),
                 new AgingSettings("oak", 12, 18, 95), 1_000);
