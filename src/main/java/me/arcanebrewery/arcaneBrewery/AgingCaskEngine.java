@@ -316,9 +316,7 @@ public class AgingCaskEngine implements Listener {
                             PotionMeta m = (PotionMeta) insertedItem.getItemMeta();
                             if (m != null) {
                                 long now = System.currentTimeMillis();
-                                if (m.getPersistentDataContainer().has(recipeTypeKey, PersistentDataType.STRING)) {
-                                    m.getPersistentDataContainer().set(slotTimeKey, PersistentDataType.LONG, now);
-                                }
+                                m.getPersistentDataContainer().set(slotTimeKey, PersistentDataType.LONG, now);
                                 beginCanonicalAging(m, physicalWood, isInfected, now);
                                 insertedItem.setItemMeta(m);
                             }
@@ -352,6 +350,17 @@ public class AgingCaskEngine implements Listener {
 
                 event.setCancelled(true);
 
+                var agingState = agingMetadata.read(meta);
+                if (agingState.isPresent()) {
+                    long targetSeconds = AgingBalance.targets().agingSeconds();
+                    long elapsedSeconds = agingState.get().elapsedSeconds(System.currentTimeMillis());
+                    if (elapsedSeconds < targetSeconds) {
+                        player.sendMessage("§e[Brewery] This batch is still aging: §f"
+                                + elapsedSeconds + "s / " + targetSeconds + "s§e.");
+                        return;
+                    }
+                }
+
                 var canonical = finishCanonicalBatch(meta, physicalWood, isInfected);
                 boolean canonicalMetadata = meta.getPersistentDataContainer().getKeys().stream().anyMatch(key ->
                         key.getNamespace().equals(fermentationMetadata.key("fermentation_format").getNamespace())
@@ -384,9 +393,7 @@ public class AgingCaskEngine implements Listener {
             ItemStack itemInSlot = inv.getItem(slot);
             if (itemInSlot != null && itemInSlot.getType() == Material.POTION) {
                 PotionMeta meta = (PotionMeta) itemInSlot.getItemMeta();
-                if (meta != null && meta.getPersistentDataContainer().has(recipeTypeKey, PersistentDataType.STRING)
-                        && !meta.getPersistentDataContainer().has(slotTimeKey, PersistentDataType.LONG)) {
-
+                if (meta != null && !meta.getPersistentDataContainer().has(slotTimeKey, PersistentDataType.LONG)) {
                     long now = System.currentTimeMillis();
                     meta.getPersistentDataContainer().set(slotTimeKey, PersistentDataType.LONG, now);
                     beginCanonicalAging(meta, physicalWood, isInfected, now);
