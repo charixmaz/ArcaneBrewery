@@ -25,14 +25,18 @@ public final class LegacyAlchemyInventoryReader {
     }
 
     public ItemStack[] read(String encoded) {
+        return read(encoded,3);
+    }
+    public ItemStack[] read(String encoded, int slots) {
+        if (slots != 3 && slots != 9) throw new IllegalArgumentException("unsupported legacy slot count");
         if (encoded == null || encoded.length() > ((MAX_BYTES + 2) / 3) * 4)
             throw new IllegalArgumentException("legacy inventory exceeds limit");
         byte[] raw = Base64.getDecoder().decode(encoded);
         if (raw.length > MAX_BYTES) throw new IllegalArgumentException("legacy inventory exceeds limit");
         try (var in = new SafeInput(new ByteArrayInputStream(raw))) {
-            if (in.readInt() != 3) throw new IllegalArgumentException("invalid legacy inventory slot count");
-            var result = new ItemStack[3];
-            for (int i = 0; i < 3; i++) {
+            if (in.readInt() != slots) throw new IllegalArgumentException("invalid legacy inventory slot count");
+            var result = new ItemStack[slots];
+            for (int i = 0; i < slots; i++) {
                 Object item = materialize(in.readObject(), 0);
                 if (item != null && !(item instanceof ItemStack)) throw new IllegalArgumentException("invalid legacy item");
                 result[i] = (ItemStack) item;

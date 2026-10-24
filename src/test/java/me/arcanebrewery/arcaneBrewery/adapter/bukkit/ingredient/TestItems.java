@@ -60,7 +60,7 @@ public final class TestItems {
         Meta(boolean potion) { this.potion = potion; }
         Meta copy() {
             var copy = new Meta(potion);
-            values.forEach((key, value) -> copy.values.put(key, value instanceof List<?> list ? new ArrayList<>(list) : value));
+            values.forEach((key, value) -> copy.values.put(key, value instanceof List<?> list ? new ArrayList<>(list) : value instanceof Set<?> set ? new HashSet<>(set) : value));
             copy.data.entries.putAll(data.entries);
             return copy;
         }
@@ -76,11 +76,31 @@ public final class TestItems {
                 case "getLore" -> values.containsKey("Lore") ? new ArrayList<>((List<?>) values.get("Lore")) : null;
                 case "hasDisplayName" -> values.containsKey("DisplayName");
                 case "getDisplayName" -> values.getOrDefault("DisplayName", "");
+                case "displayName" -> {
+                    if (args==null || args.length==0) yield values.get("DisplayComponent");
+                    values.put("DisplayComponent",args[0]);
+                    values.put("DisplayName",net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection().serialize((net.kyori.adventure.text.Component)args[0]));
+                    yield null;
+                }
+                case "lore" -> {
+                    if (args==null || args.length==0) yield values.get("LoreComponents");
+                    @SuppressWarnings("unchecked") var components=(List<net.kyori.adventure.text.Component>)args[0];
+                    values.put("LoreComponents",List.copyOf(components));
+                    values.put("Lore",components.stream().map(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection()::serialize).toList());
+                    yield null;
+                }
                 case "hasCustomModelData" -> values.containsKey("CustomModelData");
                 case "getCustomModelData" -> values.get("CustomModelData");
                 case "isUnbreakable" -> values.getOrDefault("Unbreakable", false);
                 case "getBasePotionType" -> values.get("BasePotionType");
                 case "hasCustomEffects" -> values.getOrDefault("CustomEffects", false);
+                case "getCustomEffects" -> List.of();
+                case "getItemFlags" -> Set.copyOf((Set<?>)values.getOrDefault("ItemFlags",Set.of()));
+                case "hasItemFlag" -> ((Set<?>)values.getOrDefault("ItemFlags",Set.of())).contains(args[0]);
+                case "addItemFlags" -> {
+                    @SuppressWarnings("unchecked") var flags=(Set<ItemFlag>)values.computeIfAbsent("ItemFlags",ignored -> new HashSet<ItemFlag>());
+                    flags.addAll(Arrays.asList((ItemFlag[])args[0])); yield null;
+                }
                 case "setDisplayName", "setLore", "setCustomModelData", "setUnbreakable", "setBasePotionType" -> {
                     values.put(method.getName().substring(3), args[0] instanceof List<?> list ? new ArrayList<>(list) : args[0]);
                     yield null;
