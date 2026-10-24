@@ -9,6 +9,7 @@ import org.bukkit.block.Barrel;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -32,6 +33,25 @@ public final class BreweryListener implements Listener {
         this.plugin = plugin;
         this.distilleryMetadata = new DistilleryBatchMetadata(plugin);
         this.fermentationMetadata = new FermentationBatchMetadata(plugin);
+    }
+
+
+    @EventHandler
+    public void onFermentationBarrelBreak(BlockBreakEvent event) {
+        if (!(event.getBlock().getState() instanceof Barrel barrel)) return;
+
+        for (ItemStack item : barrel.getInventory().getContents()) {
+            if (item == null || item.getType() != Material.POTION || !item.hasItemMeta()) continue;
+            PotionMeta meta = (PotionMeta) item.getItemMeta();
+            if (meta == null) continue;
+
+            var stored = fermentationMetadata.read(meta);
+            if (stored.isPresent() && stored.get().status() == FermentationBatchState.Status.FERMENTING) {
+                event.setCancelled(true);
+                event.getPlayer().sendMessage("§c[Brewery] This barrel contains an active fermentation batch. Remove or finish it before breaking the barrel.");
+                return;
+            }
+        }
     }
 
     @EventHandler
