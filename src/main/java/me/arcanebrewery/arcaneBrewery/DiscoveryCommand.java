@@ -100,18 +100,55 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
                         online.sendMessage("§f" + item.displayName().value()
                                 + " §8[" + shortFingerprint + "…] §7" + item.visibility());
                     }
-                    online.sendMessage("§7Use §f/brew recipe <full fingerprint> §7to inspect knowledge.");
+                    online.sendMessage("§7Use §f/brew recipe <shown id> §7to inspect knowledge.");
                 }));
     }
 
     private void recipe(Player player, String[] args) {
         if (args.length != 2) {
-            player.sendMessage("§cUsage: /brew recipe <fingerprint>");
+            player.sendMessage("§cUsage: /brew recipe <fingerprint|shown id>");
             return;
         }
-        DrinkFingerprint fingerprint = fingerprint(player, args[1]);
-        if (fingerprint == null) return;
 
+        String value = args[1].strip().toLowerCase(Locale.ROOT);
+        if (value.length() == 64) {
+            DrinkFingerprint fingerprint = fingerprint(player, value);
+            if (fingerprint != null) showRecipe(player, fingerprint);
+            return;
+        }
+
+        if (value.length() < 6 || !value.matches("[0-9a-f]+")) {
+            player.sendMessage("§c[Brewery] Invalid recipe id.");
+            return;
+        }
+
+        UUID playerId = player.getUniqueId();
+        queries.owned(playerId, 200, 0)
+                .whenComplete((items, failure) -> onMain(() -> {
+                    Player online = Bukkit.getPlayer(playerId);
+                    if (online == null) return;
+                    if (failure != null) {
+                        plugin.getLogger().warning("Recipe id lookup failed: " + rootMessage(failure));
+                        online.sendMessage("§c[Brewery] Could not resolve that recipe id.");
+                        return;
+                    }
+                    var matches = items.stream()
+                            .map(OwnedDiscoveryView::fingerprint)
+                            .filter(id -> id.value().startsWith(value))
+                            .toList();
+                    if (matches.isEmpty()) {
+                        online.sendMessage("§c[Brewery] Unknown recipe id.");
+                        return;
+                    }
+                    if (matches.size() > 1) {
+                        online.sendMessage("§c[Brewery] Recipe id is ambiguous; type more characters.");
+                        return;
+                    }
+                    showRecipe(online, matches.getFirst());
+                }));
+    }
+
+    private void showRecipe(Player player, DrinkFingerprint fingerprint) {
         queries.knowledge(player.getUniqueId(), fingerprint)
                 .whenComplete((knowledge, failure) -> onMain(() -> {
                     Player online = Bukkit.getPlayer(player.getUniqueId());
