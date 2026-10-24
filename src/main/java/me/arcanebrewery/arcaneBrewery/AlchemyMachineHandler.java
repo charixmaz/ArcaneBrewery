@@ -343,13 +343,20 @@ public final class AlchemyMachineHandler implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBreak(BlockBreakEvent event) {
         Block block = event.getBlock();
+
+        for (Session session : List.copyOf(sessions.values())) {
+            if (!touches(session.core, block)) continue;
+            if (session.processing() || occupied(session.core)) {
+                event.setCancelled(true);
+                event.getPlayer().sendMessage("§c[Alchemy] This crucible is occupied or processing. Remove its contents before breaking the structure.");
+                return;
+            }
+            detach(session);
+        }
+
         if (block.getType() == Material.ENCHANTING_TABLE && occupied(block)) {
             event.setCancelled(true);
             event.getPlayer().sendMessage("§c[Alchemy] Remove machine items before breaking its core.");
-            return;
-        }
-        for (Session session : List.copyOf(sessions.values())) {
-            if (touches(session.core, block)) detach(session);
         }
     }
 
