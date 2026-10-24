@@ -386,7 +386,8 @@ public class DistilleryMenuHandler implements Listener {
                 dataOutput.writeInt(9);
                 for (int i = 0; i < 9; i++) {
                     ItemStack item = inv.getItem(i);
-                    dataOutput.writeObject(isValidStorageItem(item) ? item : null);
+                    boolean editableSlot = i == 0 || i == 1 || i == 2 || i == 4;
+                    dataOutput.writeObject(editableSlot && item != null ? item : null);
                 }
             }
             String serialized = Base64.getEncoder().encodeToString(outputStream.toByteArray());
@@ -408,7 +409,9 @@ public class DistilleryMenuHandler implements Listener {
                 int size = Math.min(9, dataInput.readInt());
                 for (int i = 0; i < size; i++) {
                     ItemStack loaded = (ItemStack) dataInput.readObject();
-                    if (isValidStorageItem(loaded)) inv.setItem(i, loaded);
+                    if ((i == 0 || i == 1 || i == 2 || i == 4) && loaded != null) {
+                        inv.setItem(i, loaded);
+                    }
                 }
             }
         } catch (Exception e) {
