@@ -17,6 +17,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -63,6 +64,31 @@ public class DistilleryMenuHandler implements Listener {
         this.batchStateKey = new NamespacedKey(plugin, "distillery_batch_state");
         this.ingredientExtractor = new MachineIngredientExtractor(ingredientItems);
         this.batchMetadata = new DistilleryBatchMetadata(plugin);
+    }
+
+
+    @EventHandler
+    public void onDistilleryBreak(BlockBreakEvent event) {
+        Block block = event.getBlock();
+        if (block.getType() != Material.BREWING_STAND) return;
+
+        DistilleryBatchState state = readState(block);
+        boolean processing = state != null && state.status() == DistilleryBatchState.Status.PROCESSING;
+        boolean storedItems = false;
+        Inventory snapshot = Bukkit.createInventory(null, 9);
+        loadDistilleryFromBlock(block, snapshot);
+        for (int slot : new int[]{0, 1, 2, 4}) {
+            ItemStack item = snapshot.getItem(slot);
+            if (item != null && item.getType() != Material.AIR) {
+                storedItems = true;
+                break;
+            }
+        }
+
+        if (processing || storedItems) {
+            event.setCancelled(true);
+            event.getPlayer().sendMessage("§c[Brewery] Empty the distillery and let any active batch finish before breaking it.");
+        }
     }
 
     @EventHandler
