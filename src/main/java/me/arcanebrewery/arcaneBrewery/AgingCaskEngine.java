@@ -302,8 +302,13 @@ public class AgingCaskEngine implements Listener {
         if (event.getClickedInventory() == event.getView().getBottomInventory()) {
             if (event.getClick() == ClickType.SHIFT_LEFT || event.getClick() == ClickType.SHIFT_RIGHT) {
                 ItemStack currentItem = event.getCurrentItem();
-                if (currentItem != null && currentItem.getType() == Material.POTION) {
-                    event.setCancelled(true); // Cancel vanilla handling
+                event.setCancelled(true); // Never let vanilla shift routing inject arbitrary items.
+                if (currentItem == null || currentItem.getType() == Material.AIR) return;
+                if (currentItem.getType() != Material.POTION) {
+                    player.sendMessage("§c[Brewery] Casks only accept potion-based inputs.");
+                    return;
+                }
+                if (currentItem.getType() == Material.POTION) {
 
                     int[] activeSlots = {0, 2, 4, 6};
                     for (int activeSlot : activeSlots) {
