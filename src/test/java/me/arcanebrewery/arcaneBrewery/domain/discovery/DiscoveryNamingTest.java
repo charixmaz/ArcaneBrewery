@@ -20,13 +20,23 @@ class DiscoveryNamingTest {
     void customNamespacedIngredientsProduceDescriptiveNames() {
         var p = custom(Map.of("myalchemy:moon_berry", 1.0));
         var name = generator.generate(p);
-        assertTrue(name.value().contains("myalchemy moon ber"));
-        assertTrue(name.value().contains("oak aged"));
-        assertTrue(name.value().contains("mash"));
-        assertTrue(name.value().contains("arcane"));
-        assertTrue(name.value().endsWith("spirit"));
+        assertTrue(name.value().contains("Myalchemy Moon Ber"));
+        assertTrue(name.value().contains("Oak-aged"));
+        assertTrue(name.value().contains("Arcane"));
+        assertTrue(name.value().endsWith("Elixir"));
         assertEquals(name, generator.generate(p));
         assertEquals(p, PlayerDiscovery.discover(DiscoveryFixtures.OWNER, p, DiscoveryFixtures.DISCOVERED_AT).process());
+    }
+
+    @Test
+    void vanillaNamespaceIsHiddenAndPresentationDoesNotAlterExistingDiscovery() {
+        var p = custom(Map.of("minecraft:wheat", 1.0));
+        assertEquals("Oak-aged Wheat Arcane Elixir", generator.generate(p).value());
+        var original = PlayerDiscovery.discover(DiscoveryFixtures.OWNER, p, DiscoveryFixtures.DISCOVERED_AT)
+                .rename(DiscoveryFixtures.OWNER, "My Original Recipe");
+        var restored = PlayerDiscovery.restore(original.snapshot());
+        assertEquals("My Original Recipe", restored.displayName().value());
+        assertEquals(original.fingerprint(), restored.fingerprint());
     }
 
     @Test
@@ -36,7 +46,7 @@ class DiscoveryNamingTest {
         Map<String, Double> second = new LinkedHashMap<>();
         second.put(" MOD:APPLE ", 10.0); second.put(" MOD:ZEBRA ", 10.0);
         assertEquals(generator.generate(custom(first)), generator.generate(custom(second)));
-        assertTrue(generator.generate(custom(first)).value().contains("mod apple"));
+        assertTrue(generator.generate(custom(first)).value().contains("Mod Apple"));
     }
 
     @Test
@@ -44,7 +54,7 @@ class DiscoveryNamingTest {
         var p = process();
         var brew = new ProcessProfile(p.ingredientRatios(), "steep", p.fermentation(),
                 distillation(0, 0, 0, 0), aging("none", 0, 0, 15, 100), Map.of());
-        assertEquals("wheat steep brew", generator.generate(brew).value());
+        assertEquals("Wheat Elixir", generator.generate(brew).value());
     }
 
     @Test

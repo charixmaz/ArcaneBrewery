@@ -19,16 +19,18 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
     private final DiscoveryMutationRuntime mutations;
     private final ConsumptionListener consumption;
     private final BukkitMarketPlayerService market;
+    private final me.arcanebrewery.arcaneBrewery.guide.BrewingGuide guide;
     private final DiscoveryTextFormatter formatter = new DiscoveryTextFormatter();
 
     public DiscoveryCommand(JavaPlugin plugin, DiscoveryQueryRuntime queries,
             DiscoveryMutationRuntime mutations, ConsumptionListener consumption,
-            BukkitMarketPlayerService market) {
+            BukkitMarketPlayerService market, me.arcanebrewery.arcaneBrewery.guide.BrewingGuide guide) {
         this.plugin = Objects.requireNonNull(plugin);
         this.queries = Objects.requireNonNull(queries);
         this.mutations = Objects.requireNonNull(mutations);
         this.consumption = Objects.requireNonNull(consumption);
         this.market = Objects.requireNonNull(market);
+        this.guide = Objects.requireNonNull(guide);
     }
 
     @Override
@@ -43,6 +45,12 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
         }
 
         return switch (args[0].toLowerCase(Locale.ROOT)) {
+            case "guide", "codex" -> {
+                if (args.length == 1) guide.open(player);
+                else if (args.length == 3 && args[1].equalsIgnoreCase("recipe")) guide.recipe(player, args[2]);
+                else player.sendMessage(MessageConfig.prefix() + "§eUsage: /brew guide [recipe <full fingerprint>]§r");
+                yield true;
+            }
             case "discoveries" -> { discoveries(player, args); yield true; }
             case "recipe" -> { recipe(player, args); yield true; }
             case "rename" -> { rename(player, args); yield true; }
@@ -343,8 +351,11 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            return List.of("discoveries", "recipe", "rename", "visibility", "share", "revoke", "status", "value", "sell", "help").stream()
+            return List.of("guide", "codex", "discoveries", "recipe", "rename", "visibility", "share", "revoke", "status", "value", "sell", "help").stream()
                     .filter(value -> value.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
+        }
+        if (args.length == 2 && (args[0].equalsIgnoreCase("guide") || args[0].equalsIgnoreCase("codex"))) {
+            return List.of("recipe").stream().filter(value -> value.startsWith(args[1].toLowerCase(Locale.ROOT))).toList();
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("sell")) {
             return List.of("confirm").stream()

@@ -28,6 +28,11 @@ public final class DiscoveryQueryRuntime {
                 .toList(), executor);
     }
 
+    public CompletableFuture<List<RecipeListItem>> publicDiscoveries(int limit, int offset) {
+        return CompletableFuture.supplyAsync(() -> repository.findPublicSummaries(limit, offset)
+                .stream().map(d -> new RecipeListItem(d.displayName().value(), d.fingerprint())).toList(), executor);
+    }
+
     public CompletableFuture<RecipeKnowledge> knowledge(UUID playerId, DrinkFingerprint fingerprint) {
         Objects.requireNonNull(playerId);
         Objects.requireNonNull(fingerprint);

@@ -41,6 +41,20 @@ class DiscoveryQueryRuntimeTest {
                 runtime.knowledge(owner, discovery.fingerprint()).join().state());
     }
 
+    @Test
+    void publicCatalogDoesNotPublishPrivateProcessesOrGrantFullKnowledge() {
+        UUID owner = UUID.randomUUID(), viewer = UUID.randomUUID();
+        var discovery = PlayerDiscovery.discover(owner, process(), Instant.EPOCH);
+        var privateRuntime = new DiscoveryQueryRuntime(new FakeRepository(new StoredDiscovery(discovery, 0)), Runnable::run);
+        assertTrue(privateRuntime.publicDiscoveries(37, 0).join().isEmpty());
+        var published = discovery.changeVisibility(owner, DiscoveryVisibility.PUBLIC);
+        var runtime = new DiscoveryQueryRuntime(new FakeRepository(new StoredDiscovery(published, 0)), Runnable::run);
+        var entries = runtime.publicDiscoveries(37, 0).join();
+        assertEquals(1, entries.size());
+        assertEquals(published.fingerprint(), entries.getFirst().fingerprint());
+        assertEquals(RecipeKnowledge.State.IDENTIFIED, runtime.knowledge(viewer, published.fingerprint()).join().state());
+    }
+
     private static ProcessProfile process() {
         return new ProcessProfile(
                 Map.of("minecraft:wheat", 1.0),
@@ -66,7 +80,11 @@ class DiscoveryQueryRuntimeTest {
         public RegistrationResult insert(PlayerDiscovery discovery) { throw new UnsupportedOperationException(); }
         public StoredDiscovery update(long expectedRevision, PlayerDiscovery discovery) { throw new UnsupportedOperationException(); }
         public Optional<DiscoverySummary> findPublicSummary(DrinkFingerprint fingerprint) { return Optional.empty(); }
-        public List<DiscoverySummary> findPublicSummaries(int limit, int offset) { return List.of(); }
+        public List<DiscoverySummary> findPublicSummaries(int limit, int offset) {
+            return stored.discovery().visibility() == DiscoveryVisibility.PUBLIC && offset == 0
+                    ? List.of(new DiscoverySummary(stored.discovery().discovererId(), stored.discovery().fingerprint(),
+                        stored.discovery().discoveredAt(), stored.discovery().displayName(), stored.discovery().visibility())) : List.of();
+        }
         public RecipeKnowledge knowledgeFor(DrinkFingerprint fingerprint, UUID player) {
             return findByFingerprint(fingerprint)
                     .map(value -> value.discovery().knowledgeFor(player))

@@ -37,8 +37,7 @@ public class CauldronWasherEngine implements Listener {
         ItemStack heldItem = player.getInventory().getItemInMainHand();
         Material heldType = heldItem.getType();
 
-        if (heldType == Material.WHEAT || heldType == Material.SUGAR_CANE || heldType == Material.APPLE ||
-                heldType == Material.GOLDEN_APPLE || heldType == Material.POTATO || heldType == Material.SWEET_BERRIES || heldType == Material.HONEYCOMB) {
+        if (me.arcanebrewery.arcaneBrewery.adapter.bukkit.ingredient.WashableIngredients.MATERIALS.contains(heldType)) {
 
             // ISSUE 3 FIX: Explicitly deny the interaction at the core packet level to stop the eating animation!
             event.setUseItemInHand(Event.Result.DENY);

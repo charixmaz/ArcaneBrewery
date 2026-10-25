@@ -160,8 +160,12 @@ public final class ArcaneBrewery extends JavaPlugin {
         getServer().getPluginManager().registerEvents(marketPlayer, this);
 
         var brew = java.util.Objects.requireNonNull(getCommand("brew"), "brew command missing from plugin.yml");
+        var guide = new me.arcanebrewery.arcaneBrewery.guide.BrewingGuide(this,
+                new me.arcanebrewery.arcaneBrewery.guide.GuideCatalog(ingredientItems.registry(), timing,
+                        getConfig().getDouble("alchemy.processing-seconds", 8.0)), discoveryQueries);
+        getServer().getPluginManager().registerEvents(guide, this);
         var discoveryCommand = new DiscoveryCommand(
-                this, discoveryQueries, discoveryMutations, consumption, marketPlayer);
+                this, discoveryQueries, discoveryMutations, consumption, marketPlayer, guide);
         brew.setExecutor(discoveryCommand);
         brew.setTabCompleter(discoveryCommand);
 
