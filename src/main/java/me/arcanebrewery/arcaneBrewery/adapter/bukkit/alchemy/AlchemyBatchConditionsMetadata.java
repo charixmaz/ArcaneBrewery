@@ -12,9 +12,9 @@ public final class AlchemyBatchConditionsMetadata {
     private NamespacedKey key(String name) {return new NamespacedKey(namespace,name);}
     public void write(ItemMeta meta,AlchemyMachineCondition condition,AlchemyFailureAssessment result) {
         var pdc=meta.getPersistentDataContainer();
-        pdc.set(key("batch_alchemy_stability"),PersistentDataType.DOUBLE,Math.max(0,Math.min(condition.integrity(),100-result.instability())));
+        pdc.set(key("batch_alchemy_stability"),PersistentDataType.DOUBLE,Math.min(stability(meta),Math.max(0,Math.min(condition.integrity(),result.outcome()==AlchemyFailureOutcome.STABLE_SUCCESS?100:100-result.instability()))));
         double previous=contamination(meta);
-        pdc.set(key("batch_alchemy_contamination"),PersistentDataType.DOUBLE,Math.min(100,previous+condition.contamination()+result.contaminationGain()));
+        pdc.set(key("batch_alchemy_contamination"),PersistentDataType.DOUBLE,Math.min(100,previous+condition.contamination()+(result.outcome()==AlchemyFailureOutcome.STABLE_SUCCESS?0:result.contaminationGain())));
         pdc.set(key("batch_alchemy_outcome"),PersistentDataType.STRING,result.outcome().name());
     }
     private double read(ItemMeta meta,String name,double fallback) {

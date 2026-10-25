@@ -8,13 +8,17 @@ public record AgingBatchState(
         UUID batchId,
         AgingSettings settings,
         long startedAtEpochMillis,
-        long maturationSeconds
+        long maturationSeconds,
+        boolean recipeTiming
 ) {
     public static final int VERSION = 1;
     public AgingBatchState(int version, UUID id, AgingSettings settings, long started) {
         this(version,id,settings,started,120L);
     }
 
+    public AgingBatchState(int version, UUID id, AgingSettings settings, long started, long maturity) {
+        this(version,id,settings,started,maturity,false);
+    }
     public AgingBatchState {
         if (formatVersion != VERSION) throw new IllegalArgumentException("unsupported aging state version");
         Objects.requireNonNull(batchId, "batchId");

@@ -45,7 +45,7 @@ public final class GuideCatalog {
                 "At least 12 matching wood components in the 3×3×3 area.",
                 "Use matching planks, stairs, slabs or logs. Open with the sign.",
                 "Four lanes; insert completed cultivated or infused bases.",
-                "New maturity target: " + times.maturationSeconds() + " seconds.",
+                "New V2 target: 120–300 seconds, stable for each formulation.",
                 "Early withdrawal: Unfinished Elixir, no discovery.",
                 "Mature withdrawal: finished elixir; process determines identity."),
             entry(Material.GRAY_CONCRETE, "Cleansing Producer (Legacy)",
@@ -123,7 +123,7 @@ public final class GuideCatalog {
         if (fire) lines.add("5. Infuse with one Blaze Powder; wait until complete.");
         lines.add((fire ? "6." : "5.") + " Mature in an Oak Maturation Cask until READY.");
         lines.add("New batches use this server's current durations.");
-        lines.add("For the 100% reference: clean cask, no catalyst, withdraw at 120–135 s under default settings.");
+        lines.add("For the 100% reference: clean cask, no catalyst, withdraw at the shown target through target + 15 s under default settings.");
         lines.add("Saturation and contamination hazards still apply.");
         return new Entry(icon, title, lines);
     }
@@ -183,7 +183,7 @@ public final class GuideCatalog {
             entry(Material.CLOCK,"Deterministic Quality","Workmanship weights: purity 20%, culture composition 5%, temperature 20%, duration 15%, extraction 15%,",
                 "sanitation/storage 10%, maturation 10%, catalyst stability 5%; contamination penalizes separately.",
                 "100% reference: wash Wheat to 100%, 78 C Balanced extraction, WILD 22 C/60 s,",
-                "no catalyst, clean sealed cask at 18 C, harvest at 120–135 s with default settings.",
+                "no catalyst, clean sealed cask at 18 C, harvest at the shown target through target + 15 s with default settings.",
                 "Mildness does not cap quality. Completed V2 bottles report actual factor losses.",
                 "Wood affects flavor; over-aging reduces quality. No random star roll denies perfection."),
             entry(Material.TRIPWIRE_HOOK,"Privacy and Safety","Short IDs resolve across your complete accessible catalog; ambiguous prefixes fail.",

@@ -49,7 +49,7 @@ public final class AgingService {
                 additives
         );
         var conditions = new BatchConditions(lots, contaminationLoad, source.distillery().preparationMethod().equals("distillation-v2")
-                ?Math.min(capturedCatalystStability,additives.isEmpty()?100:Math.max(0,100-additives.values().stream().mapToDouble(Double::doubleValue).sum()*5)):90, wood);
+                ?capturedCatalystStability:90, wood);
         var simulation = calculator.calculate(process, targets, conditions, BatchVariation.fromSeed(variationSeed));
         if(source.distillery().preparationMethod().equals("distillation-v2")) {
             var assessment=new ReproducibleQuality().assess(process,conditions,aging.maturationSeconds());
@@ -58,6 +58,11 @@ public final class AgingService {
             double cuts=process.distillation().headsCutPercent()<10?1.2:process.distillation().headsCutPercent()>10?.8:1;
             var quality=new BatchQuality(q.purity(),q.flavor(),q.aroma(),q.stability(),q.contamination(),
                 q.magicalPotency()*culture.potency()*cuts,assessment.score());
+            if(aging.recipeTiming() && RecipeMaturation.poisonous(aging.elapsedSeconds(nowEpochMillis))) {
+                quality=new BatchQuality(q.purity(),q.flavor(),q.aroma(),q.stability(),100,0,0.0);
+                assessment=new QualityAssessment(java.util.List.of(new QualityAssessment.Factor("Premature withdrawal",0,1,
+                    "first 60 seconds: poisonous unfinished batch; no discovery")),0,0);
+            }
             return new AgingResult(process,new BatchSimulationResult(simulation.fingerprint(),quality,simulation.contamination()),assessment);
         }
         return new AgingResult(process, simulation);

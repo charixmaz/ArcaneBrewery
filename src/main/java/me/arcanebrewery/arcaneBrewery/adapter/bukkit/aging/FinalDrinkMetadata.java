@@ -54,6 +54,19 @@ public final class FinalDrinkMetadata {
         data.set(key("drink_stage"), PersistentDataType.STRING, "FINISHED");
     }
 
+    public void maturation(ItemMeta meta,boolean mature,boolean poisonous,long target,long elapsed) {
+        var data=meta.getPersistentDataContainer();
+        data.set(key("drink_stage"),PersistentDataType.STRING,mature?"FINISHED":"UNFINISHED");
+        data.set(key("drink_premature_poison"),PersistentDataType.BYTE,(byte)(poisonous?1:0));
+        data.set(key("drink_maturity_target"),PersistentDataType.LONG,target);
+        data.set(key("drink_harvest_seconds"),PersistentDataType.LONG,elapsed);
+    }
+    public boolean prematurePoison(ItemMeta meta) {
+        return meta.getPersistentDataContainer().getOrDefault(key("drink_premature_poison"),PersistentDataType.BYTE,(byte)0)==1;
+    }
+    public Optional<Long> maturityTarget(ItemMeta meta) { return Optional.ofNullable(meta.getPersistentDataContainer().get(key("drink_maturity_target"),PersistentDataType.LONG)); }
+    public Optional<Long> harvestSeconds(ItemMeta meta) { return Optional.ofNullable(meta.getPersistentDataContainer().get(key("drink_harvest_seconds"),PersistentDataType.LONG)); }
+
     public void producer(ItemMeta meta,java.util.UUID player,String cachedName,me.arcanebrewery.arcaneBrewery.domain.process.ProcessProfile p) {
         var data=meta.getPersistentDataContainer();
         data.set(key("drink_producer_uuid"),PersistentDataType.STRING,player.toString());
@@ -84,7 +97,7 @@ public final class FinalDrinkMetadata {
         Integer version = data.get(key("drink_format"), PersistentDataType.INTEGER);
         String stage = data.get(key("drink_stage"), PersistentDataType.STRING);
         if (version == null || stage == null) return Optional.empty();
-        if ((version < 2 || version > VERSION) || !"FINISHED".equals(stage)) return Optional.empty();
+        if ((version < 2 || version > VERSION) || !("FINISHED".equals(stage)||"UNFINISHED".equals(stage))) return Optional.empty();
 
         Double drinkStrength = data.get(key("drink_strength"), PersistentDataType.DOUBLE);
         Double quality = data.get(key("drink_quality"), PersistentDataType.DOUBLE);

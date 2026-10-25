@@ -22,6 +22,9 @@ public final class ElixirPresentation {
         var lore = new ArrayList<String>();
         if(data.producer(meta).isPresent()) lore.add("§7§oBrewed by "+data.producerLabel(meta)+"§r");
         data.wood(meta).ifPresent(wood->lore.add("§7Maturation: §f"+wood+"§r"));
+        data.maturityTarget(meta).ifPresent(t->lore.add("§7Ideal maturation: §f"+t+"–"+(t+15)+"s§r"));
+        data.harvestSeconds(meta).ifPresent(t->lore.add("§7Harvested at: §f"+t+"s§r"));
+        if(data.prematurePoison(meta)) lore.add("§cPOISONOUS — withdrawn within the first 60 seconds.§r");
         lore.add("§7Quality: §f" + Math.round(elixir.quality()) + "/100§r");
         lore.add("§7Arcane Load: §b" + Math.round(elixir.strength()) + "/100§r");
         lore.add("§8Higher load increases temporary saturation.§r");

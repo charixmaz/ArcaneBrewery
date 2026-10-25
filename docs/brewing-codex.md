@@ -1,3 +1,18 @@
+> Maturation balance update: NEW V2 cask batches use a stable, formulation-derived
+> pseudo-random target from 120–300 seconds, captured on insertion. The perfect
+> window is target through target+15 seconds. Existing active batches retain their
+> saved targets. The former fixed 120–135s reference below is historical: use the
+> target shown by the cask for a new batch. Withdrawal at elapsed 0–60s inclusive
+> gives zero quality, a poisonous unfinished product and no discovery; 61s until
+> maturity remains unfinished without discovery. Poison is applied on consumption,
+> never on inventory withdrawal. Unfinished products cannot be sold as finished
+> canonical elixirs. Quality still depends on every other production condition.
+>
+> Stable successful infusion with pristine equipment no longer adds unavoidable
+> contamination or a fixed dose-based workmanship penalty. Actual captured wear,
+> dirt, instability/failure losses persist, including through subsequent infusion.
+> Magical instability and potency remain separate from workmanship quality.
+
 > Current controls, personal discovery/naming, and migration semantics are specified in [Brewing gameplay V2](brewing-gameplay-v2.md); those rules supersede the older behavior below.
 
 # Brewing Codex

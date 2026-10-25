@@ -32,7 +32,7 @@ class GuideCatalogTest {
         var text = catalog.machines().toString();
         assertTrue(text.contains("12.5 seconds"));
         assertTrue(text.contains("90 seconds"));
-        assertTrue(text.contains("180 seconds"));
+        assertTrue(text.contains("120–300 seconds"));
         assertTrue(text.contains("9.0 seconds"));
         assertTrue(text.contains("ordinary Refined Brewing Base is NOT accepted"));
     }

@@ -187,7 +187,10 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
         preparationMetadata.read(meta); // Malformed additives never silently become absent.
         if (agingMetadata.read(meta).isEmpty()) agingMetadata.write(meta,new AgingBatchState(AgingBatchState.VERSION,UUID.randomUUID(),
 
-                new AgingSettings(wood,fermented.get().distillery().preparationMethod().equals("distillation-v2")?0:12,18,fermented.get().distillery().preparationMethod().equals("distillation-v2")?100:95),System.currentTimeMillis(),timing.maturationSeconds()));
+                new AgingSettings(wood,fermented.get().distillery().preparationMethod().equals("distillation-v2")?0:12,18,fermented.get().distillery().preparationMethod().equals("distillation-v2")?100:95),System.currentTimeMillis(),
+                fermented.get().distillery().preparationMethod().equals("distillation-v2")
+                    ? me.arcanebrewery.arcaneBrewery.application.aging.RecipeMaturation.target(fermented.get().fermentedDraft(),preparationMetadata.read(meta).map(p -> p.additives()).orElseGet(Map::of))
+                    : timing.maturationSeconds(), fermented.get().distillery().preparationMethod().equals("distillation-v2")));
     }
     private void withdraw(Player player,Session session,int slot,boolean shift) {
         ItemStack source=session.gui.getItem(slot);
@@ -211,6 +214,9 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
                         Math.min(100,Math.max(0,100-state.settings().caskCleanliness())+alchemyConditions.contamination(meta)),AgingBalance.targets(),state.batchId().getMostSignificantBits()^state.batchId().getLeastSignificantBits(),additives,alchemyConditions.stability(meta));
 
                 output=bottle(result,mature,player);
+                var outputMeta=(PotionMeta)output.getItemMeta();
+                finalDrinkMetadata.maturation(outputMeta,mature,state.recipeTiming() && me.arcanebrewery.arcaneBrewery.application.aging.RecipeMaturation.poisonous(state.elapsedSeconds(now)),state.maturationSeconds(),state.elapsedSeconds(now));
+                ElixirPresentation.refresh(outputMeta,finalDrinkMetadata); output.setItemMeta(outputMeta);
                 privateEvidence=source.serializeAsBytes();
                 if(privateEvidence.length>1048576) throw new IllegalArgumentException("batch evidence exceeds storage bound");
                 productionKey=state.batchId().toString();

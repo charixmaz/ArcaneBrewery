@@ -60,7 +60,10 @@ public final class ConsumptionListener implements Listener {
         RecoveryCondition next = policy.consume(read(player), profile.get(), now);
         write(player, next);
         applyStatus(player, next, true);
-        reaction.ifPresent(alchemy -> applyAlchemy(player, alchemy));
+        if(drinks.prematurePoison(meta)) {
+            player.addPotionEffect(new PotionEffect(PotionEffectType.POISON,10*20,0,false,true,true));
+            player.sendMessage(MessageConfig.prefix()+"§cThis prematurely withdrawn batch is poisonous.§r");
+        } else reaction.ifPresent(alchemy -> applyAlchemy(player, alchemy));
 
         player.sendMessage(MessageConfig.prefix() + (policy.legacyEnabled() ? "§7Intoxication: §f" : "§7Arcane Saturation: §b")
                 + Math.round(next.state().intoxication()) + "/100 §7| Contamination Hazard: §f"
