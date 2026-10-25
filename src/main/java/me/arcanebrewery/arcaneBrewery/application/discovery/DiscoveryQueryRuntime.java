@@ -20,12 +20,19 @@ public final class DiscoveryQueryRuntime {
         this.executor = Objects.requireNonNull(executor);
     }
 
+    public CompletableFuture<DrinkFingerprint> resolve(UUID player,String prefix) {
+        return CompletableFuture.supplyAsync(()->{
+            return RecipeIdResolver.resolve(repository.accessibleIds(player),prefix);
+        },executor);
+    }
+    public CompletableFuture<String> info(UUID player,DrinkFingerprint id) { return CompletableFuture.supplyAsync(()->repository.recordInfo(id,player),executor); }
+    public CompletableFuture<java.util.Optional<String>> personalName(UUID producer,DrinkFingerprint id) {
+        return CompletableFuture.supplyAsync(()->repository.personalName(producer,id),executor);
+    }
+
     public CompletableFuture<List<OwnedDiscoveryView>> owned(UUID playerId, int limit, int offset) {
         Objects.requireNonNull(playerId);
-        return CompletableFuture.supplyAsync(() -> repository.findOwnedBy(playerId, limit, offset)
-                .stream()
-                .map(stored -> OwnedDiscoveryView.from(stored.discovery()))
-                .toList(), executor);
+        return CompletableFuture.supplyAsync(() -> repository.personalCatalog(playerId,limit,offset),executor);
     }
 
     public CompletableFuture<List<RecipeListItem>> publicDiscoveries(int limit, int offset) {

@@ -23,6 +23,12 @@ public abstract class JdbcStorageProvider implements StorageProvider {
         marketJournal = new JdbcMarketTransactionJournal(connections);
         marketEscrow = new JdbcMarketEscrowStore(connections);
     }
+    private DiscoveryRepository gameplay;
+    public synchronized DiscoveryRepository gameplayDiscoveries() {
+        if(closed.get()) throw new StorageException("Storage provider is closed");
+        if(gameplay==null) gameplay=new PersonalDiscoveryRepository(connections,repository);
+        return gameplay;
+    }
     public DiscoveryRepository discoveries() {
         if (closed.get()) throw new StorageException("Storage provider is closed");
         return repository;

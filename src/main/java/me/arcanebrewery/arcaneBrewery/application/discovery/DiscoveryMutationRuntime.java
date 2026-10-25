@@ -56,7 +56,7 @@ public final class DiscoveryMutationRuntime {
 
     private DiscoveryMutationResult attempt(
             UUID actor, DrinkFingerprint fingerprint, UnaryOperator<PlayerDiscovery> mutation, boolean retry) {
-        StoredDiscovery stored = repository.findByFingerprint(fingerprint)
+        StoredDiscovery stored = repository.findForPlayer(fingerprint, actor)
                 .orElseThrow(() -> new IllegalArgumentException("discovery not found"));
         if (!stored.discovery().discovererId().equals(actor))
             throw new SecurityException("only the original discoverer may change this discovery");

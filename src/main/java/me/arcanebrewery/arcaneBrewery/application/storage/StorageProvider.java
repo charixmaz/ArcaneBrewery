@@ -5,6 +5,7 @@ import me.arcanebrewery.arcaneBrewery.application.economy.RecoverableMarketTrans
 
 public interface StorageProvider extends AutoCloseable {
     DiscoveryRepository discoveries();
+    default DiscoveryRepository gameplayDiscoveries() { return discoveries(); }
     RecoverableMarketTransactionJournal marketJournal();
     MarketEscrowStore marketEscrow();
     int schemaVersion();

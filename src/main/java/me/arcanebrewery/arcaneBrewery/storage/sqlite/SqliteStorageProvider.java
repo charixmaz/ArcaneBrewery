@@ -11,6 +11,15 @@ import java.nio.file.Path;
 public final class SqliteStorageProvider extends JdbcStorageProvider {
     public SqliteStorageProvider(Path databaseFile) {
         super(factory(databaseFile));
+        // VACUUM INTO includes committed WAL pages. Close all readers before snapshotting.
+        try(var c=connections.open(true)) {
+            boolean history;
+            try(var q=c.createStatement();var rs=q.executeQuery("SELECT 1 FROM sqlite_master WHERE type='table' AND name='schema_migrations'")) { history=rs.next(); }
+            if(history && MigrationRunner.currentVersion(c)<3) {
+                Path backup=databaseFile.toAbsolutePath().resolveSibling(databaseFile.getFileName()+".pre-gameplay-"+java.util.UUID.randomUUID()+".bak");
+                try(var b=c.prepareStatement("VACUUM INTO ?")) { b.setString(1,backup.toString());b.execute(); }
+            }
+        } catch(java.sql.SQLException e) { throw new StorageException("Cannot back up database before gameplay migration",e); }
         new MigrationRunner(connections, SqliteSchema.migrations()).migrate();
     }
 

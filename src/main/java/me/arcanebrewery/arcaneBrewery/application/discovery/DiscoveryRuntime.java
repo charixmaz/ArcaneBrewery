@@ -19,6 +19,14 @@ public final class DiscoveryRuntime {
         this.executor = Objects.requireNonNull(executor, "executor");
     }
 
+    public CompletableFuture<RegistrationResult> register(UUID player,ProcessProfile process,Instant at,double quality,String batchKey,byte[] evidence) {
+        byte[] copy=evidence==null?null:evidence.clone();
+        return CompletableFuture.supplyAsync(()->registrations.register(player,process,at,quality,batchKey,copy),executor);
+    }
+    public CompletableFuture<RegistrationResult> register(UUID player,ProcessProfile process,Instant at,double quality) {
+        return CompletableFuture.supplyAsync(()->registrations.register(player,process,at,quality),executor);
+    }
+
     public CompletableFuture<RegistrationResult> register(
             UUID playerId, ProcessProfile process, Instant completedAt) {
         Objects.requireNonNull(playerId, "playerId");

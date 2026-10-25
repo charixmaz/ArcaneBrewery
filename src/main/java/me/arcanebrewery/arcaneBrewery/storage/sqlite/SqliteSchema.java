@@ -5,7 +5,7 @@ import java.util.List;
 
 public final class SqliteSchema {
     private SqliteSchema() {}
-    public static final int VERSION = 2;
+    public static final int VERSION = 3;
 
     public static List<SqlMigration> migrations() {
         return List.of(
@@ -74,6 +74,16 @@ public final class SqliteSchema {
                         "CREATE INDEX market_transactions_status_idx ON market_transactions(status, updated_at)",
                         "CREATE INDEX market_transactions_player_idx ON market_transactions(player_id, updated_at)",
                         "CREATE INDEX market_escrow_state_idx ON market_escrow(state, updated_at)"
+                )),
+                new SqlMigration(3, List.of(
+                    "CREATE TABLE personal_recipes (identity TEXT NOT NULL, player_id TEXT NOT NULL, process_payload BLOB, recorded_at TEXT NOT NULL, temporary_name TEXT NOT NULL, personal_name TEXT, visibility TEXT NOT NULL, revision INTEGER NOT NULL DEFAULT 0, provenance TEXT NOT NULL, produced INTEGER NOT NULL DEFAULT 0, best_quality REAL, PRIMARY KEY(identity,player_id))",
+                    "CREATE TABLE personal_grants (identity TEXT NOT NULL, source_id TEXT NOT NULL, recipient_id TEXT NOT NULL, kind TEXT NOT NULL, selection_payload TEXT, legacy_source TEXT, modified INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(identity,source_id,recipient_id))",
+                    "CREATE INDEX personal_recipient_idx ON personal_grants(recipient_id,identity)",
+                    "CREATE TABLE server_firsts (identity TEXT PRIMARY KEY NOT NULL, player_id TEXT NOT NULL, discovered_at TEXT NOT NULL)",
+                    "CREATE TABLE recipe_aliases (legacy_fingerprint TEXT PRIMARY KEY NOT NULL, identity TEXT NOT NULL)",
+                    "CREATE TABLE production_batches (batch_key TEXT PRIMARY KEY NOT NULL, identity TEXT NOT NULL, player_id TEXT NOT NULL, process_payload BLOB NOT NULL, completed_at TEXT NOT NULL, quality REAL NOT NULL DEFAULT 0, evidence_payload BLOB)",
+                    "CREATE TABLE recipe_process_records (fingerprint TEXT PRIMARY KEY NOT NULL, process_payload BLOB NOT NULL)",
+                    "CREATE TABLE gameplay_migrations (version INTEGER PRIMARY KEY NOT NULL)"
                 ))
         );
     }
