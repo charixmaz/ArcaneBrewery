@@ -39,7 +39,8 @@ public sealed interface RecipeKnowledge permits RecipeKnowledge.Unknown, RecipeK
             Objects.requireNonNull(playerId, "playerId");
             Objects.requireNonNull(discovery, "discovery");
             Objects.requireNonNull(process, "process");
-            if (!DrinkFingerprint.from(process).equals(discovery.fingerprint()))
+            if (!DrinkFingerprint.from(process).equals(discovery.fingerprint())
+                    && !me.arcanebrewery.arcaneBrewery.domain.drink.FormulationIdentity.from(process).equals(discovery.fingerprint()))
                 throw new IllegalArgumentException("full knowledge must reproduce the discovery fingerprint");
         }
         public State state() { return State.FULL; }

@@ -21,7 +21,8 @@ public record DiscoverySnapshot(UUID discovererId, DrinkFingerprint fingerprint,
         Objects.requireNonNull(canonicalName);
         Objects.requireNonNull(visibility);
         grants = Map.copyOf(grants);
-        if (!DrinkFingerprint.from(process).equals(fingerprint))
+        if (!DrinkFingerprint.from(process).equals(fingerprint)
+                && !me.arcanebrewery.arcaneBrewery.domain.drink.FormulationIdentity.from(process).equals(fingerprint))
             throw new IllegalArgumentException("process does not match discovery identity");
         if (grants.containsKey(discovererId))
             throw new IllegalArgumentException("owner cannot be a recipient");

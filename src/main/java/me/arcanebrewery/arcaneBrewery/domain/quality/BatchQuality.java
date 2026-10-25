@@ -8,9 +8,14 @@ public record BatchQuality(
         double aroma,
         double stability,
         double contamination,
-        double magicalPotency
+        double magicalPotency,
+        Double workmanship
 ) {
+    public BatchQuality(double purity,double flavor,double aroma,double stability,double contamination,double magicalPotency) {
+        this(purity,flavor,aroma,stability,contamination,magicalPotency,null);
+    }
     public BatchQuality {
+        if(workmanship!=null) workmanship=clamp(workmanship);
         purity = clamp(purity);
         flavor = clamp(flavor);
         aroma = clamp(aroma);
@@ -20,6 +25,7 @@ public record BatchQuality(
     }
 
     public double overallScore() {
+        if(workmanship!=null) return workmanship;
         double positive = purity * 0.28 + flavor * 0.26 + aroma * 0.16 + stability * 0.18 + magicalPotency * 0.12;
         double penalty = contamination * 0.45;
         return clamp(positive - penalty);

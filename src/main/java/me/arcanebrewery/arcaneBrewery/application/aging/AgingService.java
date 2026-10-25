@@ -24,6 +24,12 @@ public final class AgingService {
             WoodCharacteristics wood, double contaminationLoad,
             QualityTargets targets, long variationSeed,
             Map<String, Double> additives) {
+        return finish(source,aging,nowEpochMillis,lots,wood,contaminationLoad,targets,variationSeed,additives,100);
+    }
+    public AgingResult finish(FermentedProcessDraft source,AgingBatchState aging,long nowEpochMillis,
+            Map<String,IngredientLot> lots,WoodCharacteristics wood,double contaminationLoad,QualityTargets targets,
+            long variationSeed,Map<String,Double> additives,double capturedCatalystStability) {
+        if(!Double.isFinite(capturedCatalystStability)||capturedCatalystStability<0||capturedCatalystStability>100) throw new IllegalArgumentException("invalid catalyst stability");
         Objects.requireNonNull(source);
         Objects.requireNonNull(aging);
         Objects.requireNonNull(lots);
@@ -38,12 +44,22 @@ public final class AgingService {
                 source.fermentation(),
                 new DistillationProfile(controls.headsCutPercent(), controls.heartsCutPercent(),
                         controls.tailsCutPercent(), controls.temperatureCelsius(), controls.passes()),
-                aging.settings().profile(identityAgingSeconds(
-                        aging.elapsedSeconds(nowEpochMillis), aging.maturationSeconds())),
+                aging.settings().profile(source.distillery().preparationMethod().equals("distillation-v2")
+                        ?aging.elapsedSeconds(nowEpochMillis):identityAgingSeconds(aging.elapsedSeconds(nowEpochMillis), aging.maturationSeconds())),
                 additives
         );
-        var conditions = new BatchConditions(lots, contaminationLoad, 90.0, wood);
+        var conditions = new BatchConditions(lots, contaminationLoad, source.distillery().preparationMethod().equals("distillation-v2")
+                ?Math.min(capturedCatalystStability,additives.isEmpty()?100:Math.max(0,100-additives.values().stream().mapToDouble(Double::doubleValue).sum()*5)):90, wood);
         var simulation = calculator.calculate(process, targets, conditions, BatchVariation.fromSeed(variationSeed));
+        if(source.distillery().preparationMethod().equals("distillation-v2")) {
+            var assessment=new ReproducibleQuality().assess(process,conditions,aging.maturationSeconds());
+            var q=simulation.quality();
+            var culture=BrewingCulture.of(process.fermentation().yeastOrCatalyst());
+            double cuts=process.distillation().headsCutPercent()<10?1.2:process.distillation().headsCutPercent()>10?.8:1;
+            var quality=new BatchQuality(q.purity(),q.flavor(),q.aroma(),q.stability(),q.contamination(),
+                q.magicalPotency()*culture.potency()*cuts,assessment.score());
+            return new AgingResult(process,new BatchSimulationResult(simulation.fingerprint(),quality,simulation.contamination()),assessment);
+        }
         return new AgingResult(process, simulation);
     }
 

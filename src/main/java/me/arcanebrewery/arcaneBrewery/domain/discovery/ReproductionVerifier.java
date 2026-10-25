@@ -8,6 +8,8 @@ import java.util.Objects;
 public final class ReproductionVerifier {
     public boolean reproduces(PlayerDiscovery discovery, ProcessProfile candidate) {
         Objects.requireNonNull(discovery, "discovery");
-        return discovery.fingerprint().equals(DrinkFingerprint.from(Objects.requireNonNull(candidate, "candidate")));
+        Objects.requireNonNull(candidate,"candidate");
+        boolean v2=discovery.fingerprint().equals(me.arcanebrewery.arcaneBrewery.domain.drink.FormulationIdentity.from(discovery.process()));
+        return discovery.fingerprint().equals(v2?me.arcanebrewery.arcaneBrewery.domain.drink.FormulationIdentity.from(candidate):DrinkFingerprint.from(candidate));
     }
 }

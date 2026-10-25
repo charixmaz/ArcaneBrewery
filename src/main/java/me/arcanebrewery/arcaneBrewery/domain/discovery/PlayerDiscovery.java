@@ -49,6 +49,11 @@ public final class PlayerDiscovery {
                 DiscoveryVisibility.PRIVATE, Map.of());
     }
 
+    public static PlayerDiscovery personal(UUID player, ProcessProfile process, Instant time) {
+        return new PlayerDiscovery(player, me.arcanebrewery.arcaneBrewery.domain.drink.FormulationIdentity.from(process),
+                process,time,new DescriptiveNameGenerator().generate(process),Optional.empty(),DiscoveryVisibility.PRIVATE,Map.of());
+    }
+
     public UUID discovererId() { return discovererId; }
     public DrinkFingerprint fingerprint() { return fingerprint; }
     public ProcessProfile process() { return process; }
@@ -81,7 +86,9 @@ public final class PlayerDiscovery {
 
     public PlayerDiscovery rename(UUID actor, String name) {
         requireOwner(actor);
-        if (renameUsed()) throw new IllegalStateException("discovery has already been renamed");
+        if(name!=null && name.indexOf('§')>=0) throw new IllegalArgumentException("new names cannot contain formatting codes");
+        if (!me.arcanebrewery.arcaneBrewery.domain.drink.FormulationIdentity.from(process).equals(fingerprint) && renameUsed())
+            throw new IllegalStateException("legacy discovery has already been renamed");
         return copy(Optional.of(new DrinkName(name)), visibility, grants);
     }
 

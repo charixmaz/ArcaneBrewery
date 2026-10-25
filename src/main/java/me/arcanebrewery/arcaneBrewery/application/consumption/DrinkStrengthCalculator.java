@@ -14,6 +14,7 @@ public final class DrinkStrengthCalculator {
         double temperatureFactor = 1.0 - Math.min(0.25,
                 Math.abs(distillation.targetTemperatureCelsius() - 78.0) / 100.0);
         double distilled = fermentationBase + 18.0 * distillation.passes() * heartsFactor * temperatureFactor;
+        if(process.preparationMethod().equals("distillation-v2")) distilled*=me.arcanebrewery.arcaneBrewery.domain.process.BrewingCulture.of(process.fermentation().yeastOrCatalyst()).potency();
         return clamp(distilled);
     }
 
