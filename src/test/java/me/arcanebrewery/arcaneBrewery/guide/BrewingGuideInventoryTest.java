@@ -72,7 +72,10 @@ class BrewingGuideInventoryTest {
     @Test void ordinaryInventoryIsUnaffected() {
         var guide = guide();
         var ordinary = proxy(Inventory.class, (n,a) -> n.equals("getHolder") ? null : 54);
-        var otherView = proxy(InventoryView.class, (n,a) -> n.equals("getTopInventory") ? ordinary : player);
+        var otherView = proxy(InventoryView.class, (n,a) -> switch(n) {
+            case "getTopInventory" -> ordinary; case "getPlayer" -> player; case "convertSlot" -> a[0];
+            default -> throw new AssertionError(n);
+        });
         var event = new InventoryClickEvent(otherView, InventoryType.SlotType.CONTAINER, 0, ClickType.LEFT, InventoryAction.NOTHING);
         guide.click(event);
         assertFalse(event.isCancelled());
