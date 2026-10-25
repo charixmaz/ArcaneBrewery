@@ -120,7 +120,7 @@ public final class AlchemyMachineHandler implements Listener {
         if (decision != AlchemyInventoryPolicy.Decision.EDIT) return;
         int index = event.getSlot() == 2 ? 0 : event.getSlot() == 4 ? 1 : 2;
         var move = AlchemySlotTransfer.move(gui.getItem(event.getSlot()), player.getItemOnCursor(),
-                event.getClick() == ClickType.RIGHT, index == 0 ? 1 : 64);
+                event.getClick() == ClickType.RIGHT, 1);
         ItemStack[] next = contents(gui);
         next[index] = move.slot();
         try {
@@ -284,6 +284,11 @@ public final class AlchemyMachineHandler implements Listener {
             completedOperation = Optional.empty();
         }
 
+        if(result[0]!=null && result[0].hasItemMeta()) {
+            var meta=result[0].getItemMeta();
+            new me.arcanebrewery.arcaneBrewery.adapter.bukkit.alchemy.AlchemyBatchConditionsMetadata(namespace).write(meta,session.snapshot.condition(),assessment);
+            result[0].setItemMeta(meta);
+        }
         commit(session, result, completedOperation, nextCondition);
         feedback(session, assessment);
     }
@@ -356,7 +361,7 @@ public final class AlchemyMachineHandler implements Listener {
                 meta.setDisplayName("§d§l"+label+"§r");
                 var lore=new ArrayList<String>();
                 if (slot==0) lore.add("§7Insert one completed cultivated base.§r");
-                if (slot==1 || slot==3) lore.add("§7One catalyst is consumed from each selected slot.§r");
+                if (slot==1 || slot==3) lore.add("§7One dose per slot; select two identical catalysts for a double dose.§r");
                 if (slot==8) {
                     lore.add(idleStatus(session).equals("READY")?"§7Take the prepared base from slot 3.§r":"§7Click to validate inputs and start infusion.§r");
                     lore.add("§7Integrity: §f"+Math.round(session.snapshot.condition().integrity())+"/100§r");

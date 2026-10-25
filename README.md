@@ -24,3 +24,5 @@ or require rebuilding the already installed economy API contract.
 
 See [fantasy defaults, ownership, configuration and compatibility](docs/fantasy-machines.md)
 and [the local Paper checklist](docs/local-playtest.md).
+
+Current closed-beta controls and migration: [Brewing gameplay V2](docs/brewing-gameplay-v2.md).

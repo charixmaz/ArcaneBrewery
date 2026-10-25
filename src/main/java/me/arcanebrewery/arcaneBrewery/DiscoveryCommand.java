@@ -130,30 +130,15 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        UUID playerId = player.getUniqueId();
-        queries.owned(playerId, 200, 0)
-                .whenComplete((items, failure) -> onMain(() -> {
-                    Player online = Bukkit.getPlayer(playerId);
-                    if (online == null) return;
-                    if (failure != null) {
-                        plugin.getLogger().warning("Recipe id lookup failed: " + rootMessage(failure));
-                        online.sendMessage("§c[ArcaneBrewery] Could not resolve that recipe id.");
-                        return;
-                    }
-                    var matches = items.stream()
-                            .map(OwnedDiscoveryView::fingerprint)
-                            .filter(id -> id.value().startsWith(value))
-                            .toList();
-                    if (matches.isEmpty()) {
-                        online.sendMessage("§c[ArcaneBrewery] Unknown recipe id.");
-                        return;
-                    }
-                    if (matches.size() > 1) {
-                        online.sendMessage("§c[ArcaneBrewery] Recipe id is ambiguous; type more characters.");
-                        return;
-                    }
-                    showRecipe(online, matches.getFirst());
-                }));
+        resolve(player,value,id->showRecipe(player,id));
+    }
+    private void resolve(Player player,String prefix,java.util.function.Consumer<DrinkFingerprint> action) {
+        UUID actor=player.getUniqueId();
+        queries.resolve(actor,prefix).whenComplete((id,failure)->onMain(()->{
+            Player online=Bukkit.getPlayer(actor);if(online==null) return;
+            if(failure!=null) online.sendMessage(MessageConfig.prefix()+"§e"+rootMessage(failure)+"§r");
+            else action.accept(id);
+        }));
     }
 
     private void showRecipe(Player player, DrinkFingerprint fingerprint) {
@@ -173,14 +158,23 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
 
     private void rename(Player player, String[] args) {
         if (args.length < 3) {
-            player.sendMessage("§cUsage: /brew rename <fingerprint> <new name>");
+            player.sendMessage("§cUsage: /brew rename <held|short-id> <new name>");
             return;
         }
-        DrinkFingerprint fingerprint = fingerprint(player, args[1]);
-        if (fingerprint == null) return;
-        String name = String.join(" ", Arrays.copyOfRange(args, 2, args.length));
-        completeMutation(player, mutations.rename(player.getUniqueId(), fingerprint, name),
-                result -> "§a[ArcaneBrewery] Recipe renamed to §f" + result.displayName().value());
+        String name=String.join(" ",Arrays.copyOfRange(args,2,args.length));
+        java.util.function.Consumer<DrinkFingerprint> rename=id->completeMutation(player,mutations.rename(player.getUniqueId(),id,name),
+            result->{
+                new me.arcanebrewery.arcaneBrewery.adapter.bukkit.PresentationRefreshListener(plugin,queries).refresh(player);
+                return "§a[ArcaneBrewery] Your brewing record is now §f"+result.displayName().value();
+            });
+        if(args[1].equalsIgnoreCase("held")) {
+            var held=player.getInventory().getItemInMainHand();
+            var data=new me.arcanebrewery.arcaneBrewery.adapter.bukkit.aging.FinalDrinkMetadata(plugin);
+            if(!held.hasItemMeta() || !data.mayRenameHeld(held.getItemMeta(),player.getUniqueId())) {
+                player.sendMessage(MessageConfig.prefix()+"§eHold a finished elixir with your own recorded producer UUID.§r");return;
+            }
+            rename.accept(data.formulation(held.getItemMeta()).orElseThrow());
+        } else resolve(player,args[1],rename);
     }
 
     private void visibility(Player player, String[] args) {
@@ -264,7 +258,7 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
             }
             Throwable root = root(failure);
             if (root instanceof SecurityException) {
-                online.sendMessage("§c[ArcaneBrewery] Only the original discoverer may change this recipe.");
+                online.sendMessage("§c[ArcaneBrewery] You need your own independently discovered or fully learned record.");
             } else if (root instanceof IllegalArgumentException || root instanceof IllegalStateException) {
                 online.sendMessage("§c[ArcaneBrewery] " + root.getMessage());
             } else {
@@ -371,6 +365,7 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
             return List.of("full", "partial").stream()
                     .filter(value -> value.startsWith(args[3].toLowerCase(Locale.ROOT))).toList();
         }
+        if(args.length==2 && args[0].equalsIgnoreCase("rename")) return List.of("held");
         return List.of();
     }
 }

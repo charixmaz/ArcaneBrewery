@@ -83,14 +83,96 @@ public final class BreweryListener implements Listener {
         if (access.recognized(barrel.getBlock())!=Kind.CULTIVATION
                 || !access.authorize(player,barrel.getBlock(),Kind.CULTIVATION,true)) return;
         refresh(event.getInventory());
-        boolean started = startEligible(event.getInventory());
-
-        if (started) {
-            event.getPlayer().sendMessage(MessageConfig.prefix()+"§aCultivation has begun. Progress continues while you are away.§r");
-        }
     }
 
-    private boolean startEligible(Inventory inventory) {
+    private final class Controls implements me.arcanebrewery.arcaneBrewery.adapter.bukkit.machine.MachineGuiHolder {
+        final org.bukkit.block.Block core;
+        Inventory inventory;
+        Controls(org.bukkit.block.Block core) { this.core=core; }
+        public Inventory getInventory() { return inventory; }
+    }
+    private org.bukkit.NamespacedKey controlsKey(org.bukkit.block.Block core) {
+        return new org.bukkit.NamespacedKey(plugin,"cultivation_controls_"+(core.getX()&15)+"_"+core.getY()+"_"+(core.getZ()&15));
+    }
+    private FermentationSettings settings(org.bukkit.block.Block core) {
+        String saved=core.getChunk().getPersistentDataContainer().get(controlsKey(core),org.bukkit.persistence.PersistentDataType.STRING);
+        if(saved==null) return new FermentationSettings(FermentationSettings.DEFAULT.yeastOrCatalyst(),22,timing.cultivationSeconds(),100,0);
+        String[] parts=saved.split(",");
+        if(parts.length!=3) throw new IllegalArgumentException("invalid controls");
+        var culture=me.arcanebrewery.arcaneBrewery.domain.process.BrewingCulture.of(parts[0]);
+        double temperature=Double.parseDouble(parts[1]);long duration=Long.parseLong(parts[2]);
+        if(!Double.isFinite(temperature)||temperature<10||temperature>36||(temperature-10)%2!=0||duration<1||duration>604800) throw new IllegalArgumentException("invalid cultivation controls");
+        return new FermentationSettings(culture.id(),temperature,duration,100,0);
+    }
+    private void save(org.bukkit.block.Block core,FermentationSettings s) {
+        core.getChunk().getPersistentDataContainer().set(controlsKey(core),org.bukkit.persistence.PersistentDataType.STRING,
+            s.yeastOrCatalyst()+","+s.temperatureCelsius()+","+s.durationSeconds());
+    }
+    @EventHandler(priority=EventPriority.HIGH,ignoreCancelled=true)
+    public void controls(org.bukkit.event.player.PlayerInteractEvent event) {
+        var block=event.getClickedBlock();
+        if(block==null || !event.getPlayer().isSneaking() || event.getHand()!=org.bukkit.inventory.EquipmentSlot.HAND
+            || event.getAction()!=org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK || !(block.getState() instanceof Barrel)
+            || access.recognized(block)!=Kind.CULTIVATION) return;
+        event.setCancelled(true);
+        if(!access.authorize(event.getPlayer(),block,Kind.CULTIVATION,false)) return;
+        try {
+            access.open(event.getPlayer(),block,Kind.CULTIVATION,()->{
+                var view=new Controls(block);view.inventory=org.bukkit.Bukkit.createInventory(view,9,"§5§lCultivation Controls§r");
+                paint(view);return view.inventory;
+            });
+        } catch(RuntimeException invalid) { event.getPlayer().sendMessage(MessageConfig.prefix()+"§cControls unavailable; contents retained.§r"); }
+    }
+    private void paint(Controls view) {
+        var s=settings(view.core);var c=me.arcanebrewery.arcaneBrewery.domain.process.BrewingCulture.of(s.yeastOrCatalyst());
+        control(view,0,Material.WHEAT,"Culture: "+c.name(),List.of("Built-in starter library; no external plugin or item needed.",
+            "Ideal: "+c.temperature()+" C / "+c.seconds()+" s","Click for next culture; also resets ideal controls."));
+        control(view,2,Material.BLAZE_POWDER,"Temperature: "+s.temperatureCelsius()+" C",List.of("Click: 10–36 C in 2 C steps.","Outside the ideal loses quality."));
+        control(view,4,Material.CLOCK,"Duration: "+s.durationSeconds()+" s",List.of("Click: 30–300 s in 30 s steps.","Captured batches keep their original settings."));
+        control(view,8,Material.LIME_DYE,"Start Cultivation",List.of("Uses all eligible refined bases in this barrel.","Refined bases must be inserted through the normal barrel first.","Active batch settings are locked; progress continues offline."));
+    }
+    private void control(Controls view,int slot,Material material,String title,List<String> lore) {
+        var item=new ItemStack(material);var meta=item.getItemMeta();meta.setDisplayName("§b§l"+title+"§r");
+        meta.setLore(lore.stream().map(l->"§7"+l+"§r").toList());me.arcanebrewery.arcaneBrewery.adapter.bukkit.PresentationStyle.apply(meta);
+        item.setItemMeta(meta);view.inventory.setItem(slot,item);
+    }
+    @EventHandler(priority=EventPriority.HIGH,ignoreCancelled=true)
+    public void controlClick(org.bukkit.event.inventory.InventoryClickEvent event) {
+        if(!(event.getView().getTopInventory().getHolder() instanceof Controls view)) return;
+        event.setCancelled(true);
+        if(!(event.getWhoClicked() instanceof Player player) || !access.active(view.inventory,player.getUniqueId())
+            || !(view.core.getState() instanceof Barrel barrel)
+            || (event.getClick()!=org.bukkit.event.inventory.ClickType.LEFT && event.getClick()!=org.bukkit.event.inventory.ClickType.RIGHT)) return;
+        try {
+            refresh(barrel.getInventory());
+            boolean active=false;
+            for(var item:barrel.getInventory().getContents()) if(item!=null && item.hasItemMeta()) {
+                var state=fermentationMetadata.read(item.getItemMeta());
+                if(state.isPresent() && state.get().status()==FermentationBatchState.Status.FERMENTING) active=true;
+            }
+            if(active) { player.sendMessage(MessageConfig.prefix()+"§eWait for active cultivation to complete; captured controls are locked.§r");return; }
+            var s=settings(view.core);
+            int slot=event.getRawSlot();
+            if(slot==8) {
+                boolean started=startEligible(barrel.getInventory(),s);
+                player.sendMessage(MessageConfig.prefix()+(started?"§aCultivation started; settings captured.§r":"§eInsert unprocessed refined bases first.§r"));return;
+            }
+            if(slot==0) {
+                var all=me.arcanebrewery.arcaneBrewery.domain.process.BrewingCulture.values();
+                var next=all[(me.arcanebrewery.arcaneBrewery.domain.process.BrewingCulture.of(s.yeastOrCatalyst()).ordinal()+1)%all.length];
+                s=new FermentationSettings(next.id(),next.temperature(),next.seconds(),100,0);
+            } else if(slot==2) s=new FermentationSettings(s.yeastOrCatalyst(),s.temperatureCelsius()>=36?10:s.temperatureCelsius()+2,s.durationSeconds(),100,0);
+            else if(slot==4) s=new FermentationSettings(s.yeastOrCatalyst(),s.temperatureCelsius(),s.durationSeconds()>=300?30:s.durationSeconds()+30,100,0);
+            else return;
+            save(view.core,s);paint(view);
+        } catch(RuntimeException invalid) { player.sendMessage(MessageConfig.prefix()+"§cCultivation state could not be updated; inputs retained.§r"); }
+    }
+    @EventHandler(priority=EventPriority.HIGH)
+    public void controlDrag(org.bukkit.event.inventory.InventoryDragEvent event) {
+        if(event.getView().getTopInventory().getHolder() instanceof Controls) event.setCancelled(true);
+    }
+
+    private boolean startEligible(Inventory inventory, FermentationSettings selected) {
         boolean changed = false;
         for (int slot = 0; slot < inventory.getSize(); slot++) {
             ItemStack item = inventory.getItem(slot);
@@ -107,7 +189,7 @@ public final class BreweryListener implements Listener {
             }
 
             var state = fermentation.start(UUID.randomUUID(), source.draft(),
-                    new FermentationSettings(FermentationSettings.DEFAULT.yeastOrCatalyst(),22.0,timing.cultivationSeconds(),85.0,10.0), System.currentTimeMillis());
+                    selected, System.currentTimeMillis());
             fermentationMetadata.write(meta, state);
             meta.setDisplayName("§6§lCultivating Brewing Base§r");
             meta.setLore(List.of(

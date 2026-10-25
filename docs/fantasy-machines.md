@@ -1,3 +1,5 @@
+> Current controls, personal discovery/naming, and migration semantics are specified in [Brewing gameplay V2](brewing-gameplay-v2.md); those rules supersede the older behavior below.
+
 # Fantasy defaults and persistent machines
 
 Reviewed from master `dba94367068d9f95287198d8c0e26b31be3b7b02`.

@@ -25,7 +25,7 @@ import java.util.*;
 /** Single authoritative inventory per extractor. All edits and completion persist
  * together before changing a cursor; decorative slots never enter storage. */
 public final class DistilleryMenuHandler implements Listener, AutoCloseable {
-    private static final int[] INPUTS = {0,1,2,4};
+    private static final int[] INPUTS = {0,1,2,4,5};
     private final JavaPlugin plugin;
     private final BukkitMachineAccess access;
     private final ProcessingTimes timing;
@@ -43,6 +43,7 @@ public final class DistilleryMenuHandler implements Listener, AutoCloseable {
     private static final class Session {
         final Block core; final Inventory gui;
         byte[] raw; DistilleryBatchState state;
+        int temperature=78, cuts=0;
         Session(Block core,Inventory gui,byte[] raw,DistilleryBatchState state) {
             this.core=core; this.gui=gui; this.raw=raw; this.state=state;
         }
@@ -83,13 +84,23 @@ public final class DistilleryMenuHandler implements Listener, AutoCloseable {
         var saved=storage.load(core); var holder=new Holder();
         Inventory gui=Bukkit.createInventory(holder,9,MessageConfig.title("extractor")); holder.inventory=gui;
         for (int i=0;i<9;i++) {
-            if (!Set.of(0,1,2,4).contains(i) && saved.items()[i]!=null)
+            if (!Set.of(0,1,2,4,5).contains(i) && saved.items()[i]!=null)
                 throw new IllegalArgumentException("legacy machine has items in protected slots");
         }
         for (int slot:INPUTS) gui.setItem(slot,saved.items()[slot]);
-        var state=saved.process().isBlank()?null:codec.decodeBase64(saved.process());
+        var state=saved.process().isBlank() || saved.process().startsWith("controls-v2:")?null:codec.decodeBase64(saved.process());
         if (state!=null && !state.machine().equals(key(core))) throw new IllegalArgumentException("wrong machine process");
-        var session=new Session(core,gui,saved.raw(),state); sessions.put(key(core),session); return session;
+        var session=new Session(core,gui,saved.raw(),state);
+        if(saved.process().startsWith("controls-v2:")) {
+            var parts=saved.process().split(":");
+            if(parts.length!=3) throw new IllegalArgumentException("invalid extractor controls");
+            session.temperature=Integer.parseInt(parts[1]);session.cuts=Integer.parseInt(parts[2]);
+            if(session.temperature<60 || session.temperature>90 || (session.temperature-60)%2!=0 || session.cuts<0 || session.cuts>2) throw new IllegalArgumentException("invalid extractor controls");
+        } else if(state!=null) {
+            session.temperature=(int)state.draft().controls().temperatureCelsius();
+            session.cuts=state.draft().controls().headsCutPercent()<10?1:state.draft().controls().headsCutPercent()>10?2:0;
+        }
+        sessions.put(key(core),session); return session;
     }
     @EventHandler(priority=EventPriority.HIGH,ignoreCancelled=true)
     public void onClick(InventoryClickEvent event) {
@@ -102,16 +113,26 @@ public final class DistilleryMenuHandler implements Listener, AutoCloseable {
         if (event.getClick()!=ClickType.LEFT && event.getClick()!=ClickType.RIGHT) { event.setCancelled(true); return; }
         if (event.getClickedInventory()!=gui) return;
         event.setCancelled(true); int slot=event.getSlot();
-        if (session.processing() || Arrays.stream(INPUTS).noneMatch(value -> value==slot)) return;
+        if(session.processing()) return;
+        if(slot==3 || slot==6 || slot==8) {
+            try {
+                if(slot==8) { tryStart(player,session);return; }
+                if(slot==3) session.temperature=session.temperature>=90?60:session.temperature+2;
+                if(slot==6) session.cuts=(session.cuts+1)%3;
+                commit(session,contents(gui),null);
+            } catch(RuntimeException failure) { unavailable(player,session.core);detach(session); }
+            return;
+        }
+        if(Arrays.stream(INPUTS).noneMatch(value -> value==slot)) return;
         ItemStack cursor=player.getItemOnCursor();
-        if (cursor!=null && !cursor.getType().isAir() && slot!=4 && !bottleInput(cursor)) {
+        if (cursor!=null && !cursor.getType().isAir() && slot!=4 && slot!=5 && !bottleInput(cursor)) {
             player.sendMessage(MessageConfig.prefix()+"§eBottle inputs accept one empty glass bottle or unprocessed potion per slot.§r"); return;
         }
         try {
-            var move=AlchemySlotTransfer.move(gui.getItem(slot),cursor,event.getClick()==ClickType.RIGHT,slot==4?64:1);
+            var move=AlchemySlotTransfer.move(gui.getItem(slot),cursor,event.getClick()==ClickType.RIGHT,slot==4 || slot==5?8:1);
             ItemStack[] next=contents(gui); next[slot]=move.slot();
             commit(session,next,null); player.setItemOnCursor(move.cursor());
-            tryStart(player,session);
+            paint(session);
         } catch (RuntimeException failure) { unavailable(player,session.core); detach(session); }
     }
     private boolean bottleInput(ItemStack item) {
@@ -125,6 +146,7 @@ public final class DistilleryMenuHandler implements Listener, AutoCloseable {
     private void tryStart(Player player,Session session) {
         if (session.processing()) return;
         ItemStack ingredient=session.gui.getItem(4);
+        if(ingredient==null) ingredient=session.gui.getItem(5);
         boolean bottle=false;
         for (int slot:new int[]{0,1,2}) {
             ItemStack item=session.gui.getItem(slot);
@@ -133,18 +155,28 @@ public final class DistilleryMenuHandler implements Listener, AutoCloseable {
                 bottle=true;
             }
         }
-        if (ingredient==null || !bottle) return;
+        if (ingredient==null || !bottle) { player.sendMessage(MessageConfig.prefix()+"§eSupply bottles in slots 1–3 and washed ingredients in slots 5–6.§r");return; }
         boolean legacy=legacyRefinement(session.gui);
         if (IngredientPurityEngine.getPurity(plugin,ingredient)==0 && !legacy) {
             player.sendMessage(MessageConfig.get("distillery_wash_first")); return;
         }
-        if (legacy && ingredient.getType()!=Material.GOLDEN_APPLE) {
+        if (legacy && (ingredient.getType()!=Material.GOLDEN_APPLE || session.gui.getItem(5)!=null)) {
             player.sendMessage(MessageConfig.get("distillery_needs_catalyst")); return;
         }
         try {
-            var extracted=ingredients.extract(session.gui,4);
-            var state=new DistilleryService().start(key(session.core),extracted,DistillationControls.DEFAULT,
-                    System.currentTimeMillis(),timing.extractionMillis(),UUID.randomUUID());
+            for(int input:new int[]{4,5}) {
+                var stack=session.gui.getItem(input);
+                if(stack!=null && !legacy && stack.getAmount()>8) throw new IllegalArgumentException("mixing slot maximum is 8; split this retained stack first");
+                if(stack!=null && IngredientPurityEngine.getPurity(plugin,stack)==0 && !legacy) throw new IllegalArgumentException("wash first");
+            }
+            var extracted=ingredients.extract(session.gui,4,5);
+            if(!extracted.containers().isEmpty() || !extracted.baseLiquids().isEmpty()) throw new IllegalArgumentException("Only ingredients in mixing slots");
+            double heads=session.cuts==1?2:session.cuts==2?15:10;
+            var controls=new DistillationControls(session.temperature,heads,100-2*heads,heads,1);
+            var draft=DistilleryProcessDraft.from(extracted,controls);
+            draft=new DistilleryProcessDraft(draft.ingredientRatios(),draft.ingredientPurity(),legacy?"distillation":"distillation-v2",controls);
+            var state=new DistilleryBatchState(DistilleryBatchState.VERSION,UUID.randomUUID(),key(session.core),draft,
+                System.currentTimeMillis(),timing.extractionMillis(),DistilleryBatchState.Status.PROCESSING);
             commit(session,contents(session.gui),state); schedule(session);
         } catch (IllegalArgumentException rejected) {
             player.sendMessage(MessageConfig.prefix()+"§eThis ingredient is not supported by the extractor.§r");
@@ -178,8 +210,10 @@ public final class DistilleryMenuHandler implements Listener, AutoCloseable {
     private void complete(Session session) {
         if (!session.processing() || !session.state.ready(System.currentTimeMillis()) || !DistilleryStructureScanner.isValidDistillery(session.core)) return;
         ItemStack[] next=contents(session.gui);
-        if (next[4]==null) throw new IllegalStateException("missing locked ingredient");
-        var current=DistilleryProcessDraft.from(ingredients.extract(session.gui,4),session.state.draft().controls());
+        if (next[4]==null && next[5]==null) throw new IllegalStateException("missing locked ingredient");
+        boolean v2=session.state.draft().preparationMethod().equals("distillation-v2");
+        var current=DistilleryProcessDraft.from(ingredients.extract(session.gui,v2?new int[]{4,5}:new int[]{4}),session.state.draft().controls());
+        current=new DistilleryProcessDraft(current.ingredientRatios(),current.ingredientPurity(),session.state.draft().preparationMethod(),current.controls());
         if (!current.equals(session.state.draft())) throw new IllegalStateException("locked ingredient changed");
         var completed=session.state.complete(System.currentTimeMillis());
         boolean legacy=legacyRefinement(session.gui);
@@ -199,16 +233,17 @@ public final class DistilleryMenuHandler implements Listener, AutoCloseable {
                         .mapToDouble(e -> completed.draft().ingredientRatios().get(e.getKey())*e.getValue()).sum();
                 meta.getPersistentDataContainer().set(new NamespacedKey(plugin,"ingredient_purity"),PersistentDataType.INTEGER,(int)Math.round(purity));
                 meta.setDisplayName(MessageConfig.title("refined-base"));
-                meta.setLore(List.of("§7Stage: §bReady for cultivation§r","§7Transferred Purity: §f"+Math.round(purity)+"%§r","§7Place in a Cultivation Barrel, then close it.§r"));
+                meta.setLore(List.of("§7Stage: §bReady for cultivation§r","§7Transferred Purity: §f"+Math.round(purity)+"%§r","§7Place in a Cultivation Barrel; sneak-click it for controls.§r"));
             }
             meta.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP); me.arcanebrewery.arcaneBrewery.adapter.bukkit.PresentationStyle.apply(meta); item.setItemMeta(meta);
         }
-        if (next[4].getAmount()==1) next[4]=null; else next[4].setAmount(next[4].getAmount()-1);
+        if(v2) { next[4]=null;next[5]=null; }
+        else if (next[4].getAmount()==1) next[4]=null; else next[4].setAmount(next[4].getAmount()-1);
         commit(session,next,completed);
         for (var viewer:session.gui.getViewers()) viewer.sendMessage(MessageConfig.get("distillery_success"));
     }
     private void commit(Session session,ItemStack[] next,DistilleryBatchState state) {
-        byte[] raw=storage.save(session.core,session.raw,next,state==null?"":codec.encodeBase64(state));
+        byte[] raw=storage.save(session.core,session.raw,next,state==null?"controls-v2:"+session.temperature+":"+session.cuts:codec.encodeBase64(state));
         session.raw=raw; session.state=state;
         for (int slot:INPUTS) session.gui.setItem(slot,next[slot]); paint(session);
     }
@@ -221,9 +256,9 @@ public final class DistilleryMenuHandler implements Listener, AutoCloseable {
     }
     private void render(Session session) {
         String state=session.processing()?"PROCESSING":session.state!=null?"READY":Arrays.stream(contents(session.gui)).anyMatch(Objects::nonNull)?"IDLE":"EMPTY / IDLE";
-        control(session.gui,3,Material.GLASS_BOTTLE,"Bottle Inputs",List.of("§7Slots 1–3: one bottle each.§r"));
-        control(session.gui,5,Material.WHEAT,"Ingredient Input",List.of("§7Slot 5: washed, supported ingredient.§r"));
-        control(session.gui,6,Material.PAPER,"Machine Owner",List.of("§7Owner: §f"+access.ownerLabel(session.core)+"§r"));
+        control(session.gui,3,Material.BLAZE_POWDER,"Temperature: "+session.temperature+" C",List.of("§7Click: 60–90 C in 2 C steps; ideal 78.§r","§7Slots 1–3: one bottle each.§r"));
+
+        control(session.gui,6,Material.PAPER,"Cuts: "+List.of("Balanced","Wide / risky","Clean / mild").get(session.cuts),List.of("§7Click to choose cuts.§r","§7Wide: more potency, contamination risk.§r","§7Clean: milder potency.§r","§7Owner: §f"+access.ownerLabel(session.core)+"§r"));
         var lore=new ArrayList<String>(); lore.add("§7Status: §f"+state+"§r");
         if (session.processing()) {
             long elapsed=Math.max(0,System.currentTimeMillis()-session.state.startedAtEpochMillis());
@@ -232,14 +267,14 @@ public final class DistilleryMenuHandler implements Listener, AutoCloseable {
         }
         lore.add("§7Processing locks all machine inputs.§r");
         control(session.gui,7,session.processing()?Material.CLOCK:Material.LIME_STAINED_GLASS_PANE,state,lore);
-        control(session.gui,8,Material.CRAFTING_TABLE,"Essence Extraction",List.of("§7Starts automatically with valid inputs.§r","§7Stand must remain above a Crafting Table.§r"));
+        control(session.gui,8,Material.CRAFTING_TABLE,"Essence Extraction",List.of("§7Click to START with valid inputs.§r","§7Slots 5 and 6: 1–8 washed ingredients each.§r","§7All selected quantities consumed per run.§r","§7Stand must remain above a Crafting Table.§r"));
     }
     private void control(Inventory inv,int slot,Material type,String name,List<String> lore) {
         var item=new ItemStack(type); var meta=item.getItemMeta(); meta.setDisplayName("§b§l"+name+"§r"); meta.setLore(lore); me.arcanebrewery.arcaneBrewery.adapter.bukkit.PresentationStyle.apply(meta); item.setItemMeta(meta); inv.setItem(slot,item);
     }
     private boolean occupied(Block core) {
         var saved=storage.load(core);
-        return (!saved.process().isBlank() && codec.decodeBase64(saved.process()).status()==DistilleryBatchState.Status.PROCESSING)
+        return (!saved.process().isBlank() && !saved.process().startsWith("controls-v2:") && codec.decodeBase64(saved.process()).status()==DistilleryBatchState.Status.PROCESSING)
                 || Arrays.stream(saved.items()).anyMatch(Objects::nonNull)
                 || core.getState() instanceof BrewingStand stand && !stand.getInventory().isEmpty();
     }

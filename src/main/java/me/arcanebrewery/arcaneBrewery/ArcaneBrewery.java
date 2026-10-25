@@ -97,11 +97,11 @@ public final class ArcaneBrewery extends JavaPlugin {
         try {
             storage = new SqliteStorageProvider(getDataFolder().toPath().resolve("arcanebrewery.db"));
             discoveries = new DiscoveryRuntime(
-                    new DiscoveryRegistrationService(storage.discoveries()),
+                    new DiscoveryRegistrationService(storage.gameplayDiscoveries()),
                     async
             );
-            discoveryQueries = new DiscoveryQueryRuntime(storage.discoveries(), async);
-            discoveryMutations = new DiscoveryMutationRuntime(storage.discoveries(), async);
+            discoveryQueries = new DiscoveryQueryRuntime(storage.gameplayDiscoveries(), async);
+            discoveryMutations = new DiscoveryMutationRuntime(storage.gameplayDiscoveries(), async);
             marketJournal = storage.marketJournal();
             var marketBottleReader = new CanonicalMarketBottleReader(
                     getName().toLowerCase(java.util.Locale.ROOT));
@@ -145,7 +145,7 @@ public final class ArcaneBrewery extends JavaPlugin {
         var consumption = new ConsumptionListener(this);
         getServer().getPluginManager().registerEvents(consumption, this);
         getServer().getScheduler().runTaskTimer(this, new ConsumptionRecoveryTask(consumption), 200L, 200L);
-        getServer().getPluginManager().registerEvents(new me.arcanebrewery.arcaneBrewery.adapter.bukkit.PresentationRefreshListener(this),this);
+        getServer().getPluginManager().registerEvents(new me.arcanebrewery.arcaneBrewery.adapter.bukkit.PresentationRefreshListener(this,discoveryQueries),this);
         getServer().getPluginManager().registerEvents(new CaskHygieneEngine(this), this);
         cleansers=new MethanolProducerEngine(this);
         getServer().getPluginManager().registerEvents(cleansers, this);

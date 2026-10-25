@@ -114,7 +114,7 @@ public final class BrewingGuide implements Listener {
             for (int i = 0; i < Math.min(items.size(), PAGE_SIZE); i++) {
                 var recipe = items.get(i);
                 button(view, i, Material.POTION, recipe.name(), List.of("ID: " + recipe.fingerprint().value().substring(0, 12),
-                        "Click to inspect your current knowledge.", "A public name does not reveal a private process."),
+                        "Click to inspect your current knowledge.", "Rename your record: /brew rename <shown id> <name>.", "Or hold your own bottle: /brew rename held <name>."),
                         p -> recipe(p, recipe.fingerprint(), () -> discoveries(p, publicList, page)));
             }
             if (page > 0) button(view, 45, Material.ARROW, "Previous", List.of(), p -> discoveries(p, publicList, page - 1));
@@ -143,7 +143,12 @@ public final class BrewingGuide implements Listener {
             List<String> lines = new ArrayList<>();
             lines.add("Your knowledge: " + knowledge.state());
             lines.addAll(formatter.format(knowledge));
-            detail(player, new GuideCatalog.Entry(Material.ENCHANTED_BOOK, "Recipe Knowledge", lines), back);
+            lines.add("Rename your full personal record: /brew rename "+fingerprint.value().substring(0,12)+" <name>");
+            queries.info(player.getUniqueId(),fingerprint).whenComplete((info,infoFailure)->onMain(()->{
+                if(!current(player,loading)) return;
+                if(infoFailure==null) lines.add(info);
+                detail(player,new GuideCatalog.Entry(Material.ENCHANTED_BOOK,"Recipe Knowledge",lines),back);
+            }));
         }));
     }
     private boolean current(Player player, View view) {

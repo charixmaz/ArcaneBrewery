@@ -186,13 +186,15 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
         if (fermented.get().status()!=FermentationBatchState.Status.COMPLETED) throw new IllegalArgumentException("cultivation is incomplete");
         preparationMetadata.read(meta); // Malformed additives never silently become absent.
         if (agingMetadata.read(meta).isEmpty()) agingMetadata.write(meta,new AgingBatchState(AgingBatchState.VERSION,UUID.randomUUID(),
-                new AgingSettings(wood,12,18,95),System.currentTimeMillis(),timing.maturationSeconds()));
+
+                new AgingSettings(wood,fermented.get().distillery().preparationMethod().equals("distillation-v2")?0:12,18,fermented.get().distillery().preparationMethod().equals("distillation-v2")?100:95),System.currentTimeMillis(),timing.maturationSeconds()));
     }
     private void withdraw(Player player,Session session,int slot,boolean shift) {
         ItemStack source=session.gui.getItem(slot);
         if (source.getAmount()!=1) { player.sendMessage(MessageConfig.prefix()+"§eThis legacy stacked lane is retained for administrator inspection.§r"); return; }
         PotionMeta meta=source.getItemMeta() instanceof PotionMeta potion?potion:null;
         ItemStack output=source.clone(); AgingResult result=null; boolean mature=false; int legacyStars=-1;
+        byte[] privateEvidence=null;String productionKey=null;
         if (meta!=null) {
             var fermentation=fermentationMetadata.read(meta); var aging=agingMetadata.read(meta);
             if (fermentation.isPresent() || aging.isPresent()) {
@@ -204,9 +206,14 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
                 var lots=new TreeMap<String,IngredientLot>();
                 fermentation.get().distillery().ingredientPurity().forEach((id,purity) -> lots.put(id,new IngredientLot(ingredientItems.registry().require(id).profile(),purity)));
                 var additives=preparationMetadata.read(meta).map(p -> p.additives()).orElseGet(Map::of);
+                var alchemyConditions=new me.arcanebrewery.arcaneBrewery.adapter.bukkit.alchemy.AlchemyBatchConditionsMetadata(plugin.getName().toLowerCase(Locale.ROOT));
                 result=new AgingService().finish(fermentation.get().fermentedDraft(),state,now,lots,AgingBalance.wood(CaskStructure.wood(session.core)),
-                        Math.max(0,100-state.settings().caskCleanliness()),AgingBalance.targets(),state.batchId().getMostSignificantBits()^state.batchId().getLeastSignificantBits(),additives);
-                output=bottle(result,mature);
+                        Math.min(100,Math.max(0,100-state.settings().caskCleanliness())+alchemyConditions.contamination(meta)),AgingBalance.targets(),state.batchId().getMostSignificantBits()^state.batchId().getLeastSignificantBits(),additives,alchemyConditions.stability(meta));
+
+                output=bottle(result,mature,player);
+                privateEvidence=source.serializeAsBytes();
+                if(privateEvidence.length>1048576) throw new IllegalArgumentException("batch evidence exceeds storage bound");
+                productionKey=state.batchId().toString();
             } else if (inputPolicy.legacyEligible(meta) && meta.getPersistentDataContainer().has(slotTimeKey,PersistentDataType.LONG)) {
                 String stage=meta.getPersistentDataContainer().getOrDefault(recipeTypeKey,PersistentDataType.STRING,"");
                 if (BreweryData.RECIPES.containsKey(stage)) {
@@ -219,14 +226,19 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
         if (shift) give(player,output); else player.setItemOnCursor(output);
         if (legacyStars>=1) CaskQualityEngine.incrementBatchCounter(plugin,session.core);
         player.sendMessage(MessageConfig.prefix()+(mature?"§aElixir matured and bottled.§r":"§eWithdrawn before full maturity; no recipe discovery is registered.§r"));
-        if (mature && result!=null) registerDiscovery(player.getUniqueId(),result);
+        if (mature && result!=null) registerDiscovery(player.getUniqueId(),result,productionKey,privateEvidence);
+
+        if(mature && result!=null && result.assessment()!=null) result.assessment().breakdown().forEach(line->player.sendMessage(MessageConfig.prefix()+"§7"+line+"§r"));
     }
-    private ItemStack bottle(AgingResult result,boolean mature) {
+
+    private ItemStack bottle(AgingResult result,boolean mature,Player producer) {
         var item=new ItemStack(Material.POTION); var meta=(PotionMeta)item.getItemMeta();
         if (meta==null) throw new IllegalStateException("potion meta unavailable");
         var effect=alchemy.evaluate(result.process(),result.simulation().quality());
         var value=new DrinkValueCalculator().calculate(result.process(),result.simulation().quality(),effect);
         finalDrinkMetadata.write(meta,result,effect,value);
+
+        if(mature && result.process().preparationMethod().equals("distillation-v2")) finalDrinkMetadata.producer(meta,producer.getUniqueId(),producer.getName(),result.process());
         meta.getPersistentDataContainer().set(new NamespacedKey(plugin,"alcohol_stars"),PersistentDataType.INTEGER,qualityStars(result.simulation().quality().overallScore()));
         String name=mature?new DescriptiveNameGenerator().generate(result.process()).value():MessageConfig.text("names.unfinished");
         meta.setDisplayName("§d§l"+name+"§r"); ElixirPresentation.refresh(meta,finalDrinkMetadata); item.setItemMeta(meta); return item;
@@ -289,14 +301,17 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
         plugin.getLogger().warning("Cask data retained and locked at "+core.getLocation());
         player.sendMessage(MessageConfig.prefix()+"§cCask data could not be updated. Contents were retained.§r");
     }
-    private void registerDiscovery(UUID playerId,AgingResult result) {
-        discoveries.register(playerId,result.process(),Instant.now()).whenComplete((registration,failure) -> {
+    private void registerDiscovery(UUID playerId,AgingResult result,String batchKey,byte[] evidence) {
+
+        discoveries.register(playerId,result.process(),Instant.now(),result.simulation().quality().overallScore(),batchKey,evidence).whenComplete((registration,failure) -> {
             if (!plugin.isEnabled()) return;
             Bukkit.getScheduler().runTask(plugin,() -> {
                 Player player=Bukkit.getPlayer(playerId); if (player==null) return;
-                if (failure!=null) { player.sendMessage(MessageConfig.prefix()+"§cElixir bottled, but discovery ownership could not be saved.§r"); return; }
+
+                if (failure!=null) { player.sendMessage(MessageConfig.prefix()+"§cElixir bottled, but personal discovery could not be saved.§r"); return; }
                 player.sendMessage(MessageConfig.prefix()+(registration.status()==RegistrationResult.Status.REGISTERED
-                        ?"§aNew recipe discovered. It is private to you by default.§r":"§7Recipe reproduced; original ownership is unchanged.§r"));
+
+                        ?"§aYou discovered a new recipe! Private personal record unlocked.§r":"§7Recipe reproduced; personal record retained.§r"));
             });
         });
     }

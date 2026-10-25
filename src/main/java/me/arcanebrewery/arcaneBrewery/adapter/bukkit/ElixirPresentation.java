@@ -20,6 +20,8 @@ public final class ElixirPresentation {
         if (name.equals("Finished Drink")) name = MessageConfig.text("names.elixir");
         meta.setDisplayName("§d§l" + name + "§r");
         var lore = new ArrayList<String>();
+        if(data.producer(meta).isPresent()) lore.add("§7§oBrewed by "+data.producerLabel(meta)+"§r");
+        data.wood(meta).ifPresent(wood->lore.add("§7Maturation: §f"+wood+"§r"));
         lore.add("§7Quality: §f" + Math.round(elixir.quality()) + "/100§r");
         lore.add("§7Arcane Load: §b" + Math.round(elixir.strength()) + "/100§r");
         lore.add("§8Higher load increases temporary saturation.§r");
@@ -35,6 +37,12 @@ public final class ElixirPresentation {
         meta.setLore(lore);
         meta.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
         PresentationStyle.apply(meta);
+        if(data.producer(meta).isPresent() && meta.lore()!=null) {
+            var styled=new ArrayList<>(meta.lore());
+            styled.set(0,net.kyori.adventure.text.Component.text("Brewed by "+data.producerLabel(meta),net.kyori.adventure.text.format.NamedTextColor.GRAY)
+                .decoration(net.kyori.adventure.text.format.TextDecoration.ITALIC,true));
+            meta.lore(styled);
+        }
         return true;
     }
 }

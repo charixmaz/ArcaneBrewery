@@ -50,8 +50,34 @@ public final class FinalDrinkMetadata {
         data.set(key("drink_value_process"), PersistentDataType.DOUBLE, value.processComponent());
         data.set(key("drink_value_alchemy"), PersistentDataType.DOUBLE, value.alchemyComponent());
         data.set(key("drink_value_contamination_penalty"), PersistentDataType.DOUBLE, value.contaminationPenalty());
+        if(result.assessment()!=null) data.set(key("drink_quality_breakdown"),PersistentDataType.STRING,String.join("\n",result.assessment().breakdown()));
         data.set(key("drink_stage"), PersistentDataType.STRING, "FINISHED");
     }
+
+    public void producer(ItemMeta meta,java.util.UUID player,String cachedName,me.arcanebrewery.arcaneBrewery.domain.process.ProcessProfile p) {
+        var data=meta.getPersistentDataContainer();
+        data.set(key("drink_producer_uuid"),PersistentDataType.STRING,player.toString());
+        data.set(key("drink_producer_name"),PersistentDataType.STRING,cachedName);
+        data.set(key("drink_formulation_v2"),PersistentDataType.STRING,me.arcanebrewery.arcaneBrewery.domain.drink.FormulationIdentity.from(p).value());
+        data.set(key("drink_maturation_wood"),PersistentDataType.STRING,p.aging().woodType());
+    }
+    public Optional<java.util.UUID> producer(ItemMeta meta) {
+        String value=meta.getPersistentDataContainer().get(key("drink_producer_uuid"),PersistentDataType.STRING);
+        try { return value==null?Optional.empty():Optional.of(java.util.UUID.fromString(value)); }
+        catch(IllegalArgumentException e) { return Optional.empty(); }
+    }
+    public boolean mayRenameHeld(ItemMeta meta,java.util.UUID actor) {
+        return readConsumption(meta).isPresent() && producer(meta).filter(actor::equals).isPresent() && formulation(meta).isPresent();
+    }
+    public Optional<me.arcanebrewery.arcaneBrewery.domain.drink.DrinkFingerprint> formulation(ItemMeta meta) {
+        String value=meta.getPersistentDataContainer().get(key("drink_formulation_v2"),PersistentDataType.STRING);
+        return value!=null && value.matches("[0-9a-f]{64}")?Optional.of(new me.arcanebrewery.arcaneBrewery.domain.drink.DrinkFingerprint(value)):Optional.empty();
+    }
+    public String producerLabel(ItemMeta meta) {
+        String name=meta.getPersistentDataContainer().get(key("drink_producer_name"),PersistentDataType.STRING);
+        return name!=null && name.matches("[A-Za-z0-9_]{1,16}")?name:producer(meta).map(Object::toString).orElse("Unknown");
+    }
+    public Optional<String> wood(ItemMeta meta) { return Optional.ofNullable(meta.getPersistentDataContainer().get(key("drink_maturation_wood"),PersistentDataType.STRING)); }
 
     public Optional<DrinkConsumptionProfile> readConsumption(ItemMeta meta) {
         var data = meta.getPersistentDataContainer();

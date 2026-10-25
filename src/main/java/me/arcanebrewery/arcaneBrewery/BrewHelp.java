@@ -12,7 +12,8 @@ public final class BrewHelp {
                     "§5§lGetting Started§r",
                     "§7Wash supported held ingredients by right-clicking a water cauldron.§r",
                     "§7Essence Extractor → Cultivation Barrel → optional Arcane Infuser → Maturation Cask.§r",
-                    "§7Extract with bottles and a washed ingredient; cultivate bases in a plain Barrel, then close it.§r",
+
+                    "§7Extract with bottles and a washed ingredient; insert bases in a plain Barrel, close, then sneak-click for controls.§r",
                     "§7Infuse a completed base with one or two catalysts, or mature it directly.§r",
                     "§7Mature withdrawal creates a finished elixir and attempts private discovery registration.§r",
                     "§7Early cask withdrawal gives an Unfinished Elixir and never creates a discovery.§r",
@@ -20,8 +21,10 @@ public final class BrewHelp {
             case "machines" -> List.of(
                     "§5§lMachines§r",
                     "§bEssence Extractor: §fBrewing Stand directly above a Crafting Table.§r",
-                    "§7Bottle slots 1–3; washed ingredient in slot 5. Starts with valid inputs; locked while processing.§r",
-                    "§bCultivation Barrel: §fA plain Barrel holding canonical refined bases; close to begin.§r",
+
+                    "§7Bottle slots 1–3; washed ingredients in slots 5–6; choose settings and click START.§r",
+
+                    "§bCultivation Barrel: §fA plain Barrel holding canonical refined bases; sneak-click for culture, setpoint, duration and Start.§r",
                     "§bArcane Infuser: §fEnchanting Table, Crying Obsidian below, ≥1 horizontal Amethyst Block.§r",
                     "§7One cultivated base, Catalyst I and optional Catalyst II; click Start Infusion.§r",
                     "§bMaturation Cask: §fBarrel, adjacent [Brewery] sign and ≥12 matching wood stairs/slabs/planks/logs within 3×3×3.§r",
@@ -31,12 +34,15 @@ public final class BrewHelp {
                     "§5§lRecipes§r",
                     "§f/brew discoveries [page] §7— your discoveries, secret by default.§r",
                     "§f/brew recipe <full fingerprint|shown id> §7— inspect only knowledge you may access.§r",
-                    "§7Short IDs resolve among your first 200 owned discoveries; supply ≥6 unambiguous hex characters.§r",
-                    "§7Use full fingerprints for shared recipes and all rename/visibility/share/revoke commands.§r",
-                    "§7Names and quality variation do not change the exact process identity.§r");
+                    "§7Short IDs resolve across your complete accessible catalog; supply ≥6 unambiguous hex characters.§r",
+
+                    "§7Rename accepts held or short-id; visibility/share/revoke still use full IDs.§r",
+
+                    "§7Formulation, culture style and catalyst doses define identity; temperatures, wood and quality are batch data.§r");
             case "sharing" -> List.of(
                     "§5§lSharing§r",
-                    "§f/brew rename <fingerprint> <name> §7— discoverer may rename once.§r",
+
+                    "§f/brew rename <held|short-id> <name> §7— edit your personal name.§r",
                     "§f/brew visibility <fingerprint> <private|shared|public>§r",
                     "§f/brew share <fingerprint> <player|uuid> full§r",
                     "§f/brew share <fingerprint> <player|uuid> partial <field,field,...>§r",

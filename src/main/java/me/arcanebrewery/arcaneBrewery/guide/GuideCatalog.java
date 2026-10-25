@@ -28,12 +28,12 @@ public final class GuideCatalog {
                 "Repeat until its purity reaches 100%.", "See Ingredients for the seven washable materials."),
             entry(Material.BREWING_STAND, MessageConfig.text("names.extractor"),
                 "Brewing Stand directly above a Crafting Table.", "Right-click either block to open.",
-                "Slots 1–3: one bottle per slot.", "Slot 5: a washed supported ingredient.",
+                "Slots 1–3: one bottle per slot.", "Slots 5–6: 1–8 washed ingredients each; all consumed.",
                 "New batch duration: " + times.extractionMillis() / 1000.0 + " seconds.",
                 "Produces Refined Brewing Bases; inputs lock while working."),
             entry(Material.BARREL, MessageConfig.text("names.cultivation"), "Use a plain Barrel, without a cask structure.",
-                "Insert Refined Brewing Bases, then close it.", "New batch duration: " + times.cultivationSeconds() + " seconds.",
-                "Wait for Cultivated Brewing Base before infusion or maturation.", "Offline time counts; active batches keep their captured timing."),
+                "Insert Refined Brewing Bases; close, then sneak-click the barrel.", "New batch duration: " + times.cultivationSeconds() + " seconds.",
+                "Choose culture, temperature and duration; click Start Cultivation.", "Offline time counts; active batches keep their captured timing."),
             entry(Material.ENCHANTING_TABLE, MessageConfig.text("names.infuser"),
                 "Enchanting Table with Crying Obsidian directly below.", "At least one Amethyst Block horizontally adjacent.",
                 "Base + Catalyst I + optional Catalyst II; click Start Infusion.",
@@ -108,7 +108,7 @@ public final class GuideCatalog {
         return List.of(
             entry(Material.BOOK, "About Available Recipes", "The modern pipeline has no fixed named-elixir catalog.",
                 "These are public production walkthroughs, not seeded discoveries.",
-                "They do not grant items, recipe ownership, or guaranteed quality.",
+                "They do not grant items or pre-register discoveries; execution determines quality.",
                 "Use My Discoveries and Public Discoveries for recorded recipes.",
                 "Legacy Profiles documents older compatibility bottles separately.",
                 "To inspect a shared recipe: /brew guide recipe <full fingerprint>."),
@@ -118,12 +118,12 @@ public final class GuideCatalog {
     }
     private Entry starter(Material icon, String title, String ingredient, boolean fire) {
         List<String> lines = new ArrayList<>(List.of("1. Wash one " + ingredient + " to 100% purity.",
-            "2. Extract with one Glass Bottle.", "3. Cultivate the base in a plain Barrel; close it.",
-            "4. Wait for cultivation to complete."));
+            "2. Extract with one Glass Bottle: 78 C, Balanced cuts; click START.", "3. Insert the base in a plain Barrel; close, then sneak-click.",
+            "4. Select WILD, 22 C / 60 s; click Start Cultivation and wait."));
         if (fire) lines.add("5. Infuse with one Blaze Powder; wait until complete.");
         lines.add((fire ? "6." : "5.") + " Mature in an Oak Maturation Cask until READY.");
         lines.add("New batches use this server's current durations.");
-        lines.add("Record wood and withdrawal stage to reproduce the process.");
+        lines.add("For the 100% reference: clean cask, no catalyst, withdraw at 120–135 s under default settings.");
         lines.add("Saturation and contamination hazards still apply.");
         return new Entry(icon, title, lines);
     }
@@ -160,39 +160,37 @@ public final class GuideCatalog {
     }
     public List<Entry> knowledge() {
         return List.of(
-            entry(Material.POTION, "Elixir Names", "New fallback names describe wood and the dominant ingredient.",
-                "Example: Oak-aged Wheat Arcane Elixir.", "Different recipes may have the same descriptive name.",
-                "The fingerprint identifies the recipe; the name is a label.",
-                "Original discoverer can rename once: /brew rename <full id> <name>.",
-                "Existing saved discovery names and custom names are preserved."),
-            entry(Material.WRITABLE_BOOK, "How Discovery Works", "A mature canonical batch attempts discovery registration.",
-                "The first discoverer owns that exact process; default visibility is private.",
-                "Repeating an existing process is reproduction, not a new discovery.",
-                "Ingredients/ratios, preparation, cultivation settings, extraction controls,",
-                "catalyst doses, maturation wood and duration stage determine identity.",
-                "Quality rolls, dirt and machine condition do not create new identities."),
-            entry(Material.CLOCK, "How Many Elixirs?", "No gameplay discovery-count cap is configured.",
-                "There is no honest fixed total for the current system.",
-                "The engine supports more process settings than the current GUIs expose.",
-                "Currently: one extraction ingredient slot, up to two catalyst inputs,",
-                "wood choice, and distinct maturation duration stages.",
-                "Default mature stages advance every 30 seconds.",
-                "Same process at 121s and 126s: same recipe under default timing.",
-                "More combinations do not necessarily mean more distinct magical effects."),
-            entry(Material.SPIDER_EYE, "Quality, Contamination & Saturation", "Quality and contamination vary between batches of the same recipe.",
-                "Preparation and safe machine condition matter.", "Elixirs cause temporary Arcane Saturation.",
-                "Excess causes overload and recovery; contamination can poison.",
-                "Dependence and withdrawal progression are off by default.",
-                "Do not drink Cleansing Solution."),
-            entry(Material.SPONGE, "Cleaning & Machine Care", "Infuser maintenance uses server-configured repair/cleaning materials.",
-                "A contaminated cask uses Cleansing Solution on its cleaning control.",
-                "Close the GUI, then use its sign to reboot.",
-                "The cleansing producer is a legacy compatibility path.",
-                "No new survival crafting recipe for Cleansing Solution is added here."),
-            entry(Material.TRIPWIRE_HOOK, "Ownership & Safety", "First valid use claims a supported machine.",
-                "Owner-only access; one viewer at a time.", "Hopper automation is blocked for recognized Brewery machines.",
-                "An occupied machine cannot be removed safely until emptied.",
-                "Progress and ownership persist across restarts.", "Admin bypass does not transfer ownership."));
+            entry(Material.POTION,"Personal Names and Bottles","/brew rename held <name> for a finished bottle brewed by you.",
+                "/brew rename <short-id> <name> for your independently discovered or fully learned record.",
+                "Names are editable, personal labels; 1–80 visible characters, no control/format codes.",
+                "Your name does not rename another producer's bottle.","Old bottles with no reliable producer remain unattributed."),
+            entry(Material.WRITABLE_BOOK,"Formulation, Variant and Batch","Ingredients and relative proportions, culture and catalyst doses define discovery identity.",
+                "Culture is the explicit finite style: WILD, LUMINOUS or QUIET.",
+                "Scaled quantities, precise temperature/time, wood and random batch conditions do not create recipes.",
+                "Exact process records are kept separately for reproducing particular batches.",
+                "Different formulations do not guarantee different magical effects."),
+            entry(Material.BOOK,"Personal Discovery and Server First","Players can independently discover the same formulation.",
+                "Personal records are private by default. Reproduction updates personal best quality.",
+                "The server first receives permanent recognition without publishing private instructions.",
+                "Plugin-shared knowledge is marked LEARNED; producing it does not invent independence.",
+                "Revocation removes the grant but retains learning history. External learning cannot be detected."),
+            entry(Material.WHEAT,"Cultures and Controls","Built-in starter culture library: no external plugin or consumable required.",
+                "WILD: ideal 22 C / 60 s; LUMINOUS: 28 C / 90 s, 1.2x potency.",
+                "QUIET: 16 C / 120 s, 0.75x potency. Culture selection resets to its ideal.",
+                "Temperature 10–36 C in 2 C steps; duration 30–300 s in 30 s steps.",
+                "Extractor: 60–90 C in 2 C steps; ideal 78 C. Balanced, Wide or Clean cuts.",
+                "Wide increases potency and toxicity risk; Clean produces a milder batch."),
+            entry(Material.CLOCK,"Deterministic Quality","Workmanship weights: purity 20%, culture composition 5%, temperature 20%, duration 15%, extraction 15%,",
+                "sanitation/storage 10%, maturation 10%, catalyst stability 5%; contamination penalizes separately.",
+                "100% reference: wash Wheat to 100%, 78 C Balanced extraction, WILD 22 C/60 s,",
+                "no catalyst, clean sealed cask at 18 C, harvest at 120–135 s with default settings.",
+                "Mildness does not cap quality. Completed V2 bottles report actual factor losses.",
+                "Wood affects flavor; over-aging reduces quality. No random star roll denies perfection."),
+            entry(Material.TRIPWIRE_HOOK,"Privacy and Safety","Short IDs resolve across your complete accessible catalog; ambiguous prefixes fail.",
+                "Partial sharing only reveals selected fields. Public names are not process permission.",
+                "Owner-only machines, one active viewer. Automation blocked only for recognized machines.",
+                "Saturation, dangerous alchemy and contamination still apply. Do not drink Cleansing Solution.",
+                "The 30 legacy profiles remain compatibility references, separate from new discoveries."));
     }
     public static String label(String id) {
         String value = id.startsWith("minecraft:") ? id.substring(10) : id;

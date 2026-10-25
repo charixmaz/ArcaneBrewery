@@ -1,3 +1,5 @@
+> Current controls, personal discovery/naming, and migration semantics are specified in [Brewing gameplay V2](brewing-gameplay-v2.md); those rules supersede the older behavior below.
+
 # Brewing Codex
 
 Open `/brew guide` (alias `/brew codex`). `/brew help` links to it.
