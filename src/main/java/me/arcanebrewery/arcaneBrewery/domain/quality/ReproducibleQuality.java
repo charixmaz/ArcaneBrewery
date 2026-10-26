@@ -36,6 +36,13 @@ public final class ReproducibleQuality {
                 new QualityAssessment.Factor("Formulation suitability",composition,.05,"WILD: sugar+starch >=50; LUMINOUS: sugar >=50; QUIET: starch >=50"));
         double penalty=bound(c.contaminationLoad()*.5+p.ingredientRatios().entrySet().stream().mapToDouble(e->e.getValue()*c.ingredients().get(e.getKey()).composition().toxicity()).sum()*.5+Math.max(0,10-d.headsCutPercent())*2+Math.max(0,10-d.tailsCutPercent()));
         double score=bound(factors.stream().mapToDouble(x->x.score()*x.weight()).sum()-penalty);
-        return new QualityAssessment(factors,penalty,score);
+        // Maturation is a prerequisite, not merely a 10% contribution.
+        // Unfinished batches are unusable; severe over-aging can ruin an otherwise perfect brew.
+        double readiness=a.durationSeconds()<maturityTarget?0:maturation/100.0;
+        score=bound(score*readiness);
+        var assessed=new ArrayList<>(factors);
+        assessed.add(new QualityAssessment.Factor("Maturation gate",readiness*100,0,
+            a.durationSeconds()<maturityTarget?"unfinished: quality is zero until maturity":"final quality multiplied by maturation suitability"));
+        return new QualityAssessment(assessed,penalty,score);
     }
 }

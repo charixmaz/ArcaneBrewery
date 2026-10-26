@@ -21,22 +21,18 @@ public final class ElixirPresentation {
         meta.setDisplayName("§d§l" + name + "§r");
         var lore = new ArrayList<String>();
         if(data.producer(meta).isPresent()) lore.add("§7§oBrewed by "+data.producerLabel(meta)+"§r");
-        data.wood(meta).ifPresent(wood->lore.add("§7Maturation: §f"+wood+"§r"));
-        data.maturityTarget(meta).ifPresent(t->lore.add("§7Ideal maturation: §f"+t+"–"+(t+15)+"s§r"));
-        data.harvestSeconds(meta).ifPresent(t->lore.add("§7Harvested at: §f"+t+"s§r"));
-        if(data.prematurePoison(meta)) lore.add("§cPOISONOUS — withdrawn within the first 60 seconds.§r");
-        lore.add("§7Quality: §f" + Math.round(elixir.quality()) + "/100§r");
-        lore.add("§7Arcane Load: §b" + Math.round(elixir.strength()) + "/100§r");
-        lore.add("§8Higher load increases temporary saturation.§r");
-        lore.add("§7Magical Potency: §d" + Math.round(elixir.magicalPotency()) + "/100§r");
-        lore.add("§7Contamination: §f" + Math.round(elixir.contamination()) + "/100§r");
-        data.readAlchemy(meta).ifPresent(alchemy -> {
-            lore.add("§7Alchemy: §d" + PlayerConditionPolicy.readable(alchemy.effect().name()) + "§r");
-            lore.add("§7Instability: §f" + Math.round(alchemy.instability()) + "/100§r");
-        });
-        data.readValue(meta).ifPresent(value -> lore.add("§7Calculated Value: §6" + Math.round(value.units()) + " units§r"));
-        if (name.equals(MessageConfig.text("names.unfinished"))) lore.add("§eWithdrawn early; no recipe discovery.§r");
-        lore.add("§7Right-click to use this elixir.§r");
+        boolean unfinished=data.unfinished(meta)||name.equals(MessageConfig.text("names.unfinished"));
+        String state=unfinished?"§eUnfinished":elixir.quality()==0?"§cRuined":"§aFinished";
+        lore.add("§7Quality §f"+Math.round(elixir.quality())+"/100 §8· "+state+"§r");
+        data.readAlchemy(meta).filter(a->a.effect()!=me.arcanebrewery.arcaneBrewery.application.alchemy.AlchemyEffect.NONE)
+            .ifPresent(a->lore.add("§7Effect §d"+PlayerConditionPolicy.readable(a.effect().name())+"§r"));
+        lore.add("§7Load §b"+Math.round(elixir.strength())+" §8· §7Contamination §f"+Math.round(elixir.contamination())+"§r");
+        data.maturityTarget(meta).ifPresent(t->lore.add("§7Ideal §f"+t+"–"+(t+15)+"s"
+            +data.harvestSeconds(meta).map(h->" §8· §7Taken §f"+h+"s").orElse("")+"§r"));
+        if(data.prematurePoison(meta)) lore.add("§cPoisonous if consumed.§r");
+        else if(unfinished) lore.add("§eWithdrawn early; no discovery.§r");
+        if(!unfinished) data.readValue(meta).ifPresent(v->lore.add("§7Value §6"+Math.round(v.units())+" units§r"));
+        lore.add("§8/brew inspect — full details§r");
         meta.setLore(lore);
         meta.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
         PresentationStyle.apply(meta);

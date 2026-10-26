@@ -61,6 +61,11 @@ public final class FinalDrinkMetadata {
         data.set(key("drink_maturity_target"),PersistentDataType.LONG,target);
         data.set(key("drink_harvest_seconds"),PersistentDataType.LONG,elapsed);
     }
+    public boolean unfinished(ItemMeta meta) { return "UNFINISHED".equals(meta.getPersistentDataContainer().get(key("drink_stage"),PersistentDataType.STRING)); }
+    public java.util.List<String> qualityBreakdown(ItemMeta meta) {
+        String text=meta.getPersistentDataContainer().get(key("drink_quality_breakdown"),PersistentDataType.STRING);
+        return text==null?java.util.List.of("No factor breakdown recorded for this older bottle."):java.util.List.of(text.split("\\n"));
+    }
     public boolean prematurePoison(ItemMeta meta) {
         return meta.getPersistentDataContainer().getOrDefault(key("drink_premature_poison"),PersistentDataType.BYTE,(byte)0)==1;
     }

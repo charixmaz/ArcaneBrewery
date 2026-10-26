@@ -1,3 +1,18 @@
+> Screenshot regression fix: unfinished V2 batches now have zero final quality
+> throughout the entire period before their captured maturity target. Poison remains
+> specific to new-policy withdrawals in the first 60 seconds. After maturity, final
+> workmanship is multiplied by maturation suitability (0–1); severe over-aging
+> therefore ruins a batch instead of merely losing 10 percentage points. At 18 C,
+> suitability reaches zero at `2 * target + 15` seconds. Ruined zero-quality batches
+> do not register a discovery. Existing bottled statistics are not retroactively
+> rewritten; retest with fresh withdrawals. Existing captured timing is preserved.
+>
+> Automatic factor-by-factor chat output is removed. Hold an elixir and use
+> `/brew inspect` for a read-only GUI with summary, factors, effects and safety.
+> Bottle lore is compact, with the italic producer byline retained. Discovery-save
+> errors now log the full exception and batch ID to the server console, including
+> when the player disconnects. A screenshot alone does not identify the failure.
+
 > Maturation balance update: NEW V2 cask batches use a stable, formulation-derived
 > pseudo-random target from 120–300 seconds, captured on insertion. The perfect
 > window is target through target+15 seconds. Existing active batches retain their

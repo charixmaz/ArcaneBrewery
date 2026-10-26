@@ -232,9 +232,11 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
         if (shift) give(player,output); else player.setItemOnCursor(output);
         if (legacyStars>=1) CaskQualityEngine.incrementBatchCounter(plugin,session.core);
         player.sendMessage(MessageConfig.prefix()+(mature?"§aElixir matured and bottled.§r":"§eWithdrawn before full maturity; no recipe discovery is registered.§r"));
-        if (mature && result!=null) registerDiscovery(player.getUniqueId(),result,productionKey,privateEvidence);
+        if (mature && result!=null && result.simulation().quality().overallScore()>0) registerDiscovery(player.getUniqueId(),result,productionKey,privateEvidence);
 
-        if(mature && result!=null && result.assessment()!=null) result.assessment().breakdown().forEach(line->player.sendMessage(MessageConfig.prefix()+"§7"+line+"§r"));
+        if(mature && result!=null && result.simulation().quality().overallScore()==0)
+            player.sendMessage(MessageConfig.prefix()+"§cThis batch is ruined; no discovery was registered.§r");
+        // Detailed factors are available on demand through /brew inspect.
     }
 
     private ItemStack bottle(AgingResult result,boolean mature,Player producer) {
@@ -310,6 +312,8 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
     private void registerDiscovery(UUID playerId,AgingResult result,String batchKey,byte[] evidence) {
 
         discoveries.register(playerId,result.process(),Instant.now(),result.simulation().quality().overallScore(),batchKey,evidence).whenComplete((registration,failure) -> {
+            if(failure!=null) plugin.getLogger().log(java.util.logging.Level.SEVERE,
+                    "Personal discovery save failed for batch " + batchKey + " (player " + playerId + ")",failure);
             if (!plugin.isEnabled()) return;
             Bukkit.getScheduler().runTask(plugin,() -> {
                 Player player=Bukkit.getPlayer(playerId); if (player==null) return;

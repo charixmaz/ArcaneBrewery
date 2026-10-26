@@ -105,4 +105,15 @@ public class GameplayV2Test {
         var over=process(22,60,BrewingCulture.WILD.id(),"oak",180,perfect().ingredientRatios(),Map.of());
         assertTrue(new ReproducibleQuality().assess(over,conditions(over,100,0),120).score()<100);
     }
+    @Test void screenshotRegressionEarlyWithdrawalAndExtremeOveragingCannotRetainHighQuality() {
+        for(long[] example:List.of(new long[]{120,186},new long[]{78953,120})) {
+            var p=process(22,60,BrewingCulture.WILD.id(),"oak",example[0],perfect().ingredientRatios(),Map.of());
+            assertEquals(0,new ReproducibleQuality().assess(p,conditions(p,100,0),example[1]).score());
+        }
+        var ready=process(22,60,BrewingCulture.WILD.id(),"oak",187,perfect().ingredientRatios(),Map.of());
+        assertEquals(100,new ReproducibleQuality().assess(ready,conditions(ready,100,0),186).score(),1e-9);
+        var poor=process(30,60,BrewingCulture.WILD.id(),"oak",187,ready.ingredientRatios(),Map.of());
+        assertTrue(new ReproducibleQuality().assess(poor,conditions(poor,100,0),186).score()<100);
+    }
+
 }

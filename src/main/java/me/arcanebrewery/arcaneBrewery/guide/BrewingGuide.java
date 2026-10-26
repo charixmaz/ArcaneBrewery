@@ -40,6 +40,39 @@ public final class BrewingGuide implements Listener {
         button(view, 48, Material.BARRIER, "Close", List.of(), Player::closeInventory);
         return view;
     }
+    public void inspect(Player player) {
+        var held=player.getInventory().getItemInMainHand();
+        var data=new me.arcanebrewery.arcaneBrewery.adapter.bukkit.aging.FinalDrinkMetadata(plugin.getName().toLowerCase(Locale.ROOT));
+        if(held.getType()!=Material.POTION || !held.hasItemMeta()) {
+            player.sendMessage(MessageConfig.prefix()+"§eHold an elixir to inspect it.§r");return;
+        }
+        var meta=held.getItemMeta();
+        try {
+            var profile=data.readConsumption(meta);
+            if(profile.isEmpty()) { player.sendMessage(MessageConfig.prefix()+"§eThis bottle has no supported elixir data.§r");return; }
+            var q=profile.orElseThrow();
+            List<GuideCatalog.Entry> entries=new ArrayList<>();
+            List<String> summary=new ArrayList<>();
+            summary.add("Quality: "+Math.round(q.quality())+"/100");
+            if(data.producer(meta).isPresent()) summary.add("Brewed by "+data.producerLabel(meta));
+            summary.add("Stage: "+(data.unfinished(meta)?"Unfinished — no discovery":"Finished"));
+            data.wood(meta).ifPresent(w->summary.add("Wood: "+w));
+            data.maturityTarget(meta).ifPresent(t->summary.add("Ideal maturation: "+t+"–"+(t+15)+" seconds"));
+            data.harvestSeconds(meta).ifPresent(t->summary.add("Harvested at: "+t+" seconds"));
+            if(data.prematurePoison(meta)) summary.add("POISONOUS when consumed: withdrawn in the first 60 seconds.");
+            entries.add(new GuideCatalog.Entry(Material.POTION,"Batch Summary",summary));
+            entries.add(new GuideCatalog.Entry(Material.WRITABLE_BOOK,"Quality Breakdown",data.qualityBreakdown(meta)));
+            List<String> effects=new ArrayList<>(List.of("Arcane load: "+Math.round(q.strength())+"/100",
+                "Higher load increases temporary saturation.","Magical potency: "+Math.round(q.magicalPotency())+"/100",
+                "Contamination: "+Math.round(q.contamination())+"/100"));
+            data.readAlchemy(meta).ifPresent(a->{ effects.add("Effect: "+me.arcanebrewery.arcaneBrewery.application.consumption.PlayerConditionPolicy.readable(a.effect().name()));
+                effects.add("Instability: "+Math.round(a.instability())+"/100"); });
+            if(!data.unfinished(meta)) data.readValue(meta).ifPresent(v->effects.add("Calculated value: "+Math.round(v.units())+" units"));
+            entries.add(new GuideCatalog.Entry(Material.AMETHYST_SHARD,"Effects & Safety",effects));
+            entries(player,"Elixir Inspection",entries,0);
+        } catch(IllegalArgumentException invalid) { player.sendMessage(MessageConfig.prefix()+"§cThis bottle has invalid metadata; it was retained.§r"); }
+    }
+
     public void open(Player player) {
         View view = create(player, "Brewing Codex");
         button(view, 10, Material.CRAFTING_TABLE, "Machines & Structures", List.of("Build, operate and maintain your equipment."),

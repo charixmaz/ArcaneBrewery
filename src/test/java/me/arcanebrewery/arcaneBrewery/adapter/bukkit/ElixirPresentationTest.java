@@ -38,6 +38,10 @@ class ElixirPresentationTest {
         assertFalse(updated.getLore().stream().anyMatch(line -> line.contains("fingerprint") || line.contains("Discovery Owner")));
         var again=updated.clone(); ElixirPresentation.refresh(again,new FinalDrinkMetadata("arcanebrewery"));
         assertEquals(updated.getLore(),again.getLore());
+        assertTrue(updated.getLore().size()<=9);
+        assertTrue(updated.getLore().stream().anyMatch(l->l.contains("/brew inspect")));
+        assertFalse(updated.getLore().stream().anyMatch(l->l.contains("Higher load")||l.contains("Magical Potency")));
+        assertEquals(1,new FinalDrinkMetadata("arcanebrewery").qualityBreakdown(updated).size());
     }
     @Test void vanillaOrUnsupportedPotionMetadataIsNeverRewritten() {
         var meta=TestItems.water().getItemMeta(); assertFalse(ElixirPresentation.refresh(meta,new FinalDrinkMetadata("arcanebrewery")));

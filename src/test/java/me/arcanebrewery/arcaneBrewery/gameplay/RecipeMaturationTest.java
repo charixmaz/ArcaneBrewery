@@ -52,8 +52,8 @@ class RecipeMaturationTest {
             assertEquals(0,result.assessment().score());
         }
         assertFalse(RecipeMaturation.poisonous(61));
-        assertTrue(finish(61,true,Map.of(),100).simulation().quality().overallScore()>0);
-        assertTrue(finish(60,false,Map.of(),100).simulation().quality().overallScore()>0);
+        assertEquals(0,finish(61,true,Map.of(),100).simulation().quality().overallScore());
+        assertEquals(0,finish(60,false,Map.of(),100).simulation().quality().overallScore());
     }
     @Test void idealWindowIsRepeatableAndInfusedQualityCanReachOneHundred() {
         var additives=Map.of("arcanebrewery:fire_catalyst",1.0);

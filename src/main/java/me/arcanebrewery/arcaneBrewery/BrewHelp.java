@@ -50,6 +50,7 @@ public final class BrewHelp {
                     "§7Public visibility does not transfer ownership or automatically expose a full process.§r");
             case "commands" -> List.of(
                     "§5§lCommands§r",
+                    "§f/brew inspect §7— inspect the held elixir and its quality breakdown.§r",
                     "§f/brew guide §7— open the ingredient, catalyst, machine and recipe Codex.§r",
                     "§f/brew status §7— temporary saturation, contamination and recovery.§r",
                     "§f/brew value §7— calculated value of a supported held finished elixir.§r",
@@ -57,6 +58,7 @@ public final class BrewHelp {
                     "§7Economy is optional; brewing remains usable without it. Sales are disabled by default.§r",
                     "§f/brew discoveries §7and §f/brew recipe §7— browse your recipe knowledge.§r");
             default -> List.of("§5§lArcaneBrewery — Brewing & Alchemy§r",
+                    "§f/brew inspect §7— inspect the held elixir and its quality breakdown.§r",
                     "§f/brew guide §7— open the visual Brewing Codex§r",
                     "§f/brew help getting-started §7— production and washing§r",
                     "§f/brew help machines §7— structures, inputs and ownership§r",

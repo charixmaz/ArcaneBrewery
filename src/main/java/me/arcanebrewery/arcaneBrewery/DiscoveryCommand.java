@@ -51,6 +51,7 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
                 else player.sendMessage(MessageConfig.prefix() + "§eUsage: /brew guide [recipe <full fingerprint>]§r");
                 yield true;
             }
+            case "inspect" -> { guide.inspect(player); yield true; }
             case "discoveries" -> { discoveries(player, args); yield true; }
             case "recipe" -> { recipe(player, args); yield true; }
             case "rename" -> { rename(player, args); yield true; }
@@ -345,7 +346,7 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            return List.of("guide", "codex", "discoveries", "recipe", "rename", "visibility", "share", "revoke", "status", "value", "sell", "help").stream()
+            return List.of("inspect", "guide", "codex", "discoveries", "recipe", "rename", "visibility", "share", "revoke", "status", "value", "sell", "help").stream()
                     .filter(value -> value.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
         }
         if (args.length == 2 && (args[0].equalsIgnoreCase("guide") || args[0].equalsIgnoreCase("codex"))) {
