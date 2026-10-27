@@ -40,7 +40,7 @@ public final class GuideCatalog {
                 "Base + Catalyst I + optional Catalyst II; click Start Infusion.",
                 "New operation duration: " + infusionSeconds + " seconds.",
                 "Catalyst affinities are references, not guaranteed safe results.",
-                "Default maintenance uses Iron Ingots and Sponges; server settings may differ."),
+                "Integrity repair uses Iron Ingots; cleaning is not required."),
             entry(Material.OAK_STAIRS, MessageConfig.text("names.cask"),
                 "Barrel with an adjacent sign: first line [Brewery].",
                 "At least 12 matching wood components in the 3×3×3 area.",
@@ -50,13 +50,10 @@ public final class GuideCatalog {
                 "Before maturity: zero-quality Unfinished Elixir; no discovery.",
                 "First 60s: poisonous. Severe over-aging ruins the batch.",
                 "Mature withdrawal: finished elixir; process determines identity."),
-            entry(Material.GRAY_CONCRETE, "Cleansing Producer (Legacy)",
-                "Gray Concrete with an adjacent sign: first line [Producer].",
-                "Accepts only the legacy refined industrial-base item.",
-                "An ordinary Refined Brewing Base is NOT accepted.",
-                "Four lanes, 10 seconds; shift-click a completed lane to collect.",
-                "Produces Cleansing Solution for contaminated casks.",
-                "Compatibility path; not a normal starter production step."));
+            entry(Material.STONECUTTER,"Reagent Processor", "Personal research first: see Specialist Research.","Stonecutter above Copper Block. Sneak-right-click to claim.","Construction resources go in first two slots; click Construct.","Then process 4 raw grains + 1 binder into one prepared reagent in 10s.","Valid pairs: red grains + violet shard; luminous grains + fiery rod; pale mineral + honey harvest.","Outputs remain locked during processing; offline time counts."),
+            entry(Material.LOOM,"Duration Infuser","Research first, then Loom above Redstone Block.","Construct with resources shown in Research.","One versioned finished elixir + one prepared duration reagent.","10s; utility can reach 5–10 minutes at tier I. Other families have lower caps.","One duration pass per bottle; no free reprocessing loops."),
+            entry(Material.SMITHING_TABLE,"Essence Concentrator","Research first, then Smithing Table above Iron Block.","One versioned finished elixir + one prepared potency reagent.","10s; increase eligible tier, keep only 35% duration, within family caps.","Utility up to tier III / 90s, Strength II / 30s. Other effects retain conservative limits.","One concentration pass per bottle; exactly one input/output bottle."),
+            entry(Material.GRINDSTONE,"Purification Chamber","Research first, then Grindstone above Amethyst Block.","One versioned finished elixir + one prepared purification reagent.","Click selector to choose an unwanted effect; Start consumes inputs.","10s; removes exactly the selected unwanted effect, once per bottle.","An absent/non-removable selection rejects without consumption."));
     }
     public List<Entry> ingredients() {
         return ingredients.definitions().values().stream().map(d -> {
@@ -99,7 +96,7 @@ public final class GuideCatalog {
                 "They do not grant items or pre-register discoveries; execution determines quality.",
                 "Use My Discoveries and Public Discoveries for recorded recipes.",
                 "Legacy Profiles documents older compatibility bottles separately.",
-                "To inspect a shared recipe: /brew guide recipe <full fingerprint>."),
+                "Inspect only your permitted records: /brew guide recipe <full fingerprint>."),
             starter(Material.WHEAT, "Plain Wheat Walkthrough", "Wheat", false),
             starter(Material.APPLE, "Plain Apple Walkthrough", "Apple", false),
             starter(Material.BOOK, "Experimenting with Infusion", "Wheat", true));
@@ -111,8 +108,8 @@ public final class GuideCatalog {
         if (fire) lines.add("5. Obtain an active catalyst; its unlocked Codex entry explains the broad role. Experiment in the infuser.");
         lines.add((fire ? "6." : "5.") + " Mature in an Oak cask; choose a harvest time and record it.");
         lines.add("New batches use this server's current durations.");
-        lines.add("Use a clean cask; compare harvest times to find your best batch.");
-        lines.add("Saturation and contamination hazards still apply.");
+        lines.add("Use a cask; compare harvest times to find your best batch.");
+        lines.add("Temporary saturation and deliberately dangerous reactions still apply.");
         return new Entry(icon, title, lines);
     }
     public List<Entry> legacyProfiles() {
@@ -148,9 +145,9 @@ public final class GuideCatalog {
     }
     public List<Entry> knowledge() {
         return List.of(
-            entry(Material.POTION,"Personal Names and Bottles","/brew rename held <name> for a finished bottle brewed by you.",
-                "/brew rename <short-id> <name> for your independently discovered or fully learned record.",
-                "Names are editable, personal labels; 1–80 visible characters, no control/format codes.",
+            entry(Material.POTION,"Personal Names and Bottles","/brew rename held <name> confirm for a finished bottle brewed by you.",
+                "/brew rename <short-id> <name> confirm for your independently discovered or fully learned record.",
+                "One permanent rename per personal formulation; 1–80 visible characters, no control/format codes.",
                 "Your name does not rename another producer's bottle.","Old bottles with no reliable producer remain unattributed."),
             entry(Material.WRITABLE_BOOK,"Formulation, Variant and Batch","Ingredients and relative proportions, culture and catalyst doses define discovery identity.",
                 "Culture is the explicit finite style: WILD, LUMINOUS or QUIET.",
@@ -160,8 +157,8 @@ public final class GuideCatalog {
             entry(Material.BOOK,"Personal Discovery and Server First","Players can independently discover the same formulation.",
                 "Personal records are private by default. Reproduction updates personal best quality.",
                 "The server first receives permanent recognition without publishing private instructions.",
-                "Plugin-shared knowledge is marked LEARNED; producing it does not invent independence.",
-                "Revocation removes the grant but retains learning history. External learning cannot be detected."),
+                "Historical learned records retain their provenance and permissions.",
+                "Exchange instructions outside the plugin; no sharing commands exist."),
             entry(Material.WHEAT,"Cultures and Controls","Built-in starter culture library: no external plugin or consumable required.",
                 "WILD: ideal 22 C / 60 s; LUMINOUS: 28 C / 90 s, 1.2x potency.",
                 "QUIET: 16 C / 120 s, 0.75x potency. Culture selection resets to its ideal.",
@@ -169,16 +166,16 @@ public final class GuideCatalog {
                 "Extractor: 60–90 C in 2 C steps; ideal 78 C. Balanced, Wide or Clean cuts.",
                 "Wide increases potency and toxicity risk; Clean produces a milder batch."),
             entry(Material.CLOCK,"Deterministic Quality","Workmanship weights: purity 20%, culture composition 5%, temperature 20%, duration 15%, extraction 15%,",
-                "sanitation/storage 10%, maturation 10%, catalyst stability 5%; contamination penalizes separately.",
+                "storage 10%, maturation 10%, catalyst stability 5%; dangerous materials/cuts penalize separately.",
                 "100% reference: wash Wheat to 100%, 78 C Balanced extraction, WILD 22 C/60 s,",
-                "no catalyst and a clean sealed cask; discover the best harvest time experimentally.",
+                "no catalyst and suitable storage; discover the best harvest time experimentally.",
                 "Mildness does not cap quality. Use /brew inspect for actual factor losses.",
                 "Unfinished quality is zero; severe over-aging can also reduce quality to zero.",
                 "Wood affects flavor; over-aging reduces quality. No random star roll denies perfection."),
             entry(Material.TRIPWIRE_HOOK,"Privacy and Safety","Short IDs resolve across your complete accessible catalog; ambiguous prefixes fail.",
-                "Partial sharing only reveals selected fields. Public names are not process permission.",
+                "Historical grants remain permission checked. Public names are not process permission.",
                 "Owner-only machines, one active viewer. Automation blocked only for recognized machines.",
-                "Saturation, dangerous alchemy and contamination still apply. Do not drink Cleansing Solution.",
+                "Saturation and dangerous alchemy still apply. First-60-second withdrawals remain poisonous.",
                 "The 30 legacy profiles remain compatibility references, separate from new discoveries."));
     }
     public static String label(String id) {

@@ -37,6 +37,7 @@ public final class ArcaneBrewery extends JavaPlugin {
     private DistilleryMenuHandler extractors;
     private AgingCaskEngine casks;
     private MethanolProducerEngine cleansers;
+    private me.arcanebrewery.arcaneBrewery.adapter.bukkit.research.SpecialistMachines specialists;
     private me.arcanebrewery.arcaneBrewery.adapter.bukkit.discovery.MaterialDiscoveryListener materialDiscoveries;
     private ExecutorService materialWorker;
     public void reconcileMaterialInputs(org.bukkit.entity.Player player,org.bukkit.inventory.ItemStack[] inputs) {
@@ -151,7 +152,7 @@ public final class ArcaneBrewery extends JavaPlugin {
         getServer().getPluginManager().registerEvents(consumption, this);
         getServer().getScheduler().runTaskTimer(this, new ConsumptionRecoveryTask(consumption), 200L, 200L);
         getServer().getPluginManager().registerEvents(new me.arcanebrewery.arcaneBrewery.adapter.bukkit.PresentationRefreshListener(this,discoveryQueries),this);
-        getServer().getPluginManager().registerEvents(new CaskHygieneEngine(this), this);
+
         cleansers=new MethanolProducerEngine(this);
         getServer().getPluginManager().registerEvents(cleansers, this);
         // Structure validation and cask reboot now run through the shared access
@@ -169,6 +170,8 @@ public final class ArcaneBrewery extends JavaPlugin {
             new me.arcanebrewery.arcaneBrewery.adapter.bukkit.discovery.MaterialCatalog(ingredientItems),
             new MaterialDiscoveryRuntime(storage.materials(),materialWorker));
         getServer().getPluginManager().registerEvents(materialDiscoveries,this);
+        specialists=new me.arcanebrewery.arcaneBrewery.adapter.bukkit.research.SpecialistMachines(this);
+        getServer().getPluginManager().registerEvents(specialists,this);
         var brew = java.util.Objects.requireNonNull(getCommand("brew"), "brew command missing from plugin.yml");
         var guide = new me.arcanebrewery.arcaneBrewery.guide.BrewingGuide(this,
                 new me.arcanebrewery.arcaneBrewery.guide.GuideCatalog(ingredientItems.registry(), timing,
@@ -191,6 +194,7 @@ public final class ArcaneBrewery extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if(specialists!=null){specialists.close();specialists=null;}
         if(materialDiscoveries!=null){materialDiscoveries.close();materialDiscoveries=null;}
         if(materialWorker!=null){materialWorker.shutdown();try{if(!materialWorker.awaitTermination(5,TimeUnit.SECONDS))materialWorker.shutdownNow();}catch(InterruptedException e){Thread.currentThread().interrupt();materialWorker.shutdownNow();}materialWorker=null;}
         if (extractors!=null) { extractors.close(); extractors=null; }

@@ -1,3 +1,5 @@
+> Current release: [Phase 2 specialists](phase2-specialists-release.md) supersedes earlier sharing, repeatable naming, contamination and roadmap-only specialist descriptions below.
+
 # Local Paper playtest
 
 Target: Paper 26.1.2, Java 25. Install only the rebuilt ArcaneBrewery JAR for the

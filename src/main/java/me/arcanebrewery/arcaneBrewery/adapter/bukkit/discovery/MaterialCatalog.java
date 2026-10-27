@@ -33,11 +33,16 @@ public final class MaterialCatalog {
                 "One item per selected slot. Extra dose can increase instability.",
                 d.risky()?"Deliberately risky transformation; inspect the resulting bottle.":"Inspect finished elixirs for their actual effects and safety.")));
         }
+        for(var kind:me.arcanebrewery.arcaneBrewery.adapter.bukkit.research.PreparedReagents.Kind.values()){
+            var key=new MaterialKey(MaterialKey.Kind.CATALYST,"arcanebrewery:prepared_"+kind.name().toLowerCase(Locale.ROOT));
+            data.put(key,new Entry(key,Material.PRISMARINE_SHARD,"Prepared "+kind.name().toLowerCase(Locale.ROOT)+" reagent",List.of("Made in the researched Reagent Processor.","Consumed by the matching specialist machine, not the starter infuser.","One operation per bottle per specialist type.")));
+        }
         entries=Collections.unmodifiableMap(data);
     }
     public Map<MaterialKey,Entry> entries() {return entries;}
     public Set<MaterialKey> classify(ItemStack item) {
         if(DisplayOnlyItems.test(item) || item==null || (item.getType()==Material.AIR||item.getType()==Material.CAVE_AIR||item.getType()==Material.VOID_AIR) || item.getAmount()<=0) return Set.of();
+        try{var prepared=me.arcanebrewery.arcaneBrewery.adapter.bukkit.research.PreparedReagents.read(item);if(prepared.isPresent())return Set.of(new MaterialKey(MaterialKey.Kind.CATALYST,"arcanebrewery:prepared_"+prepared.get().name().toLowerCase(Locale.ROOT)));}catch(IllegalArgumentException bad){return Set.of();}
         var result=new HashSet<MaterialKey>();
         try {
             if(items.classify(item) instanceof IngredientInput.Ingredient ingredient) {
@@ -51,7 +56,7 @@ public final class MaterialCatalog {
     public List<me.arcanebrewery.arcaneBrewery.guide.GuideCatalog.Entry> project(MaterialKey.Kind kind,Set<MaterialKey> known) {
         return entries.values().stream().filter(e->e.key().kind()==kind).map(e->known.contains(e.key())
             ?new me.arcanebrewery.arcaneBrewery.guide.GuideCatalog.Entry(e.icon(),e.name(),e.details())
-            :new me.arcanebrewery.arcaneBrewery.guide.GuideCatalog.Entry(Material.GRAY_STAINED_GLASS_PANE,"???",List.of("Obtain a supported material to reveal this entry."))).toList();
+            :new me.arcanebrewery.arcaneBrewery.guide.GuideCatalog.Entry(Material.GRAY_STAINED_GLASS_PANE,"???",List.of(MaterialRiddles.clue(e.key())))).toList();
     }
     public List<String> notification(Set<MaterialKey> unlocked) {
         var actual=unlocked.stream().filter(entries::containsKey).sorted(Comparator.comparing((MaterialKey k)->k.kind().name()).thenComparing(MaterialKey::registryId)).toList();

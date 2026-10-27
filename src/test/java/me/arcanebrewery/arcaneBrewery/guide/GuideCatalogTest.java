@@ -34,7 +34,7 @@ class GuideCatalogTest {
         assertTrue(text.contains("90 seconds"));
         assertTrue(text.contains("learned through experimentation"));
         assertTrue(text.contains("9.0 seconds"));
-        assertTrue(text.contains("ordinary Refined Brewing Base is NOT accepted"));
+        assertTrue(text.contains("Reagent Processor"));assertTrue(text.contains("Purification Chamber"));assertFalse(text.contains("contaminated"));
     }
     @Test void walkthroughsDoNotPretendToBeSeededNamedRecipes() {
         var text = catalog.starters().toString();

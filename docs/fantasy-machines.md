@@ -1,3 +1,5 @@
+> Current release: [Phase 2 specialists](phase2-specialists-release.md) supersedes earlier sharing, repeatable naming, contamination and roadmap-only specialist descriptions below.
+
 > Current controls, personal discovery/naming, and migration semantics are specified in [Brewing gameplay V2](brewing-gameplay-v2.md); those rules supersede the older behavior below.
 
 # Fantasy defaults and persistent machines

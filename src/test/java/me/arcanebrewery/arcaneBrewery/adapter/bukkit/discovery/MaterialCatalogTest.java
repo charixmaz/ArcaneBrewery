@@ -12,7 +12,7 @@ class MaterialCatalogTest {
     private final MaterialCatalog catalog=new MaterialCatalog(items);
     @Test void obtainableCatalogHasEightIngredientsAndTwentySixReagentsWithoutUselessEntries() {
         assertEquals(8,catalog.entries().keySet().stream().filter(k->k.kind()==MaterialKey.Kind.INGREDIENT).count());
-        assertEquals(26,catalog.entries().keySet().stream().filter(k->k.kind()==MaterialKey.Kind.CATALYST).count());
+        assertEquals(29,catalog.entries().keySet().stream().filter(k->k.kind()==MaterialKey.Kind.CATALYST).count());
         assertEquals(25,items.registry().definitions().size());
     }
     @Test void unknownPagesContainNoNamesIconsPropertiesOrFormulations() {
@@ -44,5 +44,10 @@ class MaterialCatalogTest {
         assertEquals(2,catalog.notification(keys).size());assertTrue(catalog.notification(keys).getFirst().contains("Catalyst discovered: §fBlaze Rod"));
         assertEquals(2,catalog.notification(catalog.entries().keySet()).size());assertTrue(catalog.notification(catalog.entries().keySet()).getFirst().contains("more"));
         assertTrue(catalog.notification(Set.of()).isEmpty());
+    }
+    @Test void everyObtainableLockedEntryHasADistinctAcquisitionClueAndPreparedItemsUseCanonicalIds(){
+        var clues=catalog.entries().keySet().stream().map(MaterialRiddles::clue).toList();assertEquals(37,clues.size());assertEquals(37,new HashSet<>(clues).size());assertTrue(clues.stream().noneMatch(c->c.contains("registered material")));
+        var prepared=me.arcanebrewery.arcaneBrewery.adapter.bukkit.research.PreparedReagents.create(me.arcanebrewery.arcaneBrewery.adapter.bukkit.research.PreparedReagents.Kind.DURATION,m->TestItems.stack(m,1));
+        assertEquals(Set.of(new MaterialKey(MaterialKey.Kind.CATALYST,"arcanebrewery:prepared_duration")),catalog.classify(prepared));
     }
 }

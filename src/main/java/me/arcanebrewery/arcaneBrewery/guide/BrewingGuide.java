@@ -71,7 +71,7 @@ public final class BrewingGuide implements Listener {
             entries.add(new GuideCatalog.Entry(Material.WRITABLE_BOOK,"Quality Breakdown",data.qualityBreakdown(meta)));
             List<String> effects=new ArrayList<>(List.of("Arcane load: "+Math.round(q.strength())+"/100",
                 "Higher load increases temporary saturation.","Magical potency: "+Math.round(q.magicalPotency())+"/100",
-                "Contamination: "+Math.round(q.contamination())+"/100"));
+                "Historical statistics retained"));
             data.readEffects(meta).ifPresent(p->effects.addAll(p.summary()));
             if(data.readEffects(meta).isEmpty()) data.readAlchemy(meta).ifPresent(a->{ effects.add("Effect: "+me.arcanebrewery.arcaneBrewery.application.consumption.PlayerConditionPolicy.readable(a.effect().name()));
                 effects.add("Instability: "+Math.round(a.instability())+"/100"); });
@@ -83,27 +83,64 @@ public final class BrewingGuide implements Listener {
 
     public void open(Player player) {
         View view = create(player, "Brewing Codex");
-        button(view, 10, Material.CRAFTING_TABLE, "Machines & Structures", List.of("Build, operate and maintain your equipment."),
+        button(view, 10, Material.CRAFTING_TABLE, "2. Machines & Controls", List.of("Build, operate and maintain your equipment."),
                 p -> entries(p, "Machines", catalog.machines(), 0));
         button(view, 12, Material.WHEAT, "Ingredients", List.of("Registry entries and actual washing availability."),
                 p -> materials(p,me.arcanebrewery.arcaneBrewery.application.discovery.MaterialKey.Kind.INGREDIENT));
         button(view, 14, Material.KNOWLEDGE_BOOK, "Catalysts / Reagents", List.of("Supported items and magical affinities."),
                 p -> materials(p,me.arcanebrewery.arcaneBrewery.application.discovery.MaterialKey.Kind.CATALYST));
-        button(view, 16, Material.BOOK, "Starter Walkthroughs", List.of("Public instructions; not predefined discoveries."),
+        button(view, 16, Material.BOOK, "1. Start Brewing", List.of("Wash → extract → cultivate → mature → inspect."),
                 p -> entries(p, "Starter Walkthroughs", catalog.starters(), 0));
         button(view, 28, Material.WRITABLE_BOOK, "Independent Recipes", List.of("Your independently discovered formulations."),
                 p -> discoveries(p, false, 0));
-        button(view,29,Material.WRITABLE_BOOK,"Learned Recipes",List.of("Shared instructions remain learned, including after reproduction."),p->discoveries(p,false,true,0));
+        button(view,29,Material.WRITABLE_BOOK,"Learned Recipes",List.of("Historical learned records are retained."),p->discoveries(p,false,true,0));
         button(view, 30, Material.ENCHANTED_BOOK, "Public Discoveries", List.of("Public names; exact details still require access."),
                 p -> discoveries(p, true, 0));
         button(view, 32, Material.KNOWLEDGE_BOOK, "Brewing Knowledge", List.of("Names, discovery, quality and magical conditions."),
                 p -> entries(p, "Brewing Knowledge", catalog.knowledge(), 0));
-        button(view, 34, Material.PAPER, "Shared Recipe Lookup", List.of("Use /brew guide recipe <full fingerprint>.",
-                "Only knowledge granted to you will be shown.", "A shared recipe list is not available yet."),
-                p -> p.sendMessage(MessageConfig.prefix() + "§f/brew guide recipe <full fingerprint>§r"));
+        button(view,34,Material.EXPERIENCE_BOTTLE,"Specialist Research",List.of("Knowledge + one-time XP levels + physical construction.","Earned unlocks never depend on catalog percentages."),p->research(p));
         button(view, 40, Material.CHEST, "Legacy Compatibility Profiles", List.of("Older predefined profiles; not current starter recipes."),
                 p -> entries(p,"Legacy Compatibility",List.of(new GuideCatalog.Entry(Material.CHEST,"Historical Bottles",List.of("The 30 legacy profiles remain compatible.","Hold an old bottle and use /brew inspect.","This page does not reveal locked materials or private recipes."))),0));
         player.openInventory(view.inventory);
+    }
+    private void research(Player player) {
+        View loading=create(player,"Specialist Research");player.openInventory(loading.inventory);
+        if(materials==null)return;
+        materials.reconcile(player).thenCombine(queries.recipes(player.getUniqueId(),false,1,0),(known,recipes)->new Object[]{known,!recipes.isEmpty()})
+            .whenComplete((data,failure)->onMain(()->{
+                if(!current(player,loading))return;
+                if(failure!=null){loading.inventory.setItem(22,item(Material.BARRIER,"Research unavailable",List.of("No XP charged. Reopen to retry.")));return;}
+                @SuppressWarnings("unchecked") var keys=(java.util.Set<me.arcanebrewery.arcaneBrewery.application.discovery.MaterialKey>)data[0];
+                var known=keys.stream().map(k->k.registryId()).collect(java.util.stream.Collectors.toSet());boolean recipe=(Boolean)data[1];
+                var progress=me.arcanebrewery.arcaneBrewery.adapter.bukkit.research.PlayerResearch.read(player);int slot=10;
+                for(var type:me.arcanebrewery.arcaneBrewery.application.research.SpecialistType.values()) {
+                    var lines=new ArrayList<String>();boolean earned=progress.earned().contains(type.name());
+                    lines.add(earned?"Research earned permanently":"One-time cost: "+type.levels+" XP levels");
+                    lines.add("Build: "+type.core+" above "+type.foundation);lines.add("Construction: "+type.amountA+" "+type.buildA+" + "+type.amountB+" "+type.buildB);
+                    var missing=type.missing(progress.earned(),known,recipe,player.getLevel());for(String unmet:missing){
+                        if(unmet.startsWith("Discover ")){String id=unmet.substring(9);var key=new me.arcanebrewery.arcaneBrewery.application.discovery.MaterialKey(id.startsWith("minecraft:")?me.arcanebrewery.arcaneBrewery.application.discovery.MaterialKey.Kind.INGREDIENT:me.arcanebrewery.arcaneBrewery.application.discovery.MaterialKey.Kind.CATALYST,id);lines.add("Unmet clue: "+me.arcanebrewery.arcaneBrewery.adapter.bukkit.discovery.MaterialRiddles.clue(key));}
+                        else lines.add(unmet);
+                    }
+                    lines.add("Sneak-right-click core; place construction in input slots.");lines.add("Build, then use Start. One operation/type/bottle.");
+                    button(loading,slot++,Material.valueOf(type.core),type.label,lines,p->{
+                        if(earned)return;
+                        if(!missing.isEmpty()){detail(p,new GuideCatalog.Entry(Material.BOOK,type.label,lines),()->research(p));return;}
+                        View confirm=create(p,"Confirm Research");
+                        button(confirm,22,Material.EXPERIENCE_BOTTLE,"Spend "+type.levels+" levels once",List.of("Permanent personal unlock; construction is separate.","Requirements and current XP are rechecked."),q->{
+                            // Reconcile possession again and recheck prerequisites at the charging boundary.
+                            materials.reconcile(q).thenCombine(queries.recipes(q.getUniqueId(),false,1,0),(fresh,records)->new Object[]{fresh,!records.isEmpty()}).whenComplete((fresh,error)->onMain(()->{
+                                if(!current(q,confirm))return;
+                                try{if(error!=null)throw new IllegalStateException("Knowledge unavailable; no XP charged");
+                                    @SuppressWarnings("unchecked") var freshKeys=(java.util.Set<me.arcanebrewery.arcaneBrewery.application.discovery.MaterialKey>)fresh[0];
+                                    me.arcanebrewery.arcaneBrewery.adapter.bukkit.research.PlayerResearch.purchase(q,type,freshKeys.stream().map(k->k.registryId()).collect(java.util.stream.Collectors.toSet()),(Boolean)fresh[1]);
+                                    q.sendMessage("§aResearch earned: "+type.label);
+                                }catch(RuntimeException rejected){q.sendMessage("§e"+rejected.getMessage());}research(q);
+                            }));
+                        });button(confirm,45,Material.ARROW,"Back",List.of(),this::research);p.openInventory(confirm.inventory);
+                    });
+                }
+                button(loading,45,Material.ARROW,"Back",List.of(),this::open);
+            }));
     }
     private void materials(Player player,me.arcanebrewery.arcaneBrewery.application.discovery.MaterialKey.Kind kind) {
         View loading=create(player,"Material Knowledge");loading.inventory.setItem(22,item(Material.CLOCK,"Checking possession…",List.of()));player.openInventory(loading.inventory);
@@ -168,7 +205,7 @@ public final class BrewingGuide implements Listener {
             for (int i = 0; i < Math.min(items.size(), PAGE_SIZE); i++) {
                 var recipe = items.get(i);
                 button(view, i, Material.POTION, recipe.name(), List.of("ID: " + recipe.fingerprint().value().substring(0, 12),
-                        "Click to inspect your current knowledge.", "Rename your record: /brew rename <shown id> <name>.", "Or hold your own bottle: /brew rename held <name>."),
+                        "Click to inspect your current knowledge.", "One permanent rename: /brew rename <shown id> <name> confirm.", "Or hold your own bottle: /brew rename held <name>."),
                         p -> recipe(p, recipe.fingerprint(), () -> discoveries(p, publicList, learned, page)));
             }
             if (page > 0) button(view, 45, Material.ARROW, "Previous", List.of(), p -> discoveries(p, publicList, learned, page - 1));
@@ -197,7 +234,7 @@ public final class BrewingGuide implements Listener {
             List<String> lines = new ArrayList<>();
             lines.add("Your knowledge: " + knowledge.state());
             lines.addAll(formatter.format(knowledge));
-            lines.add("Rename your full personal record: /brew rename "+fingerprint.value().substring(0,12)+" <name>");
+            lines.add("Rename your full personal record: /brew rename "+fingerprint.value().substring(0,12)+" <name> confirm (one permanent rename)");
             queries.info(player.getUniqueId(),fingerprint).whenComplete((info,infoFailure)->onMain(()->{
                 if(!current(player,loading)) return;
                 if(infoFailure==null) lines.add(info);

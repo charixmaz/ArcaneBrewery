@@ -1,3 +1,5 @@
+> Current release: [Phase 2 specialists](phase2-specialists-release.md) supersedes earlier sharing, repeatable naming, contamination and roadmap-only specialist descriptions below.
+
 > Material exploration and new-infusion effect rules are now specified in [Discovery and alchemy Phase 1](discovery-alchemy-phase1.md). Existing bottle statistics and maturation rules remain preserved.
 
 > Maturation balance update: NEW V2 cask batches use a stable, formulation-derived

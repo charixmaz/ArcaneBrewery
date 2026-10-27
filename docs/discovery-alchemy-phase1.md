@@ -1,3 +1,5 @@
+> Current release: [Phase 2 specialists](phase2-specialists-release.md) supersedes earlier sharing, repeatable naming, contamination and roadmap-only specialist descriptions below.
+
 # Discovery and alchemy expansion — Phase 1
 
 Target: Paper 26.1.2 / Java 25. Fantasy game balance, not chemistry. This phase adds material exploration and reproducible effect profiles; it does **not** implement XP research, specialist machines, levels, or purification.
