@@ -21,6 +21,8 @@ public final class MaterialCatalog {
             data.put(key,new Entry(key,icon,d.displayName(),List.of("Brewing ingredient; wash in a water cauldron.",
                 "Essence Extractor: use actual quantities in either ingredient slot.",
                 d.premium()?"Rare mature-Wheat harvest drop; canonical metadata identifies it.":"Obtain the actual material; renaming another item does not count.",
+                me.arcanebrewery.arcaneBrewery.application.alchemy.IngredientAffinities.hint(d.id()),
+                "Ratios blend base properties even when a catalyst selects the effect.",
                 "Exact formulations and results require experimentation.")));
         }
         for(var d:ReagentRegistry.all()) {

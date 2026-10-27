@@ -30,3 +30,5 @@ Current closed-beta controls and migration: [Brewing gameplay V2](docs/brewing-g
 Material exploration and typed effects: [Discovery and alchemy Phase 1](docs/discovery-alchemy-phase1.md).
 
 Phase 2 release, exact research/build costs, specialist caps and deployment: [Personal research and specialists](docs/phase2-specialists-release.md).
+
+New-batch ingredient influence, reproducible ratios and compatibility: [Ingredient relevance](docs/ingredient-relevance.md).

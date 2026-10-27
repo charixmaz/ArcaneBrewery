@@ -65,8 +65,34 @@ class EffectProfileMetadataTest {
         var legacy=new DistilleryStateCodec().encodeBase64(state);
         assertEquals(0,DistilleryProcessEnvelope.decode(legacy).effectGeneration());assertEquals(state,DistilleryProcessEnvelope.decode(legacy).state());
         var current=new DistilleryProcessEnvelope(state,1);assertEquals(current,DistilleryProcessEnvelope.decode(current.encode()));
+        var ingredients=new DistilleryProcessEnvelope(state,2);assertEquals(ingredients,DistilleryProcessEnvelope.decode(ingredients.encode()));
         assertEquals(legacy,new DistilleryProcessEnvelope(state,0).encode());
         assertThrows(IllegalArgumentException.class,()->DistilleryProcessEnvelope.decode("effects-v99:"+legacy));
+    }
+    @Test void effectGenerationIsCapturedSeparatelyFromStoredProfileFormat() {
+        var data=new EffectProfileMetadata("arcanebrewery");var meta=TestItems.water().getItemMeta();
+        assertEquals(0,data.generation(meta));
+        data.markGeneration(meta,1);assertEquals(1,data.generation(meta));
+        var saved=meta.clone();data.markNewOperation(meta);assertEquals(2,data.generation(meta));
+        assertEquals(1,data.generation(saved));
+        assertThrows(IllegalArgumentException.class,()->data.markGeneration(meta,3));
+        assertEquals(2,data.generation(meta));
+        meta.getPersistentDataContainer().set(new NamespacedKey("arcanebrewery","batch_effect_generation"),PersistentDataType.STRING,"2");
+        assertThrows(IllegalArgumentException.class,()->data.generation(meta));
+    }
+    @Test void infusionCompletionKeepsCapturedOldAndNewRulesWhileUnmarkedBasesOptIn() {
+        var data=new EffectProfileMetadata("arcanebrewery");
+        for(int captured:List.of(0,1,2)){
+            var input=base();var meta=input.getItemMeta();
+            if(captured>0)data.markGeneration(meta,captured);
+            data.captureInfusion(meta);input.setItemMeta(meta);
+            ItemStack[] slots={input,TestItems.stack(Material.IRON_NUGGET,1),null};
+            var operation=AlchemyMachineInputs.start(slots,"arcanebrewery",0,8000);
+            var output=AlchemyMachineInputs.complete(slots,"arcanebrewery",operation,8000);
+            assertEquals(captured==1?1:2,data.generation(output[0].getItemMeta()));
+            assertNull(output[1]);
+            assertEquals(captured==1?1:2,data.generation(slots[0].getItemMeta()));
+        }
     }
     @Test void displayOnlyIconsCannotSupplyFreeCatalystsOrIngredientModifiers() {
         var icon=TestItems.stack(Material.IRON_NUGGET,1);icon.edit(me.arcanebrewery.arcaneBrewery.adapter.bukkit.discovery.DisplayOnlyItems::mark);

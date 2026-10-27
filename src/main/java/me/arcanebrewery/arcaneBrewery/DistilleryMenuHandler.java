@@ -186,7 +186,7 @@ public final class DistilleryMenuHandler implements Listener, AutoCloseable {
             draft=new DistilleryProcessDraft(draft.ingredientRatios(),draft.ingredientPurity(),legacy?"distillation":"distillation-v2",controls);
             var state=new DistilleryBatchState(DistilleryBatchState.VERSION,UUID.randomUUID(),key(session.core),draft,
                 System.currentTimeMillis(),timing.extractionMillis(),DistilleryBatchState.Status.PROCESSING);
-            session.effectGeneration=legacy?0:1;
+            session.effectGeneration=legacy?0:2;
             commit(session,contents(session.gui),state);
             if(plugin instanceof ArcaneBrewery brewery)brewery.reconcileMaterialInputs(player,new ItemStack[]{session.gui.getItem(4),session.gui.getItem(5)});
             schedule(session);
@@ -240,7 +240,7 @@ public final class DistilleryMenuHandler implements Listener, AutoCloseable {
                 meta.getPersistentDataContainer().set(new NamespacedKey(plugin,"brew_stage"),PersistentDataType.STRING,"REFINED_INDUSTRIAL_ALCOHOL");
             } else {
                 metadata.write(meta,completed,"DISTILLED_BASE");
-                if(session.effectGeneration==1)new me.arcanebrewery.arcaneBrewery.adapter.bukkit.alchemy.EffectProfileMetadata(plugin.getName().toLowerCase(Locale.ROOT)).markNewOperation(meta);
+                if(session.effectGeneration>0)new me.arcanebrewery.arcaneBrewery.adapter.bukkit.alchemy.EffectProfileMetadata(plugin.getName().toLowerCase(Locale.ROOT)).markGeneration(meta,session.effectGeneration);
                 meta.getPersistentDataContainer().set(new NamespacedKey(plugin,"brew_stage"),PersistentDataType.STRING,new LegacyWortBridge().stageFor(completed.draft()));
                 double purity=completed.draft().ingredientPurity().entrySet().stream()
                         .mapToDouble(e -> completed.draft().ingredientRatios().get(e.getKey())*e.getValue()).sum();

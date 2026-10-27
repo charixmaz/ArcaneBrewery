@@ -50,4 +50,13 @@ class MaterialCatalogTest {
         var prepared=me.arcanebrewery.arcaneBrewery.adapter.bukkit.research.PreparedReagents.create(me.arcanebrewery.arcaneBrewery.adapter.bukkit.research.PreparedReagents.Kind.DURATION,m->TestItems.stack(m,1));
         assertEquals(Set.of(new MaterialKey(MaterialKey.Kind.CATALYST,"arcanebrewery:prepared_duration")),catalog.classify(prepared));
     }
+    @Test void ingredientRolesAreExplainedOnlyAfterTheirEntryIsUnlocked(){
+        var key=new MaterialKey(MaterialKey.Kind.INGREDIENT,"minecraft:potato");
+        var known=catalog.project(MaterialKey.Kind.INGREDIENT,Set.of(key));
+        var potato=known.stream().filter(e->e.title().equals("Potato")).findFirst().orElseThrow();
+        assertTrue(potato.lines().toString().contains("mining strength"));
+        assertTrue(potato.lines().toString().contains("Ratios blend"));
+        assertTrue(catalog.project(MaterialKey.Kind.INGREDIENT,Set.of()).stream()
+            .noneMatch(e->e.lines().toString().contains("mining strength")));
+    }
 }

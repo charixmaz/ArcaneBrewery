@@ -193,7 +193,8 @@ public final class AlchemyMachineHandler implements Listener {
         }
         try {
             var captured=contents(session.gui);var baseMeta=captured[0].getItemMeta();
-            new me.arcanebrewery.arcaneBrewery.adapter.bukkit.alchemy.EffectProfileMetadata(namespace).markNewOperation(baseMeta);
+            var effectMetadata=new me.arcanebrewery.arcaneBrewery.adapter.bukkit.alchemy.EffectProfileMetadata(namespace);
+            effectMetadata.captureInfusion(baseMeta);
             captured[0].setItemMeta(baseMeta);
             commit(session, captured, Optional.of(operation));
             if(plugin instanceof ArcaneBrewery brewery)brewery.reconcileMaterialInputs(player,captured);

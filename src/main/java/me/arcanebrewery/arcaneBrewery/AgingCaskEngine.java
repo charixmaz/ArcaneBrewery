@@ -207,7 +207,7 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
                     if(mature) profileQuality=result.assessment()!=null?result.assessment().score():new me.arcanebrewery.arcaneBrewery.domain.quality.ReproducibleQuality().assess(result.process(),
                         new me.arcanebrewery.arcaneBrewery.domain.quality.BatchConditions(lots,alchemyConditions.contamination(meta),alchemyConditions.stability(meta),AgingBalance.wood(CaskStructure.wood(session.core))),state.maturationSeconds()).score();
                     var effectProfile=new me.arcanebrewery.arcaneBrewery.application.alchemy.EffectProfileCalculator().calculate(result.process(),
-                        profileQuality,0,alchemyConditions.stability(meta));
+                        profileQuality,0,alchemyConditions.stability(meta),profiles.generation(meta));
                     var outputMeta=output.getItemMeta();profiles.write(outputMeta,effectProfile);ElixirPresentation.refresh(outputMeta,finalDrinkMetadata);output.setItemMeta(outputMeta);
                 }
                 var outputMeta=(PotionMeta)output.getItemMeta();
