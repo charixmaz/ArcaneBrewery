@@ -1,9 +1,21 @@
 package me.arcanebrewery.arcaneBrewery.application.alchemy;
 /** Capability boundary: future specialists require separate researched/constructed implementations. */
 public enum EffectCapabilities {
-    STARTER_INFUSER;
+    STARTER_INFUSER, DURATION_INFUSER, ESSENCE_CONCENTRATOR;
     public record Cap(int seconds,int amplifier) { }
     public Cap cap(ProfileEffect effect) {
+        if(this==DURATION_INFUSER) return switch(effect){
+            case HASTE,SPEED,JUMP_BOOST,NIGHT_VISION,WATER_BREATHING -> new Cap(600,0);
+            case FIRE_RESISTANCE,SLOW_FALLING -> new Cap(300,0);
+            case INVISIBILITY,ABSORPTION -> new Cap(120,0);
+            case STRENGTH -> new Cap(45,0);case REGENERATION,RESISTANCE,DOLPHINS_GRACE -> new Cap(30,0);
+            default -> STARTER_INFUSER.cap(effect);
+        };
+        if(this==ESSENCE_CONCENTRATOR) return switch(effect){
+            case HASTE,SPEED,JUMP_BOOST -> new Cap(90,2);
+            case STRENGTH -> new Cap(30,1);
+            default -> STARTER_INFUSER.cap(effect);
+        };
         return switch(effect) {
             case HASTE,SPEED,JUMP_BOOST -> new Cap(60,1);
             case STRENGTH -> new Cap(30,0);
