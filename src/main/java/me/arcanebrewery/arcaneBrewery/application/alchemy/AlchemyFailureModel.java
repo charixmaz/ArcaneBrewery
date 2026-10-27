@@ -18,8 +18,10 @@ public final class AlchemyFailureModel {
         Objects.requireNonNull(preparation);
         Objects.requireNonNull(condition);
 
-        double load = preparation.additives().values().stream().mapToDouble(Double::doubleValue).sum();
-        long diversity = preparation.additives().size();
+        double load=preparation.additives().entrySet().stream().mapToDouble(e->e.getValue()*ReagentRegistry.additive(e.getKey()).map(d->switch(d.role()) {
+            case EFFECT_CATALYST -> 1.0;case DURATION_REAGENT,POTENCY_REAGENT -> .25;case STABILIZER,FUTURE_PURIFICATION -> 0.0;
+        }).orElse(1.0)).sum();
+        long diversity=preparation.additives().keySet().stream().filter(id->ReagentRegistry.additive(id).map(d->d.role()==ReagentRole.EFFECT_CATALYST).orElse(true)).count();
 
         double instability = clamp(
                 load * balance.loadWeight()
@@ -28,6 +30,8 @@ public final class AlchemyFailureModel {
                 + condition.contamination() * balance.contaminationWeight()
         );
 
+        double stabilizers=preparation.additives().entrySet().stream().mapToDouble(e->ReagentRegistry.additive(e.getKey()).map(d->e.getValue()*d.stabilization()).orElse(0.0)).sum();
+        instability=clamp(instability-stabilizers);
         if (instability < balance.unstableThreshold()) {
             return new AlchemyFailureAssessment(instability,
                     AlchemyFailureOutcome.STABLE_SUCCESS,

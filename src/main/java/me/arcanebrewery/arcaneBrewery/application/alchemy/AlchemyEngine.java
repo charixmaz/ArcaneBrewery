@@ -58,16 +58,11 @@ public final class AlchemyEngine {
     }
 
     private AlchemyEffect effectFor(ProcessProfile process, String dominant, double affinity) {
-        for (String additive : process.alchemicalAdditives().keySet()) {
-            String id = additive.toLowerCase(Locale.ROOT);
-            if (id.contains("invisibility")) return AlchemyEffect.INVISIBILITY;
-            if (id.contains("fire")) return AlchemyEffect.FIRE_RESISTANCE;
-            if (id.contains("regen") || id.contains("healing")) return AlchemyEffect.REGENERATION;
-            if (id.contains("vision")) return AlchemyEffect.NIGHT_VISION;
-            if (id.contains("levitation")) return AlchemyEffect.LEVITATION;
-            if (id.contains("teleport")) return AlchemyEffect.TELEPORTATION;
-            if (id.contains("curse")) return AlchemyEffect.CURSE;
-            if (id.contains("wither")) return AlchemyEffect.WITHER;
+        var selected=process.alchemicalAdditives().keySet().stream().map(ReagentRegistry::additive).flatMap(java.util.Optional::stream)
+                .filter(d->!d.effects().isEmpty()).max(java.util.Comparator.comparingInt(ReagentDefinition::priority));
+        if(selected.isPresent()) {
+            try {return AlchemyEffect.valueOf(selected.get().effects().getFirst().name());}
+            catch(IllegalArgumentException newFamily) {return AlchemyEffect.NONE;}
         }
 
         return switch (dominant) {
