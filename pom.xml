@@ -28,6 +28,8 @@
                 <version>3.13.0</version>
                 <configuration>
                     <release>${java.version}</release>
+                    <!-- Isolate main/test javac state; in-process Java 25 compilation crashes in testCompile. -->
+                    <fork>true</fork>
                 </configuration>
             </plugin>
             <plugin>
