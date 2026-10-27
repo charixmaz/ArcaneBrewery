@@ -37,6 +37,11 @@ public final class ArcaneBrewery extends JavaPlugin {
     private DistilleryMenuHandler extractors;
     private AgingCaskEngine casks;
     private MethanolProducerEngine cleansers;
+    private me.arcanebrewery.arcaneBrewery.adapter.bukkit.discovery.MaterialDiscoveryListener materialDiscoveries;
+    private ExecutorService materialWorker;
+    public void reconcileMaterialInputs(org.bukkit.entity.Player player,org.bukkit.inventory.ItemStack[] inputs) {
+        if(materialDiscoveries!=null)materialDiscoveries.reconcileOwnedInputs(player,inputs);
+    }
     public BukkitMachineAccess machineAccess() { return java.util.Objects.requireNonNull(machineAccess); }
 
     /** Integration entry point only: no market commands or inventory adapter yet.
@@ -159,10 +164,15 @@ public final class ArcaneBrewery extends JavaPlugin {
                 () -> marketSettings.playerSalesEnabled() && economy != null && economy.isAvailable());
         getServer().getPluginManager().registerEvents(marketPlayer, this);
 
+        materialWorker=new ThreadPoolExecutor(1,1,0,TimeUnit.MILLISECONDS,new ArrayBlockingQueue<>(256),task->{var thread=new Thread(task,"ArcaneBrewery-materials");thread.setDaemon(true);return thread;});
+        materialDiscoveries=new me.arcanebrewery.arcaneBrewery.adapter.bukkit.discovery.MaterialDiscoveryListener(this,
+            new me.arcanebrewery.arcaneBrewery.adapter.bukkit.discovery.MaterialCatalog(ingredientItems),
+            new MaterialDiscoveryRuntime(storage.materials(),materialWorker));
+        getServer().getPluginManager().registerEvents(materialDiscoveries,this);
         var brew = java.util.Objects.requireNonNull(getCommand("brew"), "brew command missing from plugin.yml");
         var guide = new me.arcanebrewery.arcaneBrewery.guide.BrewingGuide(this,
                 new me.arcanebrewery.arcaneBrewery.guide.GuideCatalog(ingredientItems.registry(), timing,
-                        getConfig().getDouble("alchemy.processing-seconds", 8.0)), discoveryQueries);
+                        getConfig().getDouble("alchemy.processing-seconds", 8.0)), discoveryQueries,materialDiscoveries);
         getServer().getPluginManager().registerEvents(guide, this);
         var discoveryCommand = new DiscoveryCommand(
                 this, discoveryQueries, discoveryMutations, consumption, marketPlayer, guide);
@@ -181,6 +191,8 @@ public final class ArcaneBrewery extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if(materialDiscoveries!=null){materialDiscoveries.close();materialDiscoveries=null;}
+        if(materialWorker!=null){materialWorker.shutdown();try{if(!materialWorker.awaitTermination(5,TimeUnit.SECONDS))materialWorker.shutdownNow();}catch(InterruptedException e){Thread.currentThread().interrupt();materialWorker.shutdownNow();}materialWorker=null;}
         if (extractors!=null) { extractors.close(); extractors=null; }
         if (casks!=null) { casks.close(); casks=null; }
         if (cleansers!=null) { cleansers.close(); cleansers=null; }

@@ -24,13 +24,20 @@ public final class ElixirPresentation {
         boolean unfinished=data.unfinished(meta)||name.equals(MessageConfig.text("names.unfinished"));
         String state=unfinished?"§eUnfinished":elixir.quality()==0?"§cRuined":"§aFinished";
         lore.add("§7Quality §f"+Math.round(elixir.quality())+"/100 §8· "+state+"§r");
-        data.readAlchemy(meta).filter(a->a.effect()!=me.arcanebrewery.arcaneBrewery.application.alchemy.AlchemyEffect.NONE)
+        var effects=data.readEffects(meta);
+        if(effects.isPresent()) {
+            String brief=effects.get().effects().stream().filter(e->!e.sideEffect()).map(e->PlayerConditionPolicy.readable(e.effect().name())+" "+(e.amplifier()+1)+" · "+e.seconds()+"s").collect(java.util.stream.Collectors.joining(" + "));
+            if(!brief.isEmpty())lore.add("§7Effects §d"+brief+"§r");
+            String drawbacks=effects.get().effects().stream().filter(e->e.sideEffect()).map(e->PlayerConditionPolicy.readable(e.effect().name())).collect(java.util.stream.Collectors.joining(", "));
+            if(!drawbacks.isEmpty())lore.add("§eSide effect: "+drawbacks+"§r");
+            if(effects.get().safety()==me.arcanebrewery.arcaneBrewery.application.alchemy.EffectProfile.Safety.DANGEROUS)lore.add("§cDangerous reaction — inspect before use.§r");
+        } else data.readAlchemy(meta).filter(a->a.effect()!=me.arcanebrewery.arcaneBrewery.application.alchemy.AlchemyEffect.NONE)
             .ifPresent(a->lore.add("§7Effect §d"+PlayerConditionPolicy.readable(a.effect().name())+"§r"));
-        lore.add("§7Load §b"+Math.round(elixir.strength())+" §8· §7Contamination §f"+Math.round(elixir.contamination())+"§r");
-        data.harvestSeconds(meta).ifPresent(h->lore.add("§7Harvested at §f"+h+"s§r"));
+        if(effects.isEmpty()) lore.add("§7Load §b"+Math.round(elixir.strength())+" §8· §7Contamination §f"+Math.round(elixir.contamination())+"§r");
+        if(effects.isEmpty()) data.harvestSeconds(meta).ifPresent(h->lore.add("§7Harvested at §f"+h+"s§r"));
         if(data.prematurePoison(meta)) lore.add("§cPoisonous if consumed.§r");
         else if(unfinished) lore.add("§eWithdrawn early; no discovery.§r");
-        if(!unfinished) data.readValue(meta).ifPresent(v->lore.add("§7Value §6"+Math.round(v.units())+" units§r"));
+        if(!unfinished && effects.isEmpty()) data.readValue(meta).ifPresent(v->lore.add("§7Value §6"+Math.round(v.units())+" units§r"));
         lore.add("§8/brew inspect — full details§r");
         meta.setLore(lore);
         meta.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);

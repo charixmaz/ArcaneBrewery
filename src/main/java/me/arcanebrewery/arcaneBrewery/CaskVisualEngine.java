@@ -57,6 +57,6 @@ public final class CaskVisualEngine {
         }
     }
     private static void pane(Inventory inv,int slot,Material material,String name,List<String> lore) {
-        var item=new ItemStack(material); var meta=item.getItemMeta(); meta.setDisplayName("§b§l"+name+"§r"); meta.setLore(lore); me.arcanebrewery.arcaneBrewery.adapter.bukkit.PresentationStyle.apply(meta); item.setItemMeta(meta); inv.setItem(slot,item);
+        var item=new ItemStack(material); var meta=item.getItemMeta(); me.arcanebrewery.arcaneBrewery.adapter.bukkit.discovery.DisplayOnlyItems.mark(meta); meta.setDisplayName("§b§l"+name+"§r"); meta.setLore(lore); me.arcanebrewery.arcaneBrewery.adapter.bukkit.PresentationStyle.apply(meta); item.setItemMeta(meta); inv.setItem(slot,item);
     }
 }

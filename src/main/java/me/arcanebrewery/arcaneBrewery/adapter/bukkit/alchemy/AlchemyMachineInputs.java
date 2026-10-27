@@ -16,6 +16,7 @@ public final class AlchemyMachineInputs {
         for (int slot : new int[]{1, 2}) {
             var item = inputs[slot];
             if (AlchemyMachineItems.empty(item)) continue;
+            if(me.arcanebrewery.arcaneBrewery.adapter.bukkit.discovery.DisplayOnlyItems.test(item))throw new IllegalArgumentException("Display-only icons are not reagents");
             if (item.getAmount() > item.getMaxStackSize()) throw new IllegalArgumentException("invalid catalyst quantity");
             result.add(BuiltInAlchemyCatalysts.resolveExternal(item.getType().getKey().toString())
                     .orElseThrow(() -> new IllegalArgumentException("unsupported catalyst")));
@@ -27,8 +28,9 @@ public final class AlchemyMachineInputs {
         if (new AlchemyPreparationMetadata(namespace).read(inputs[0].getItemMeta()).isPresent())
             throw new IllegalArgumentException("base is already infused");
         var service = new AlchemyMachineService();
-        return new AlchemyMachineOperation(service.start(now, duration, UUID.randomUUID()), source.batchId(),
-                service.combine(catalysts(inputs)));
+        var preparation=service.combine(catalysts(inputs));
+        ReagentRegistry.validateCombination(preparation.additives());
+        return new AlchemyMachineOperation(service.start(now,duration,UUID.randomUUID()),source.batchId(),preparation);
     }
     public static void validateLocked(ItemStack[] inputs, String namespace, AlchemyMachineOperation operation) {
         if (!source(inputs, namespace).batchId().equals(operation.sourceBatch()))

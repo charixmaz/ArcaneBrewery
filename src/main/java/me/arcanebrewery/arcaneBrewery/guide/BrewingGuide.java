@@ -20,6 +20,8 @@ public final class BrewingGuide implements Listener {
     private final Plugin plugin;
     private final GuideCatalog catalog;
     private final DiscoveryQueryRuntime queries;
+    private final me.arcanebrewery.arcaneBrewery.adapter.bukkit.discovery.MaterialDiscoveryListener materials;
+    private final me.arcanebrewery.arcaneBrewery.adapter.bukkit.discovery.MaterialCatalog materialCatalog;
     private final DiscoveryTextFormatter formatter = new DiscoveryTextFormatter();
     static final class View implements me.arcanebrewery.arcaneBrewery.adapter.bukkit.machine.MachineAutomationHolder {
         Inventory inventory;
@@ -29,6 +31,12 @@ public final class BrewingGuide implements Listener {
         @Override public Inventory getInventory() { return inventory; }
     }
     public BrewingGuide(Plugin plugin, GuideCatalog catalog, DiscoveryQueryRuntime queries) {
+        this(plugin,catalog,queries,null);
+    }
+    public BrewingGuide(Plugin plugin,GuideCatalog catalog,DiscoveryQueryRuntime queries,me.arcanebrewery.arcaneBrewery.adapter.bukkit.discovery.MaterialDiscoveryListener materials) {
+        this.materials=materials;
+        this.materialCatalog=materials!=null?materials.catalog():new me.arcanebrewery.arcaneBrewery.adapter.bukkit.discovery.MaterialCatalog(
+            new me.arcanebrewery.arcaneBrewery.adapter.bukkit.ingredient.IngredientItemAdapter(catalog.ingredientRegistry(),new me.arcanebrewery.arcaneBrewery.adapter.bukkit.ingredient.IngredientMetadataCodec("arcanebrewery")));
         this.plugin = Objects.requireNonNull(plugin);
         this.catalog = Objects.requireNonNull(catalog);
         this.queries = Objects.requireNonNull(queries);
@@ -64,7 +72,8 @@ public final class BrewingGuide implements Listener {
             List<String> effects=new ArrayList<>(List.of("Arcane load: "+Math.round(q.strength())+"/100",
                 "Higher load increases temporary saturation.","Magical potency: "+Math.round(q.magicalPotency())+"/100",
                 "Contamination: "+Math.round(q.contamination())+"/100"));
-            data.readAlchemy(meta).ifPresent(a->{ effects.add("Effect: "+me.arcanebrewery.arcaneBrewery.application.consumption.PlayerConditionPolicy.readable(a.effect().name()));
+            data.readEffects(meta).ifPresent(p->effects.addAll(p.summary()));
+            if(data.readEffects(meta).isEmpty()) data.readAlchemy(meta).ifPresent(a->{ effects.add("Effect: "+me.arcanebrewery.arcaneBrewery.application.consumption.PlayerConditionPolicy.readable(a.effect().name()));
                 effects.add("Instability: "+Math.round(a.instability())+"/100"); });
             if(!data.unfinished(meta)) data.readValue(meta).ifPresent(v->effects.add("Calculated value: "+Math.round(v.units())+" units"));
             entries.add(new GuideCatalog.Entry(Material.AMETHYST_SHARD,"Effects & Safety",effects));
@@ -77,13 +86,14 @@ public final class BrewingGuide implements Listener {
         button(view, 10, Material.CRAFTING_TABLE, "Machines & Structures", List.of("Build, operate and maintain your equipment."),
                 p -> entries(p, "Machines", catalog.machines(), 0));
         button(view, 12, Material.WHEAT, "Ingredients", List.of("Registry entries and actual washing availability."),
-                p -> entries(p, "Ingredients", catalog.ingredients(), 0));
-        button(view, 14, Material.AMETHYST_SHARD, "Catalysts", List.of("Supported items and magical affinities."),
-                p -> entries(p, "Catalysts", catalog.catalysts(), 0));
+                p -> materials(p,me.arcanebrewery.arcaneBrewery.application.discovery.MaterialKey.Kind.INGREDIENT));
+        button(view, 14, Material.KNOWLEDGE_BOOK, "Catalysts / Reagents", List.of("Supported items and magical affinities."),
+                p -> materials(p,me.arcanebrewery.arcaneBrewery.application.discovery.MaterialKey.Kind.CATALYST));
         button(view, 16, Material.BOOK, "Starter Walkthroughs", List.of("Public instructions; not predefined discoveries."),
                 p -> entries(p, "Starter Walkthroughs", catalog.starters(), 0));
-        button(view, 28, Material.WRITABLE_BOOK, "My Discoveries", List.of("Your recipes, with permitted process details."),
+        button(view, 28, Material.WRITABLE_BOOK, "Independent Recipes", List.of("Your independently discovered formulations."),
                 p -> discoveries(p, false, 0));
+        button(view,29,Material.WRITABLE_BOOK,"Learned Recipes",List.of("Shared instructions remain learned, including after reproduction."),p->discoveries(p,false,true,0));
         button(view, 30, Material.ENCHANTED_BOOK, "Public Discoveries", List.of("Public names; exact details still require access."),
                 p -> discoveries(p, true, 0));
         button(view, 32, Material.KNOWLEDGE_BOOK, "Brewing Knowledge", List.of("Names, discovery, quality and magical conditions."),
@@ -92,8 +102,19 @@ public final class BrewingGuide implements Listener {
                 "Only knowledge granted to you will be shown.", "A shared recipe list is not available yet."),
                 p -> p.sendMessage(MessageConfig.prefix() + "§f/brew guide recipe <full fingerprint>§r"));
         button(view, 40, Material.CHEST, "Legacy Compatibility Profiles", List.of("Older predefined profiles; not current starter recipes."),
-                p -> entries(p, "Legacy Profiles", catalog.legacyProfiles(), 0));
+                p -> entries(p,"Legacy Compatibility",List.of(new GuideCatalog.Entry(Material.CHEST,"Historical Bottles",List.of("The 30 legacy profiles remain compatible.","Hold an old bottle and use /brew inspect.","This page does not reveal locked materials or private recipes."))),0));
         player.openInventory(view.inventory);
+    }
+    private void materials(Player player,me.arcanebrewery.arcaneBrewery.application.discovery.MaterialKey.Kind kind) {
+        View loading=create(player,"Material Knowledge");loading.inventory.setItem(22,item(Material.CLOCK,"Checking possession…",List.of()));player.openInventory(loading.inventory);
+        var future=materials==null?java.util.concurrent.CompletableFuture.completedFuture(java.util.Set.<me.arcanebrewery.arcaneBrewery.application.discovery.MaterialKey>of()):materials.reconcile(player);
+        future.whenComplete((known,failure)->onMain(()->{
+            if(!current(player,loading))return;
+            if(failure!=null){loading.inventory.setItem(22,item(Material.BARRIER,"Knowledge unavailable",List.of("Your progress was retained. Reopen to retry.")));return;}
+            var projected=materialCatalog.project(kind,known);
+            long unlocked=materialCatalog.entries().keySet().stream().filter(k->k.kind()==kind&&known.contains(k)).count();
+            entries(player,(kind==me.arcanebrewery.arcaneBrewery.application.discovery.MaterialKey.Kind.INGREDIENT?"Ingredients":"Catalysts/Reagents")+" "+unlocked+"/"+projected.size(),projected,0);
+        }));
     }
     private void entries(Player player, String title, List<GuideCatalog.Entry> entries, int page) {
         int maximum = Math.max(0, (entries.size() - 1) / PAGE_SIZE);
@@ -122,15 +143,16 @@ public final class BrewingGuide implements Listener {
         button(view, 45, Material.ARROW, "Back", List.of(), p -> back.run());
         player.openInventory(view.inventory);
     }
-    private void discoveries(Player player, boolean publicList, int page) {
+    private void discoveries(Player player,boolean publicList,int page){discoveries(player,publicList,false,page);}
+    private void discoveries(Player player, boolean publicList, boolean learned, int page) {
         if (page < 0 || page > (Integer.MAX_VALUE - PAGE_SIZE - 1) / PAGE_SIZE) return;
         int offset = page * PAGE_SIZE;
-        View view = create(player, (publicList ? "Public Recipes" : "My Discoveries") + " — " + (page + 1));
+        View view = create(player, (publicList ? "Public Recipes" : learned?"Learned Recipes":"Independent Recipes") + " — " + (page + 1));
         view.inventory.setItem(22, item(Material.CLOCK, "Loading…", List.of("Fetching permitted discovery information.")));
         player.openInventory(view.inventory);
         // One extra result determines whether Next exists; no hard 200-discovery list ceiling.
         var future = publicList ? queries.publicDiscoveries(PAGE_SIZE + 1, offset)
-                : queries.owned(player.getUniqueId(), PAGE_SIZE + 1, offset).thenApply(items -> items.stream()
+                : queries.recipes(player.getUniqueId(), learned, PAGE_SIZE + 1, offset).thenApply(items -> items.stream()
                     .map(d -> new RecipeListItem(d.displayName().value(), d.fingerprint())).toList());
         future.whenComplete((items, failure) -> onMain(() -> {
             if (!current(player, view)) return;
@@ -147,10 +169,10 @@ public final class BrewingGuide implements Listener {
                 var recipe = items.get(i);
                 button(view, i, Material.POTION, recipe.name(), List.of("ID: " + recipe.fingerprint().value().substring(0, 12),
                         "Click to inspect your current knowledge.", "Rename your record: /brew rename <shown id> <name>.", "Or hold your own bottle: /brew rename held <name>."),
-                        p -> recipe(p, recipe.fingerprint(), () -> discoveries(p, publicList, page)));
+                        p -> recipe(p, recipe.fingerprint(), () -> discoveries(p, publicList, learned, page)));
             }
-            if (page > 0) button(view, 45, Material.ARROW, "Previous", List.of(), p -> discoveries(p, publicList, page - 1));
-            if (items.size() > PAGE_SIZE) button(view, 53, Material.ARROW, "Next", List.of(), p -> discoveries(p, publicList, page + 1));
+            if (page > 0) button(view, 45, Material.ARROW, "Previous", List.of(), p -> discoveries(p, publicList, learned, page - 1));
+            if (items.size() > PAGE_SIZE) button(view, 53, Material.ARROW, "Next", List.of(), p -> discoveries(p, publicList, learned, page + 1));
         }));
     }
     public void recipe(Player player, String value) {
@@ -197,6 +219,7 @@ public final class BrewingGuide implements Listener {
     private ItemStack item(Material icon, String title, List<String> lore) {
         ItemStack item = new ItemStack(icon);
         var meta = Objects.requireNonNull(item.getItemMeta());
+        me.arcanebrewery.arcaneBrewery.adapter.bukkit.discovery.DisplayOnlyItems.mark(meta);
         meta.setDisplayName("§d§l" + title + "§r");
         meta.setLore(wrap(lore).stream().map(line -> "§7" + line + "§r").toList());
         meta.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP, ItemFlag.HIDE_ATTRIBUTES);

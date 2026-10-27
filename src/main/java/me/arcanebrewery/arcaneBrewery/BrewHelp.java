@@ -10,6 +10,7 @@ public final class BrewHelp {
         return switch (topic.toLowerCase(Locale.ROOT)) {
             case "getting-started" -> List.of(
                     "§5§lGetting Started§r",
+                    "§7Obtain supported ingredients and reagents to unlock their Codex entries; material knowledge is not recipe discovery.§r",
                     "§7Wash supported held ingredients by right-clicking a water cauldron.§r",
                     "§7Essence Extractor → Cultivation Barrel → optional Arcane Infuser → Maturation Cask.§r",
 

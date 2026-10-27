@@ -15,7 +15,10 @@ public final class MachineIngredientExtractor {
     }
     public ExtractedIngredients extract(ItemStack[] contents) {
         var inputs = new ArrayList<IngredientInput>();
-        for (var item : contents) inputs.add(items.classify(item));
+        for (var item : contents) {
+            if(me.arcanebrewery.arcaneBrewery.adapter.bukkit.discovery.DisplayOnlyItems.test(item))throw new IllegalArgumentException("Display-only icons are not ingredients");
+            inputs.add(items.classify(item));
+        }
         return extractor.extract(inputs);
     }
     public ExtractedIngredients extract(Inventory inventory, int... slots) {

@@ -1,3 +1,5 @@
+> Material exploration and new-infusion effect rules are now specified in [Discovery and alchemy Phase 1](discovery-alchemy-phase1.md). Existing bottle statistics and maturation rules remain preserved.
+
 > Maturation balance update: NEW V2 cask batches use a stable, formulation-derived
 > pseudo-random target from 120–300 seconds, captured on insertion. The perfect
 > window is target through target+15 seconds. Existing active batches retain their

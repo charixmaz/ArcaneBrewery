@@ -37,6 +37,7 @@ public final class ConsumptionListener implements Listener {
 
         java.util.Optional<DrinkConsumptionProfile> profile;
         java.util.Optional<AlchemyResult> reaction;
+        java.util.Optional<EffectProfile> effects;
         try {
             String legacyStage=meta.getPersistentDataContainer().get(new org.bukkit.NamespacedKey(plugin,"brew_stage"),org.bukkit.persistence.PersistentDataType.STRING);
             if ("INDUSTRIAL_METHANOL".equals(legacyStage)) {
@@ -48,6 +49,7 @@ public final class ConsumptionListener implements Listener {
                 return;
             }
             reaction=drinks.readAlchemy(meta);
+            effects=drinks.readEffects(meta);
             int format=meta.getPersistentDataContainer().getOrDefault(new org.bukkit.NamespacedKey(plugin,"drink_format"),org.bukkit.persistence.PersistentDataType.INTEGER,0);
             if (format>=3 && reaction.isEmpty()) throw new IllegalArgumentException("incomplete alchemy metadata");
         } catch (RuntimeException corrupt) {
@@ -59,8 +61,19 @@ public final class ConsumptionListener implements Listener {
         long now = System.currentTimeMillis();
         RecoveryCondition next = policy.consume(read(player), profile.get(), now);
         write(player, next);
-        applyStatus(player, next, true);
-        if(drinks.prematurePoison(meta)) {
+        if(effects.isEmpty()) applyStatus(player, next, true);
+        if(effects.isPresent()) {
+            var pending=new java.util.ArrayList<PotionEffect>();
+            applyStatus(player,next,true,pending::add);
+            if(drinks.prematurePoison(meta)) {
+                pending.add(new PotionEffect(PotionEffectType.POISON,10*20,0,false,true,true));
+                player.sendMessage(MessageConfig.prefix()+"§cThis prematurely withdrawn batch is poisonous.§r");
+            } else {
+                me.arcanebrewery.arcaneBrewery.adapter.bukkit.consumption.EffectProfileExecution.apply(player,effects.get(),()->safeForwardTeleport(player),pending::add);
+                if(effects.get().safety()==EffectProfile.Safety.DANGEROUS)player.sendMessage(MessageConfig.prefix()+"§cThis is a dangerous reaction; inspect its recorded profile.§r");
+            }
+            me.arcanebrewery.arcaneBrewery.adapter.bukkit.consumption.EffectProfileExecution.coalesce(pending).forEach(player::addPotionEffect);
+        } else if(drinks.prematurePoison(meta)) {
             player.addPotionEffect(new PotionEffect(PotionEffectType.POISON,10*20,0,false,true,true));
             player.sendMessage(MessageConfig.prefix()+"§cThis prematurely withdrawn batch is poisonous.§r");
         } else reaction.ifPresent(alchemy -> applyAlchemy(player, alchemy));
@@ -154,18 +167,19 @@ public final class ConsumptionListener implements Listener {
         if (policy.legacyEnabled()) players.write(player,condition); else players.writeFantasy(player,condition);
     }
 
-    private void applyStatus(Player player, RecoveryCondition condition, boolean announce) {
+    private void applyStatus(Player player, RecoveryCondition condition, boolean announce) {applyStatus(player,condition,announce,player::addPotionEffect);}
+    private void applyStatus(Player player,RecoveryCondition condition,boolean announce,java.util.function.Consumer<PotionEffect> sink) {
         if (!policy.legacyEnabled()) {
             // Never remove effects: the same types may belong to another plugin
             // or to a legitimate elixir reaction. Our short symptoms expire.
             if (condition.state().intoxication() >= 70) {
-                player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 8 * 20, 0,false,false,true));
-                player.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, 8 * 20, 0,false,false,true));
+                sink.accept(new PotionEffect(PotionEffectType.SLOWNESS, 8 * 20, 0,false,false,true));
+                sink.accept(new PotionEffect(PotionEffectType.WEAKNESS, 8 * 20, 0,false,false,true));
             } else if (condition.hangover() >= 25) {
-                player.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, 8 * 20, 0,false,false,true));
+                sink.accept(new PotionEffect(PotionEffectType.WEAKNESS, 8 * 20, 0,false,false,true));
             }
             if (condition.state().poisoning() >= 35)
-                player.addPotionEffect(new PotionEffect(PotionEffectType.POISON, 6 * 20, 0,false,false,true));
+                sink.accept(new PotionEffect(PotionEffectType.POISON, 6 * 20, 0,false,false,true));
             return;
         }
         RecoveryLifecycle.Status status = new RecoveryLifecycle().status(condition);
@@ -173,33 +187,33 @@ public final class ConsumptionListener implements Listener {
 
         switch (status) {
             case CLEAR -> { }
-            case BUZZED -> player.addPotionEffect(new PotionEffect(PotionEffectType.NAUSEA, 6 * 20, 0, false, false, true));
+            case BUZZED -> sink.accept(new PotionEffect(PotionEffectType.NAUSEA, 6 * 20, 0, false, false, true));
             case DRUNK -> {
-                player.addPotionEffect(new PotionEffect(PotionEffectType.NAUSEA, shortDuration, 0, false, false, true));
-                player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, shortDuration, 0, false, false, true));
+                sink.accept(new PotionEffect(PotionEffectType.NAUSEA, shortDuration, 0, false, false, true));
+                sink.accept(new PotionEffect(PotionEffectType.SLOWNESS, shortDuration, 0, false, false, true));
             }
             case HANGOVER -> {
-                player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, shortDuration, 0, false, false, true));
-                player.addPotionEffect(new PotionEffect(PotionEffectType.MINING_FATIGUE, shortDuration, 0, false, false, true));
+                sink.accept(new PotionEffect(PotionEffectType.SLOWNESS, shortDuration, 0, false, false, true));
+                sink.accept(new PotionEffect(PotionEffectType.MINING_FATIGUE, shortDuration, 0, false, false, true));
             }
             case SEVERE_HANGOVER -> {
-                player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, shortDuration, 1, false, false, true));
-                player.addPotionEffect(new PotionEffect(PotionEffectType.MINING_FATIGUE, shortDuration, 1, false, false, true));
-                player.addPotionEffect(new PotionEffect(PotionEffectType.NAUSEA, shortDuration, 0, false, false, true));
+                sink.accept(new PotionEffect(PotionEffectType.SLOWNESS, shortDuration, 1, false, false, true));
+                sink.accept(new PotionEffect(PotionEffectType.MINING_FATIGUE, shortDuration, 1, false, false, true));
+                sink.accept(new PotionEffect(PotionEffectType.NAUSEA, shortDuration, 0, false, false, true));
             }
             case WITHDRAWAL -> {
-                player.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, shortDuration, 0, false, false, true));
-                player.addPotionEffect(new PotionEffect(PotionEffectType.NAUSEA, 6 * 20, 0, false, false, true));
+                sink.accept(new PotionEffect(PotionEffectType.WEAKNESS, shortDuration, 0, false, false, true));
+                sink.accept(new PotionEffect(PotionEffectType.NAUSEA, 6 * 20, 0, false, false, true));
             }
             case SEVERE_WITHDRAWAL -> {
-                player.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, shortDuration, 1, false, false, true));
-                player.addPotionEffect(new PotionEffect(PotionEffectType.NAUSEA, shortDuration, 1, false, false, true));
-                player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, shortDuration, 0, false, false, true));
+                sink.accept(new PotionEffect(PotionEffectType.WEAKNESS, shortDuration, 1, false, false, true));
+                sink.accept(new PotionEffect(PotionEffectType.NAUSEA, shortDuration, 1, false, false, true));
+                sink.accept(new PotionEffect(PotionEffectType.SLOWNESS, shortDuration, 0, false, false, true));
             }
         }
 
         if (condition.state().poisoning() >= 35) {
-            player.addPotionEffect(new PotionEffect(PotionEffectType.POISON, 6 * 20, 0, false, false, true));
+            sink.accept(new PotionEffect(PotionEffectType.POISON, 6 * 20, 0, false, false, true));
         }
 
         if (!announce) return;

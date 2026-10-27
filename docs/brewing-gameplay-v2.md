@@ -1,3 +1,5 @@
+> Material exploration and new-infusion effect rules are now specified in [Discovery and alchemy Phase 1](discovery-alchemy-phase1.md). Existing bottle statistics and maturation rules remain preserved.
+
 > Exploration presentation: ideal maturation times are now hidden from cask
 > lanes, bottle lore, inspection, quality explanations and Codex walkthroughs,
 > including old stored breakdown hints. Casks show elapsed time and a neutral AGING

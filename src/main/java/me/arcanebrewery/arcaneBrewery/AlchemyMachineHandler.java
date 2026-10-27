@@ -185,7 +185,11 @@ public final class AlchemyMachineHandler implements Listener {
             return;
         }
         try {
-            commit(session, contents(session.gui), Optional.of(operation));
+            var captured=contents(session.gui);var baseMeta=captured[0].getItemMeta();
+            new me.arcanebrewery.arcaneBrewery.adapter.bukkit.alchemy.EffectProfileMetadata(namespace).markNewOperation(baseMeta);
+            captured[0].setItemMeta(baseMeta);
+            commit(session, captured, Optional.of(operation));
+            if(plugin instanceof ArcaneBrewery brewery)brewery.reconcileMaterialInputs(player,captured);
             schedule(session);
             var assessment = machineService.assess(
                     AlchemyMachineInputs.catalysts(contents(session.gui)), session.snapshot.condition());
@@ -350,6 +354,7 @@ public final class AlchemyMachineHandler implements Listener {
                     : Material.PURPLE_STAINED_GLASS_PANE);
             ItemMeta meta = item.getItemMeta();
             if (meta != null) {
+                me.arcanebrewery.arcaneBrewery.adapter.bukkit.discovery.DisplayOnlyItems.mark(meta);
                 String label=switch(slot) {
                     case 0 -> "Base → Slot 3";
                     case 1 -> "Catalyst I → Slot 5";

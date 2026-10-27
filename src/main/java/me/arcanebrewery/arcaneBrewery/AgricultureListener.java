@@ -23,7 +23,7 @@ public class AgricultureListener implements Listener {
         this.ingredients = java.util.Objects.requireNonNull(ingredients);
     }
 
-    @EventHandler
+    @EventHandler(ignoreCancelled=true)
     public void onCropHarvest(BlockBreakEvent event) {
         if (event.getBlock().getType() != Material.WHEAT) return;
 

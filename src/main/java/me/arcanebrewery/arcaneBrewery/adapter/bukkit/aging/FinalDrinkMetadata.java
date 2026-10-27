@@ -54,6 +54,7 @@ public final class FinalDrinkMetadata {
         data.set(key("drink_stage"), PersistentDataType.STRING, "FINISHED");
     }
 
+    public Optional<EffectProfile> readEffects(ItemMeta meta) {return new me.arcanebrewery.arcaneBrewery.adapter.bukkit.alchemy.EffectProfileMetadata(namespace).read(meta);}
     public void maturation(ItemMeta meta,boolean mature,boolean poisonous,long target,long elapsed) {
         var data=meta.getPersistentDataContainer();
         data.set(key("drink_stage"),PersistentDataType.STRING,mature?"FINISHED":"UNFINISHED");

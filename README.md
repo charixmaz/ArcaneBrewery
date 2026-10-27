@@ -26,3 +26,5 @@ See [fantasy defaults, ownership, configuration and compatibility](docs/fantasy-
 and [the local Paper checklist](docs/local-playtest.md).
 
 Current closed-beta controls and migration: [Brewing gameplay V2](docs/brewing-gameplay-v2.md).
+
+Material exploration and typed effects: [Discovery and alchemy Phase 1](docs/discovery-alchemy-phase1.md).

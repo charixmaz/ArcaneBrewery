@@ -214,6 +214,15 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
                         Math.min(100,Math.max(0,100-state.settings().caskCleanliness())+alchemyConditions.contamination(meta)),AgingBalance.targets(),state.batchId().getMostSignificantBits()^state.batchId().getLeastSignificantBits(),additives,alchemyConditions.stability(meta));
 
                 output=bottle(result,mature,player);
+                var profiles=new me.arcanebrewery.arcaneBrewery.adapter.bukkit.alchemy.EffectProfileMetadata(plugin.getName().toLowerCase(Locale.ROOT));
+                if(profiles.newOperation(meta)) {
+                    double profileQuality=0;
+                    if(mature) profileQuality=result.assessment()!=null?result.assessment().score():new me.arcanebrewery.arcaneBrewery.domain.quality.ReproducibleQuality().assess(result.process(),
+                        new me.arcanebrewery.arcaneBrewery.domain.quality.BatchConditions(lots,alchemyConditions.contamination(meta),alchemyConditions.stability(meta),AgingBalance.wood(CaskStructure.wood(session.core))),state.maturationSeconds()).score();
+                    var effectProfile=new me.arcanebrewery.arcaneBrewery.application.alchemy.EffectProfileCalculator().calculate(result.process(),
+                        profileQuality,result.simulation().quality().contamination(),alchemyConditions.stability(meta));
+                    var outputMeta=output.getItemMeta();profiles.write(outputMeta,effectProfile);ElixirPresentation.refresh(outputMeta,finalDrinkMetadata);output.setItemMeta(outputMeta);
+                }
                 var outputMeta=(PotionMeta)output.getItemMeta();
                 finalDrinkMetadata.maturation(outputMeta,mature,state.recipeTiming() && me.arcanebrewery.arcaneBrewery.application.aging.RecipeMaturation.poisonous(state.elapsedSeconds(now)),state.maturationSeconds(),state.elapsedSeconds(now));
                 ElixirPresentation.refresh(outputMeta,finalDrinkMetadata); output.setItemMeta(outputMeta);

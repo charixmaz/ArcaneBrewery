@@ -20,6 +20,7 @@ public final class GuideCatalog {
         this.times = Objects.requireNonNull(times);
         this.infusionSeconds = infusionSeconds;
     }
+    public IngredientRegistry ingredientRegistry(){return ingredients;}
     private Entry entry(Material icon, String name, String... lines) { return new Entry(icon, name, List.of(lines)); }
     public List<Entry> machines() {
         return List.of(
@@ -65,7 +66,7 @@ public final class GuideCatalog {
             lines.add("ID: " + d.id());
             if (d.premium()) {
                 lines.add("Special metadata ingredient; ordinary Wheat is different.");
-                lines.add("No normal acquisition recipe is provided by this guide.");
+                lines.add("Rare mature-Wheat harvest drop from the existing agriculture path.");
             } else if (me.arcanebrewery.arcaneBrewery.adapter.bukkit.ingredient.WashableIngredients.MATERIALS.contains(icon)) {
                 lines.add("Starter-ready: washable in a water cauldron.");
                 lines.add("Wash, then use in the Essence Extractor.");
@@ -84,26 +85,12 @@ public final class GuideCatalog {
             return new Entry(icon, d.displayName(), lines);
         }).toList();
     }
+    /** Trusted catalog data; player pages must use MaterialCatalog's locked projection. */
     public List<Entry> catalysts() {
-        return BuiltInAlchemyCatalysts.all().entrySet().stream().sorted(Map.Entry.comparingByKey()).map(e -> {
-            String affinity = switch(e.getKey()) {
-                case "minecraft:blaze_powder" -> "Fire Resistance";
-                case "minecraft:amethyst_shard" -> "Invisibility";
-                case "minecraft:glistering_melon_slice" -> "Regeneration";
-                case "minecraft:glowstone_dust" -> "Night Vision";
-                case "minecraft:shulker_shell" -> "Levitation";
-                case "minecraft:chorus_fruit" -> "Teleportation";
-                case "minecraft:netherite_scrap" -> "Curse (dangerous)";
-                case "minecraft:wither_skeleton_skull" -> "Wither (dangerous)";
-                default -> "Unknown";
-            };
-            return entry(Objects.requireNonNull(Material.matchMaterial(e.getKey())), e.getValue().displayName(),
-                "Vanilla item: " + label(e.getKey()), "Affinity: " + affinity,
-                "Use Catalyst I or optional Catalyst II in the Arcane Infuser.",
-                "Requires a completed cultivated base; washing is not required for catalysts.",
-                "Combined catalysts do not guarantee both effects.",
-                "Quality, contamination and additive load influence the outcome.");
-        }).toList();
+        return me.arcanebrewery.arcaneBrewery.application.alchemy.ReagentRegistry.all().stream().map(d->entry(
+            Objects.requireNonNull(Material.matchMaterial(d.externalId())),d.materialName(),
+            "Role: "+d.role().name().replace('_',' '),"Use in the Arcane Infuser; raw material, no washing required.",
+            "Discover by obtaining it. Exact combinations require experimentation.",d.risky()?"Deliberately dangerous transformation.":"Inspect the resulting profile for actual effects.")).toList();
     }
     public List<Entry> starters() {
         return List.of(
@@ -115,13 +102,13 @@ public final class GuideCatalog {
                 "To inspect a shared recipe: /brew guide recipe <full fingerprint>."),
             starter(Material.WHEAT, "Plain Wheat Walkthrough", "Wheat", false),
             starter(Material.APPLE, "Plain Apple Walkthrough", "Apple", false),
-            starter(Material.BLAZE_POWDER, "Ember Infusion Walkthrough", "Wheat", true));
+            starter(Material.BOOK, "Experimenting with Infusion", "Wheat", true));
     }
     private Entry starter(Material icon, String title, String ingredient, boolean fire) {
         List<String> lines = new ArrayList<>(List.of("1. Wash one " + ingredient + " to 100% purity.",
             "2. Extract with one Glass Bottle: 78 C, Balanced cuts; click START.", "3. Insert the base in a plain Barrel; close, then sneak-click.",
             "4. Select WILD, 22 C / 60 s; click Start Cultivation and wait."));
-        if (fire) lines.add("5. Infuse with one Blaze Powder; wait until complete.");
+        if (fire) lines.add("5. Obtain an active catalyst; its unlocked Codex entry explains the broad role. Experiment in the infuser.");
         lines.add((fire ? "6." : "5.") + " Mature in an Oak cask; choose a harvest time and record it.");
         lines.add("New batches use this server's current durations.");
         lines.add("Use a clean cask; compare harvest times to find your best batch.");
