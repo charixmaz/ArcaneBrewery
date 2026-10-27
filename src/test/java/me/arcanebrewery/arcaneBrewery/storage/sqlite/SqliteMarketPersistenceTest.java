@@ -24,7 +24,7 @@ class SqliteMarketPersistenceTest {
         var quote = quote(asset);
 
         try (var provider = new SqliteStorageProvider(file)) {
-            assertEquals(3, provider.schemaVersion());
+            assertEquals(SqliteSchema.VERSION, provider.schemaVersion());
             var journal = provider.marketJournal();
             var escrow = provider.marketEscrow();
 
@@ -105,7 +105,7 @@ class SqliteMarketPersistenceTest {
         assertEquals(1, JdbcTransactions.run(factory, false, MigrationRunner::currentVersion));
 
         try (var provider = new SqliteStorageProvider(file)) {
-            assertEquals(3, provider.schemaVersion());
+            assertEquals(SqliteSchema.VERSION, provider.schemaVersion());
             assertNotNull(provider.discoveries());
             assertNotNull(provider.marketJournal());
             assertNotNull(provider.marketEscrow());

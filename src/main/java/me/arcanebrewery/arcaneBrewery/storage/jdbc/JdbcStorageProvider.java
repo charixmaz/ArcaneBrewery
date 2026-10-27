@@ -29,6 +29,10 @@ public abstract class JdbcStorageProvider implements StorageProvider {
         if(gameplay==null) gameplay=new PersonalDiscoveryRepository(connections,repository);
         return gameplay;
     }
+    public me.arcanebrewery.arcaneBrewery.application.discovery.MaterialDiscoveryRepository materials() {
+        if(closed.get()) throw new StorageException("Storage provider is closed");
+        return new JdbcMaterialDiscoveryRepository(connections);
+    }
     public DiscoveryRepository discoveries() {
         if (closed.get()) throw new StorageException("Storage provider is closed");
         return repository;

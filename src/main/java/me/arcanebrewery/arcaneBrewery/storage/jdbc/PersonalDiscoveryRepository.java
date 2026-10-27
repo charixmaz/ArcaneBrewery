@@ -253,6 +253,16 @@ public final class PersonalDiscoveryRepository implements DiscoveryRepository {
             }return List.copyOf(result);
         });
     }
+    public List<me.arcanebrewery.arcaneBrewery.application.discovery.OwnedDiscoveryView> personalCatalogByOrigin(UUID player,boolean learned,int limit,int offset) {
+        if(limit<1||limit>200||offset<0) throw new IllegalArgumentException("invalid page");
+        return JdbcTransactions.run(connections,false,c->{
+            var result=new ArrayList<me.arcanebrewery.arcaneBrewery.application.discovery.OwnedDiscoveryView>();
+            try(var q=c.prepareStatement("SELECT identity,personal_name,temporary_name,recorded_at,visibility FROM personal_recipes WHERE player_id=? AND provenance=? ORDER BY identity LIMIT ? OFFSET ?")) {
+                bind(q,player.toString(),learned?"LEARNED":"INDEPENDENT",limit,offset);try(var rs=q.executeQuery()) {while(rs.next()) result.add(new me.arcanebrewery.arcaneBrewery.application.discovery.OwnedDiscoveryView(player,
+                    new DrinkFingerprint(rs.getString(1)),new DrinkName(rs.getString(2)==null?rs.getString(3):rs.getString(2)),Instant.parse(rs.getString(4)),DiscoveryVisibility.valueOf(rs.getString(5)),rs.getString(2)!=null));}
+            }return List.copyOf(result);
+        });
+    }
     public List<DrinkFingerprint> accessibleIds(UUID player) {
         return JdbcTransactions.run(connections,false,c->{
             var result=new ArrayList<DrinkFingerprint>();

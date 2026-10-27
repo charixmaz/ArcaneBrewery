@@ -5,7 +5,7 @@ import java.util.List;
 
 public final class SqliteSchema {
     private SqliteSchema() {}
-    public static final int VERSION = 3;
+    public static final int VERSION = 4;
 
     public static List<SqlMigration> migrations() {
         return List.of(
@@ -84,6 +84,9 @@ public final class SqliteSchema {
                     "CREATE TABLE production_batches (batch_key TEXT PRIMARY KEY NOT NULL, identity TEXT NOT NULL, player_id TEXT NOT NULL, process_payload BLOB NOT NULL, completed_at TEXT NOT NULL, quality REAL NOT NULL DEFAULT 0, evidence_payload BLOB)",
                     "CREATE TABLE recipe_process_records (fingerprint TEXT PRIMARY KEY NOT NULL, process_payload BLOB NOT NULL)",
                     "CREATE TABLE gameplay_migrations (version INTEGER PRIMARY KEY NOT NULL)"
+                )),
+                new SqlMigration(4,List.of(
+                    "CREATE TABLE material_discoveries (player_id TEXT NOT NULL CHECK(length(player_id)=36), kind TEXT NOT NULL CHECK(kind IN ('INGREDIENT','CATALYST')), registry_id TEXT NOT NULL, obtained_at TEXT NOT NULL, PRIMARY KEY(player_id,kind,registry_id))"
                 ))
         );
     }

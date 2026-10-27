@@ -84,11 +84,11 @@ class PersonalDiscoveryRepositoryTest {
         Class.forName("org.sqlite.JDBC");var file=directory.resolve("upgrade.db");
         var factory=new SqliteConnectionFactory(file);
         new me.arcanebrewery.arcaneBrewery.storage.migration.MigrationRunner(factory,SqliteSchema.migrations().subList(0,2)).migrate();
-        try(var provider=new SqliteStorageProvider(file)) {assertEquals(3,provider.schemaVersion());}
+        try(var provider=new SqliteStorageProvider(file)) {assertEquals(SqliteSchema.VERSION,provider.schemaVersion());}
         List<Path> backups;try(var files=Files.list(directory)) {backups=files.filter(p->p.getFileName().toString().endsWith(".bak")).toList();}
         assertEquals(1,backups.size());
         assertEquals(2,me.arcanebrewery.arcaneBrewery.storage.jdbc.JdbcTransactions.run(new SqliteConnectionFactory(backups.getFirst()),false,me.arcanebrewery.arcaneBrewery.storage.migration.MigrationRunner::currentVersion));
-        try(var provider=new SqliteStorageProvider(file)) {assertEquals(3,provider.schemaVersion());}
+        try(var provider=new SqliteStorageProvider(file)) {assertEquals(SqliteSchema.VERSION,provider.schemaVersion());}
         try(var files=Files.list(directory)) {assertEquals(1,files.filter(p->p.toString().endsWith(".bak")).count());}
     }
     @Test void collapsingOldIdentitiesPreservesEachOwnersPrivateProcessAndHistoricalName() {

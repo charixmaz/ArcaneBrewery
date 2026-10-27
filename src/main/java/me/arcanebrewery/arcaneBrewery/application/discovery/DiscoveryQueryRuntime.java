@@ -30,6 +30,9 @@ public final class DiscoveryQueryRuntime {
         return CompletableFuture.supplyAsync(()->repository.personalName(producer,id),executor);
     }
 
+    public CompletableFuture<List<OwnedDiscoveryView>> recipes(UUID player,boolean learned,int limit,int offset) {
+        return CompletableFuture.supplyAsync(()->repository.personalCatalogByOrigin(player,learned,limit,offset),executor);
+    }
     public CompletableFuture<List<OwnedDiscoveryView>> owned(UUID playerId, int limit, int offset) {
         Objects.requireNonNull(playerId);
         return CompletableFuture.supplyAsync(() -> repository.personalCatalog(playerId,limit,offset),executor);

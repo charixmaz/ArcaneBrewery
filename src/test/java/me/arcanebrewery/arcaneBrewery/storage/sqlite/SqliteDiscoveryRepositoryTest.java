@@ -257,7 +257,7 @@ class SqliteDiscoveryRepositoryTest {
         var discovery = PlayerDiscovery.discover(OWNER, custom, TIME).rename(OWNER, "Moon'); DROP TABLE discoveries; --");
         assertEquals(discovery.snapshot(), saved(discovery).discovery().snapshot());
         assertEquals(1, repository.findOwnedBy(OWNER, 20, 0).size());
-        assertEquals(3, provider.schemaVersion());
+        assertEquals(SqliteSchema.VERSION, provider.schemaVersion());
     }
 
     @Test
@@ -305,7 +305,7 @@ class SqliteDiscoveryRepositoryTest {
     @Test
     void defaultProviderCreatesInjectedDirectoryAndExpectedDatabaseFile() {
         try (var storage = StorageProviders.openDefault(directory.resolve("plugin-data"))) {
-            assertEquals(3, storage.schemaVersion());
+            assertEquals(SqliteSchema.VERSION, storage.schemaVersion());
             assertTrue(java.nio.file.Files.exists(directory.resolve("plugin-data/arcanebrewery.db")));
         }
     }

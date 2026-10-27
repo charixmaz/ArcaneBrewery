@@ -21,6 +21,9 @@ public interface DiscoveryRepository {
     default java.util.List<me.arcanebrewery.arcaneBrewery.application.discovery.OwnedDiscoveryView> personalCatalog(UUID player,int limit,int offset) {
         return findOwnedBy(player,limit,offset).stream().map(s->me.arcanebrewery.arcaneBrewery.application.discovery.OwnedDiscoveryView.from(s.discovery())).toList();
     }
+    default java.util.List<me.arcanebrewery.arcaneBrewery.application.discovery.OwnedDiscoveryView> personalCatalogByOrigin(UUID player,boolean learned,int limit,int offset) {
+        return learned?java.util.List.of():personalCatalog(player,limit,offset);
+    }
     default java.util.List<DrinkFingerprint> accessibleIds(UUID player) {
         var result=new java.util.ArrayList<DrinkFingerprint>();
         for(int offset=0;;offset+=200) {

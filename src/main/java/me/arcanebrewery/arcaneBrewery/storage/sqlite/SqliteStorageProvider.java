@@ -15,7 +15,7 @@ public final class SqliteStorageProvider extends JdbcStorageProvider {
         try(var c=connections.open(true)) {
             boolean history;
             try(var q=c.createStatement();var rs=q.executeQuery("SELECT 1 FROM sqlite_master WHERE type='table' AND name='schema_migrations'")) { history=rs.next(); }
-            if(history && MigrationRunner.currentVersion(c)<3) {
+            if(history && MigrationRunner.currentVersion(c)<SqliteSchema.VERSION) {
                 Path backup=databaseFile.toAbsolutePath().resolveSibling(databaseFile.getFileName()+".pre-gameplay-"+java.util.UUID.randomUUID()+".bak");
                 try(var b=c.prepareStatement("VACUUM INTO ?")) { b.setString(1,backup.toString());b.execute(); }
             }
