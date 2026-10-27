@@ -8,6 +8,12 @@ import java.util.Objects;
 public final class BatchQualityCalculator {
     public BatchSimulationResult calculate(ProcessProfile process, QualityTargets targets,
             BatchConditions conditions, BatchVariation variation) {
+        return calculate(process,targets,conditions,variation,true);
+    }
+    public BatchSimulationResult calculateWithoutContamination(ProcessProfile process,QualityTargets targets,BatchConditions conditions,BatchVariation variation){
+        return calculate(process,targets,conditions,variation,false);
+    }
+    private BatchSimulationResult calculate(ProcessProfile process,QualityTargets targets,BatchConditions conditions,BatchVariation variation,boolean historical){
         Objects.requireNonNull(process);
         Objects.requireNonNull(targets);
         Objects.requireNonNull(conditions);
@@ -33,7 +39,7 @@ public final class BatchQualityCalculator {
                 fermentation.temperatureCelsius() - targets.fermentationTemperature()) / targets.temperatureTolerance());
         double durationAccuracy = Math.max(0, 100 - 100 * Math.abs(
                 (double) fermentation.durationSeconds() / targets.fermentationSeconds() - 1));
-        var contamination = new ContaminationModel().evaluate(process, conditions, toxicity, temperatureAccuracy);
+        var contamination = historical?new ContaminationModel().evaluate(process, conditions, toxicity, temperatureAccuracy):new Contamination(0,0);
         var distillation = process.distillation();
         double cutPenalty = distillation.passes() == 0 ? 0
                 : Math.max(0, 10 - distillation.headsCutPercent()) * 2

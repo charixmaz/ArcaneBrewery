@@ -87,7 +87,7 @@ public final class PlayerDiscovery {
     public PlayerDiscovery rename(UUID actor, String name) {
         requireOwner(actor);
         if(name!=null && name.indexOf('§')>=0) throw new IllegalArgumentException("new names cannot contain formatting codes");
-        if (!me.arcanebrewery.arcaneBrewery.domain.drink.FormulationIdentity.from(process).equals(fingerprint) && renameUsed())
+        if (renameUsed())
             throw new IllegalStateException("legacy discovery has already been renamed");
         return copy(Optional.of(new DrinkName(name)), visibility, grants);
     }

@@ -112,6 +112,13 @@ public final class DistilleryMenuHandler implements Listener, AutoCloseable {
         if (!access.active(gui,player.getUniqueId()) || !DistilleryStructureScanner.isValidDistillery(session.core)) {
             event.setCancelled(true); return;
         }
+        if(event.isShiftClick()){
+            event.setCancelled(true);if(session.processing())return;
+            try{me.arcanebrewery.arcaneBrewery.adapter.bukkit.machine.ShiftTransfers.move(event,contents(gui),new int[]{0,1,2,3,4,5,6,7,8},new int[]{0,1,2,4,5},slot->slot==4||slot==5?8:1,(slot,item)->{
+                if(slot!=4&&slot!=5)return bottleInput(item);
+                try{return IngredientPurityEngine.getPurity(plugin,item)>0&&!ingredients.extract(new ItemStack[]{item}).ingredients().isEmpty();}catch(RuntimeException invalid){return false;}
+            },next->commit(session,next,null));}catch(RuntimeException rejected){unavailable(player,session.core);}return;
+        }
         if (event.getClick()!=ClickType.LEFT && event.getClick()!=ClickType.RIGHT) { event.setCancelled(true); return; }
         if (event.getClickedInventory()!=gui) return;
         event.setCancelled(true); int slot=event.getSlot();

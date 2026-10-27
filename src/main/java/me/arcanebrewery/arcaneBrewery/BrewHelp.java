@@ -4,7 +4,7 @@ import java.util.*;
 
 /** Concise, implemented-only help topics; no network or recipe-state access. */
 public final class BrewHelp {
-    public static final List<String> TOPICS=List.of("getting-started","machines","recipes","sharing","commands");
+    public static final List<String> TOPICS=List.of("getting-started","machines","recipes","commands");
     private BrewHelp() { }
     public static List<String> lines(String topic) {
         return switch (topic.toLowerCase(Locale.ROOT)) {
@@ -29,7 +29,7 @@ public final class BrewHelp {
                     "§bArcane Infuser: §fEnchanting Table, Crying Obsidian below, ≥1 horizontal Amethyst Block.§r",
                     "§7One cultivated base, Catalyst I and optional Catalyst II; click Start Infusion.§r",
                     "§bMaturation Cask: §fBarrel, adjacent [Brewery] sign and ≥12 matching wood stairs/slabs/planks/logs within 3×3×3.§r",
-                    "§7Use the sign. Four lanes; click/shift-click a bottle to withdraw; cleaning control uses Cleansing Solution.§r",
+                    "§7Use the sign. Four lanes; click/shift-click a bottle to withdraw; no cask cleaning is required.§r",
                     "§7First valid use claims a machine. Owner-only, one viewer; automation is blocked for recognized machines.§r");
             case "recipes" -> List.of(
                     "§5§lRecipes§r",
@@ -37,23 +37,14 @@ public final class BrewHelp {
                     "§f/brew recipe <full fingerprint|shown id> §7— inspect only knowledge you may access.§r",
                     "§7Short IDs resolve across your complete accessible catalog; supply ≥6 unambiguous hex characters.§r",
 
-                    "§7Rename accepts held or short-id; visibility/share/revoke still use full IDs.§r",
+                    "§7Rename accepts held or short-id; visibility uses full IDs. Rename is permanent and requires a final confirm.§r",
 
                     "§7Formulation, culture style and catalyst doses define identity; temperatures, wood and quality are batch data.§r");
-            case "sharing" -> List.of(
-                    "§5§lSharing§r",
-
-                    "§f/brew rename <held|short-id> <name> §7— edit your personal name.§r",
-                    "§f/brew visibility <fingerprint> <private|shared|public>§r",
-                    "§f/brew share <fingerprint> <player|uuid> full§r",
-                    "§f/brew share <fingerprint> <player|uuid> partial <field,field,...>§r",
-                    "§f/brew revoke <fingerprint> <player|uuid>§r",
-                    "§7Public visibility does not transfer ownership or automatically expose a full process.§r");
             case "commands" -> List.of(
                     "§5§lCommands§r",
                     "§f/brew inspect §7— inspect the held elixir and its quality breakdown.§r",
                     "§f/brew guide §7— open the ingredient, catalyst, machine and recipe Codex.§r",
-                    "§f/brew status §7— temporary saturation, contamination and recovery.§r",
+                    "§f/brew status §7— temporary saturation and recovery.§r",
                     "§f/brew value §7— calculated value of a supported held finished elixir.§r",
                     "§f/brew sell §7then §f/brew sell confirm §7— sale when enabled and an economy provider is available.§r",
                     "§7Economy is optional; brewing remains usable without it. Sales are disabled by default.§r",
@@ -64,7 +55,6 @@ public final class BrewHelp {
                     "§f/brew help getting-started §7— production and washing§r",
                     "§f/brew help machines §7— structures, inputs and ownership§r",
                     "§f/brew help recipes §7— discoveries and short IDs§r",
-                    "§f/brew help sharing §7— privacy and ownership controls§r",
                     "§f/brew help commands §7— status, value and optional sales§r");
         };
     }

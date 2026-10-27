@@ -9,7 +9,7 @@ public record QualityAssessment(List<Factor> factors,double contaminationPenalty
     public List<String> breakdown() {
         var lines=new java.util.ArrayList<String>();
         for(var f:factors) lines.add(f.name()+": "+Math.round(f.score())+"/100 — "+f.explanation());
-        lines.add("Contamination penalty: -"+Math.round(contaminationPenalty));
+        lines.add("Processing penalty: -"+Math.round(contaminationPenalty));
         lines.add("Quality: "+Math.round(score)+"%");
         return List.copyOf(lines);
     }

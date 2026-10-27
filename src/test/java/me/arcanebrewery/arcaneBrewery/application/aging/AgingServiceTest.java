@@ -93,7 +93,7 @@ class AgingServiceTest {
     }
 
     @Test
-    void contaminationReducesQualityWithoutChangingIdentity() {
+    void historicalContaminationNoLongerReducesActiveBatchQuality() {
         var state = new AgingBatchState(AgingBatchState.VERSION, UUID.randomUUID(),
                 new AgingSettings("oak", 12, 18, 95), 1_000);
         var clean = service.finish(source(), state, 121_000, lots(), AgingBalance.wood("oak"),
@@ -101,7 +101,7 @@ class AgingServiceTest {
         var dirty = service.finish(source(), state, 121_000, lots(), AgingBalance.wood("oak"),
                 100, AgingBalance.targets(), 42);
         assertEquals(clean.simulation().fingerprint(), dirty.simulation().fingerprint());
-        assertTrue(clean.simulation().quality().overallScore() > dirty.simulation().quality().overallScore());
+        assertEquals(clean.simulation().quality(), dirty.simulation().quality());
     }
 
     @Test

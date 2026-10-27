@@ -5,7 +5,7 @@ import java.util.List;
 
 public final class SqliteSchema {
     private SqliteSchema() {}
-    public static final int VERSION = 4;
+    public static final int VERSION = 5;
 
     public static List<SqlMigration> migrations() {
         return List.of(
@@ -87,6 +87,13 @@ public final class SqliteSchema {
                 )),
                 new SqlMigration(4,List.of(
                     "CREATE TABLE material_discoveries (player_id TEXT NOT NULL CHECK(length(player_id)=36), kind TEXT NOT NULL CHECK(kind IN ('INGREDIENT','CATALYST')), registry_id TEXT NOT NULL, obtained_at TEXT NOT NULL, PRIMARY KEY(player_id,kind,registry_id))"
+                )),
+                new SqlMigration(5,List.of(
+                    "ALTER TABLE personal_recipes ADD COLUMN rename_used INTEGER NOT NULL DEFAULT 0 CHECK(rename_used IN (0,1))",
+                    "UPDATE personal_recipes SET rename_used=1 WHERE personal_name IS NOT NULL",
+                    "CREATE TRIGGER personal_rename_guard BEFORE UPDATE OF personal_name,rename_used ON personal_recipes WHEN OLD.rename_used=1 AND (NEW.personal_name IS NOT OLD.personal_name OR NEW.rename_used<>1) BEGIN SELECT RAISE(ABORT,'Personal formulation already permanently renamed'); END",
+                    "CREATE TRIGGER personal_rename_mark AFTER UPDATE OF personal_name ON personal_recipes WHEN NEW.personal_name IS NOT NULL AND NEW.rename_used=0 BEGIN UPDATE personal_recipes SET rename_used=1 WHERE identity=NEW.identity AND player_id=NEW.player_id; END",
+                    "CREATE TRIGGER personal_rename_insert AFTER INSERT ON personal_recipes WHEN NEW.personal_name IS NOT NULL AND NEW.rename_used=0 BEGIN UPDATE personal_recipes SET rename_used=1 WHERE identity=NEW.identity AND player_id=NEW.player_id; END"
                 ))
         );
     }

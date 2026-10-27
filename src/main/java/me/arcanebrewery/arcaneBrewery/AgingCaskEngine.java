@@ -105,20 +105,10 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
                 for (int slot:LANES) gui.setItem(slot,saved.items()[slot]);
                 var session=new Session(core,gui,saved.raw()); created[0]=session; sessions.put(gui,session);
                 if (session.raw==null) session.raw=storage.save(core,null,contents(gui),"");
-                reboot(core); paint(session); startVisuals(session); return gui;
+                paint(session); startVisuals(session); return gui;
             });
             if (!opened && created[0]!=null) detach(created[0]);
         } catch (RuntimeException failure) { unavailable(event.getPlayer(),core); }
-    }
-    private void reboot(Block core) {
-        if (core.getState() instanceof TileState tile) {
-            var key=new NamespacedKey(plugin,"cask_contaminated");
-            if (tile.getPersistentDataContainer().getOrDefault(key,PersistentDataType.INTEGER,0)==2) {
-                tile.getPersistentDataContainer().set(key,PersistentDataType.INTEGER,0);
-                if (!tile.update(false,false)) throw new IllegalStateException("cask reboot failed");
-                CaskHygieneEngine.updateExternalSigns(plugin,core);
-            }
-        }
     }
     @EventHandler(priority=EventPriority.HIGH,ignoreCancelled=true)
     public void onClick(InventoryClickEvent event) {
@@ -132,9 +122,9 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
             if (event.isShiftClick()) {
                 event.setCancelled(true);
                 ItemStack input=event.getCurrentItem();
-                if (input==null || input.getType()!=Material.POTION || !(input.getItemMeta() instanceof PotionMeta meta)
+                if (me.arcanebrewery.arcaneBrewery.adapter.bukkit.discovery.DisplayOnlyItems.test(input) || input==null || input.getType()!=Material.POTION || !(input.getItemMeta() instanceof PotionMeta meta)
                         || meta.getPersistentDataContainer().has(new NamespacedKey(plugin,"drink_format"))) return;
-                if (CaskHygieneEngine.checkInfectionStatus(plugin,session.core)) return;
+
                 try {
                     for (int lane:LANES) if (gui.getItem(lane)==null || gui.getItem(lane).getType().isAir()) {
                         var inserted=input.clone(); inserted.setAmount(1); var nextMeta=(PotionMeta)inserted.getItemMeta();
@@ -152,12 +142,9 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
             return;
         }
         event.setCancelled(true); int slot=event.getSlot();
-        if (slot==8) { clean(player,session); return; }
+        if (slot==8) return;
         if (!Set.of(0,2,4,6).contains(slot)) return;
         if (event.getClick()!=ClickType.LEFT && event.getClick()!=ClickType.RIGHT && !event.isShiftClick()) return;
-        if (CaskHygieneEngine.checkInfectionStatus(plugin,session.core)) {
-            player.sendMessage(MessageConfig.prefix()+"§eCONTAMINATED: apply Cleansing Solution to the cleaning control.§r"); return;
-        }
         ItemStack existing=gui.getItem(slot),cursor=player.getItemOnCursor();
         try {
             if (existing!=null && !existing.getType().isAir()) {
@@ -220,7 +207,7 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
                     if(mature) profileQuality=result.assessment()!=null?result.assessment().score():new me.arcanebrewery.arcaneBrewery.domain.quality.ReproducibleQuality().assess(result.process(),
                         new me.arcanebrewery.arcaneBrewery.domain.quality.BatchConditions(lots,alchemyConditions.contamination(meta),alchemyConditions.stability(meta),AgingBalance.wood(CaskStructure.wood(session.core))),state.maturationSeconds()).score();
                     var effectProfile=new me.arcanebrewery.arcaneBrewery.application.alchemy.EffectProfileCalculator().calculate(result.process(),
-                        profileQuality,result.simulation().quality().contamination(),alchemyConditions.stability(meta));
+                        profileQuality,0,alchemyConditions.stability(meta));
                     var outputMeta=output.getItemMeta();profiles.write(outputMeta,effectProfile);ElixirPresentation.refresh(outputMeta,finalDrinkMetadata);output.setItemMeta(outputMeta);
                 }
                 var outputMeta=(PotionMeta)output.getItemMeta();
@@ -237,8 +224,10 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
                 }
             }
         }
+        me.arcanebrewery.arcaneBrewery.adapter.bukkit.machine.ShiftTransfers.Plan delivery=null;
+        if(shift){var inventory=player.getInventory().getStorageContents();delivery=me.arcanebrewery.arcaneBrewery.adapter.bukkit.machine.ShiftTransfers.plan(output,inventory,java.util.stream.IntStream.range(0,inventory.length).toArray(),i->64,(i,item)->true);if(delivery.remainder()!=null){player.sendMessage("§eMake room in your inventory first.");return;}}
         ItemStack[] next=contents(session.gui); next[slot]=null; commit(session,next);
-        if (shift) give(player,output); else player.setItemOnCursor(output);
+        if (shift) player.getInventory().setStorageContents(delivery.destination()); else player.setItemOnCursor(output);
         if (legacyStars>=1) CaskQualityEngine.incrementBatchCounter(plugin,session.core);
         player.sendMessage(MessageConfig.prefix()+(mature?"§aElixir matured and bottled.§r":"§eWithdrawn before full maturity; no recipe discovery is registered.§r"));
         if (mature && result!=null && result.simulation().quality().overallScore()>0) registerDiscovery(player.getUniqueId(),result,productionKey,privateEvidence);
@@ -268,22 +257,6 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
     }
     private int qualityStars(double value) { return value<20?0:value<40?1:value<55?2:value<70?3:value<82?4:value<94?5:6; }
     private void give(Player player,ItemStack item) { player.getInventory().addItem(item).values().forEach(left -> player.getWorld().dropItemNaturally(player.getLocation(),left)); }
-    private void clean(Player player,Session session) {
-        ItemStack cursor=player.getItemOnCursor();
-        if (cursor==null || !(cursor.getItemMeta() instanceof PotionMeta meta)
-                || !"INDUSTRIAL_METHANOL".equals(meta.getPersistentDataContainer().get(recipeTypeKey,PersistentDataType.STRING))) {
-            player.sendMessage(MessageConfig.prefix()+"§eApply a Cleansing Solution from your cursor to this control.§r"); return;
-        }
-        if (!CaskHygieneEngine.checkInfectionStatus(plugin,session.core)) { player.sendMessage(MessageConfig.prefix()+"§aThe cask is already clean.§r"); return; }
-        if (!(session.core.getState() instanceof TileState tile)) throw new IllegalStateException("cask tile unavailable");
-        tile.getPersistentDataContainer().set(new NamespacedKey(plugin,"cask_contaminated"),PersistentDataType.INTEGER,2);
-        tile.getPersistentDataContainer().remove(new NamespacedKey(plugin,"cask_spoil_timestamp"));
-        if (!tile.update(false,false)) throw new IllegalStateException("cleaning could not be persisted");
-        if (cursor.getAmount()==1) player.setItemOnCursor(new ItemStack(Material.GLASS_BOTTLE));
-        else { var remaining=cursor.clone(); remaining.setAmount(remaining.getAmount()-1); player.setItemOnCursor(remaining); give(player,new ItemStack(Material.GLASS_BOTTLE)); }
-        Block top=session.core.getRelative(0,1,0); if (top.getType()==Material.BROWN_MUSHROOM) top.setType(Material.AIR);
-        player.sendMessage(MessageConfig.prefix()+"§aCleansing Solution applied. Close this view, then use the [Brewery] sign to restart ventilation.§r"); paint(session);
-    }
     private ItemStack[] contents(Inventory gui) {
         var items=new ItemStack[9]; for (int slot:LANES) if (gui.getItem(slot)!=null) items[slot]=gui.getItem(slot).clone(); return items;
     }

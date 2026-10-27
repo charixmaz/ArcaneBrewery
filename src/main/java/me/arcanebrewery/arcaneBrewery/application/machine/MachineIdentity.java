@@ -4,7 +4,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 public record MachineIdentity(UUID machineId, Kind kind, UUID ownerId, String ownerName) {
-    public enum Kind { EXTRACTOR, CULTIVATION, INFUSER, CASK }
+    public enum Kind { EXTRACTOR, CULTIVATION, INFUSER, CASK, SPECIALIST }
     public MachineIdentity {
         Objects.requireNonNull(machineId); Objects.requireNonNull(kind); Objects.requireNonNull(ownerId);
         ownerName = Objects.requireNonNull(ownerName);

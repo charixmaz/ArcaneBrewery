@@ -132,7 +132,7 @@ public final class BreweryListener implements Listener {
         control(view,8,Material.LIME_DYE,"Start Cultivation",List.of("Uses all eligible refined bases in this barrel.","Refined bases must be inserted through the normal barrel first.","Active batch settings are locked; progress continues offline."));
     }
     private void control(Controls view,int slot,Material material,String title,List<String> lore) {
-        var item=new ItemStack(material);var meta=item.getItemMeta();meta.setDisplayName("§b§l"+title+"§r");
+        var item=new ItemStack(material);var meta=item.getItemMeta();me.arcanebrewery.arcaneBrewery.adapter.bukkit.discovery.DisplayOnlyItems.mark(meta);meta.setDisplayName("§b§l"+title+"§r");
         meta.setLore(lore.stream().map(l->"§7"+l+"§r").toList());me.arcanebrewery.arcaneBrewery.adapter.bukkit.PresentationStyle.apply(meta);
         item.setItemMeta(meta);view.inventory.setItem(slot,item);
     }
@@ -142,7 +142,7 @@ public final class BreweryListener implements Listener {
         event.setCancelled(true);
         if(!(event.getWhoClicked() instanceof Player player) || !access.active(view.inventory,player.getUniqueId())
             || !(view.core.getState() instanceof Barrel barrel)
-            || (event.getClick()!=org.bukkit.event.inventory.ClickType.LEFT && event.getClick()!=org.bukkit.event.inventory.ClickType.RIGHT)) return;
+            || (event.getClick()!=org.bukkit.event.inventory.ClickType.LEFT && event.getClick()!=org.bukkit.event.inventory.ClickType.RIGHT && !event.isShiftClick())) return;
         try {
             refresh(barrel.getInventory());
             boolean active=false;
@@ -151,6 +151,12 @@ public final class BreweryListener implements Listener {
                 if(state.isPresent() && state.get().status()==FermentationBatchState.Status.FERMENTING) active=true;
             }
             if(active) { player.sendMessage(MessageConfig.prefix()+"§eWait for active cultivation to complete; captured controls are locked.§r");return; }
+            if(event.isShiftClick()){
+                if(event.getClickedInventory()!=player.getInventory())return;
+                var data=barrel.getInventory().getContents();var slots=java.util.stream.IntStream.range(0,data.length).toArray();
+                var plan=me.arcanebrewery.arcaneBrewery.adapter.bukkit.machine.ShiftTransfers.plan(event.getCurrentItem(),data,slots,i->1,(i,item)->access.canonicalBase(item));
+                barrel.getInventory().setContents(plan.destination());event.setCurrentItem(plan.remainder());return;
+            }
             var s=settings(view.core);
             int slot=event.getRawSlot();
             if(slot==8) {

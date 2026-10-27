@@ -40,7 +40,7 @@ class MaterialDiscoveryPersistenceTest {
     @Test void v3UpgradeBacksUpExistingRecipesWithoutChangingThem() throws Exception {
         Class.forName("org.sqlite.JDBC");var file=dir.resolve("v3.db");var factory=new SqliteConnectionFactory(file);
         new me.arcanebrewery.arcaneBrewery.storage.migration.MigrationRunner(factory,SqliteSchema.migrations().subList(0,3)).migrate();
-        try(var provider=new SqliteStorageProvider(file)){assertEquals(4,provider.schemaVersion());assertNotNull(provider.materials());}
+        try(var provider=new SqliteStorageProvider(file)){assertEquals(SqliteSchema.VERSION,provider.schemaVersion());assertNotNull(provider.materials());}
         List<Path> backups;try(var files=Files.list(dir)){backups=files.filter(p->p.toString().endsWith(".bak")).toList();}assertEquals(1,backups.size());
         assertEquals(3,me.arcanebrewery.arcaneBrewery.storage.jdbc.JdbcTransactions.run(new SqliteConnectionFactory(backups.getFirst()),false,me.arcanebrewery.arcaneBrewery.storage.migration.MigrationRunner::currentVersion));
     }

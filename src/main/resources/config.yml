@@ -19,6 +19,7 @@ alchemy:
     additive-load: 18.0
     diversity: 16.0
     integrity-loss: 0.45
+    # Historical compatibility setting; active machines ignore contamination.
     contamination: 0.35
 
   critical-explosion-power: 1.5

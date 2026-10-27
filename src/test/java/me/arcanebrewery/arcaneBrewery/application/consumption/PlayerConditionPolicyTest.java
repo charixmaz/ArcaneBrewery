@@ -25,9 +25,9 @@ class PlayerConditionPolicyTest {
         assertEquals("Clear",fantasy.displayStatus(recovered)); assertEquals(0,recovered.state().intoxication());
         assertEquals(0,recovered.state().poisoning()); assertEquals(0,recovered.hangover()); assertEquals(0,recovered.withdrawal());
     }
-    @Test void unsafeElixirRetainsContaminationHazardWithoutChangingLegacyTraits() {
+    @Test void historicalContaminationDoesNotCreateSymptoms() {
         var result=fantasy.consume(RecoveryCondition.sober(),new DrinkConsumptionProfile(10,30,100,5),1000);
-        assertTrue(result.state().poisoning()>=35); assertEquals("Contamination Hazard",fantasy.displayStatus(result));
+        assertEquals(0,result.state().poisoning()); assertNotEquals("Contamination Hazard",fantasy.displayStatus(result));
     }
     @Test void legacyProgressionRequiresExplicitOptIn() {
         var legacy=new PlayerConditionPolicy(true);

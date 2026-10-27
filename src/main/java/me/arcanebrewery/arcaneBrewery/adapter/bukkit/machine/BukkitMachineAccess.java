@@ -223,8 +223,7 @@ public final class BukkitMachineAccess implements Listener, AutoCloseable {
         if (!active(inv,player.getUniqueId()) || !permitted(player,view.core())) { event.setCancelled(true); return; }
         if (custom.contains(inv)) {
             boolean simple = event.getClick() == ClickType.LEFT || event.getClick() == ClickType.RIGHT;
-            boolean caskHarvest = identity(view.core()).map(id -> id.kind() == MachineIdentity.Kind.CASK).orElse(false)
-                    && event.isShiftClick();
+            boolean caskHarvest = event.isShiftClick();
             if ((!simple && !caskHarvest) || event instanceof InventoryCreativeEvent) event.setCancelled(true);
         }
     }
@@ -269,6 +268,7 @@ public final class BukkitMachineAccess implements Listener, AutoCloseable {
     private boolean component(MachineIdentity.Kind kind,Block core,Block changed) {
         int x=changed.getX()-core.getX(),y=changed.getY()-core.getY(),z=changed.getZ()-core.getZ();
         return switch (kind) {
+            case SPECIALIST -> x==0 && z==0 && (y==0 || y==-1);
             case CULTIVATION -> x==0 && y==0 && z==0;
             case EXTRACTOR -> x==0 && z==0 && (y==0 || y==-1);
             case INFUSER -> (y==0 && Math.abs(x)+Math.abs(z)<=1) || (y==-1 && x==0 && z==0);

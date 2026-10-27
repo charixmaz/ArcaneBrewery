@@ -34,8 +34,8 @@ public final class EffectProfileCalculator {
                 .max(Comparator.comparingInt(NaturalEffectRegistry.Definition::priority));
             if(natural.isPresent()){var d=natural.get();candidates.put(d.effect(),new Candidate(d.effect(),d.priority(),d.seconds()));risky=d.risky();}
         }
-        stability=Math.max(0,Math.min(100,stability-contamination*.4));
-        var safety=risky||stability<40?EffectProfile.Safety.DANGEROUS:stability<75||contamination>15?EffectProfile.Safety.CAUTION:EffectProfile.Safety.SAFE;
+        stability=Math.max(0,Math.min(100,stability));
+        var safety=risky||stability<40?EffectProfile.Safety.DANGEROUS:stability<75?EffectProfile.Safety.CAUTION:EffectProfile.Safety.SAFE;
         var out=new ArrayList<EffectProfile.Entry>();
         if(quality>0) {
             var ranked=candidates.values().stream().sorted(Comparator.comparingInt(Candidate::priority).reversed().thenComparingInt(c->c.effect().ordinal())).limit(capability.maximumBenefits()).toList();

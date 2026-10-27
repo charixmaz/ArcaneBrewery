@@ -49,14 +49,14 @@ public class GameplayV2Test {
         var p=process(30,120,BrewingCulture.WILD.id(),"oak",240,perfect().ingredientRatios(),Map.of());
         var q=new ReproducibleQuality().assess(p,conditions(p,80,20),120);
         assertTrue(q.score()<80);assertEquals(36,q.factors().get(1).score());
-        assertEquals(10,q.contaminationPenalty());assertTrue(q.breakdown().stream().anyMatch(s->s.contains("culture ideal 22")));
+        assertEquals(0,q.contaminationPenalty());assertTrue(q.breakdown().stream().anyMatch(s->s.contains("culture ideal 22")));
     }
     @Test void fullKnowledgeAndReproductionAcceptV2WithoutChangingV1Verification() {
         var p=perfect();var player=UUID.randomUUID();var personal=PlayerDiscovery.personal(player,p,Instant.EPOCH);
         assertInstanceOf(RecipeKnowledge.Full.class,personal.knowledgeFor(player));
         assertTrue(new ReproductionVerifier().reproduces(personal,process(24,70,BrewingCulture.WILD.id(),"birch",180,p.ingredientRatios(),Map.of())));
         assertFalse(new ReproductionVerifier().reproduces(PlayerDiscovery.discover(player,p,Instant.EPOCH),process(24,70,BrewingCulture.WILD.id(),"birch",180,p.ingredientRatios(),Map.of())));
-        assertEquals("Second",personal.rename(player,"First").rename(player,"Second").displayName().value());
+        var renamed=personal.rename(player,"First");assertThrows(IllegalStateException.class,()->renamed.rename(player,"Second"));
     }
     @Test void capturedControlsRoundTripAndOldStateStillDecodes() {
         var p=perfect();var draft=new DistilleryProcessDraft(p.ingredientRatios(),Map.of("minecraft:wheat",100.0),"distillation-v2",new DistillationControls(82,2,96,2,1));

@@ -50,7 +50,15 @@ public final class AgingService {
         );
         var conditions = new BatchConditions(lots, contaminationLoad, source.distillery().preparationMethod().equals("distillation-v2")
                 ?capturedCatalystStability:90, wood);
-        var simulation = calculator.calculate(process, targets, conditions, BatchVariation.fromSeed(variationSeed));
+        var f=process.fermentation();var a=process.aging();
+        var measured=new ProcessProfile(process.ingredientRatios(),process.preparationMethod(),
+            new me.arcanebrewery.arcaneBrewery.domain.process.FermentationProfile(f.yeastOrCatalyst(),f.temperatureCelsius(),f.durationSeconds(),100,0),process.distillation(),
+            new me.arcanebrewery.arcaneBrewery.domain.process.AgingProfile(a.woodType(),a.durationSeconds(),0,a.storageTemperatureCelsius(),100),process.alchemicalAdditives());
+        var activeConditions=new BatchConditions(lots,0,conditions.catalystStability(),wood);
+        var calculated=calculator.calculateWithoutContamination(measured,targets,activeConditions,BatchVariation.fromSeed(variationSeed));
+        var cq=calculated.quality();
+        var simulation=new BatchSimulationResult(me.arcanebrewery.arcaneBrewery.domain.drink.DrinkFingerprint.from(process),
+            new BatchQuality(cq.purity(),cq.flavor(),cq.aroma(),cq.stability(),0,cq.magicalPotency()),calculated.contamination());
         if(source.distillery().preparationMethod().equals("distillation-v2")) {
             var assessment=new ReproducibleQuality().assess(process,conditions,aging.maturationSeconds());
             var q=simulation.quality();

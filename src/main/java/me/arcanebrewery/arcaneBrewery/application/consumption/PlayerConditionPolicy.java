@@ -17,18 +17,18 @@ public final class PlayerConditionPolicy {
         return new RecoveryCondition(state, clamp(current.hangover() - minutes * 2), 0, now);
     }
     public RecoveryCondition consume(RecoveryCondition current, DrinkConsumptionProfile elixir, long now) {
-        if (legacy) return historical.afterDrink(current, elixir, now);
+        if (legacy) return historical.afterDrink(current,new DrinkConsumptionProfile(elixir.strength(),elixir.quality(),0,elixir.magicalPotency()),now);
         var recovered = recover(current, now);
         double saturation = clamp(recovered.state().intoxication()
                 + elixir.strength() * 0.42 * (0.85 + elixir.quality() * 0.003)
                 + elixir.magicalPotency() * 0.10);
-        double contamination = clamp(recovered.state().poisoning() + elixir.contamination() * 0.45);
+        double contamination = 0;
         double recovery = saturation >= 70 ? Math.max(recovered.hangover(), (saturation - 50) * 1.2) : recovered.hangover();
         return new RecoveryCondition(new IntoxicationState(saturation,0,contamination,0,now),clamp(recovery),0,now);
     }
     public String displayStatus(RecoveryCondition condition) {
         if (legacy) return readable(historical.status(condition).name());
-        if (condition.state().poisoning() >= 35) return "Contamination Hazard";
+
         if (condition.state().intoxication() >= 70) return "Magical Overload";
         if (condition.hangover() >= 25) return "Arcane Recovery";
         if (condition.state().intoxication() >= 12) return "Arcane Saturation";

@@ -178,8 +178,7 @@ public final class ConsumptionListener implements Listener {
             } else if (condition.hangover() >= 25) {
                 sink.accept(new PotionEffect(PotionEffectType.WEAKNESS, 8 * 20, 0,false,false,true));
             }
-            if (condition.state().poisoning() >= 35)
-                sink.accept(new PotionEffect(PotionEffectType.POISON, 6 * 20, 0,false,false,true));
+
             return;
         }
         RecoveryLifecycle.Status status = new RecoveryLifecycle().status(condition);
@@ -212,9 +211,7 @@ public final class ConsumptionListener implements Listener {
             }
         }
 
-        if (condition.state().poisoning() >= 35) {
-            sink.accept(new PotionEffect(PotionEffectType.POISON, 6 * 20, 0, false, false, true));
-        }
+
 
         if (!announce) return;
         if (condition.hangover() >= 25) {

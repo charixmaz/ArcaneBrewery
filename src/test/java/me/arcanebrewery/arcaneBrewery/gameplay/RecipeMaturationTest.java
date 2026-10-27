@@ -72,9 +72,9 @@ class RecipeMaturationTest {
         assertEquals(100,metadata.stability(meta));assertEquals(0,metadata.contamination(meta));
         var damaged=new AlchemyMachineCondition(30,50);
         metadata.write(meta,damaged,model.assess(catalysts,damaged));
-        assertTrue(metadata.stability(meta)<100);assertTrue(metadata.contamination(meta)>0);
+        assertTrue(metadata.stability(meta)<100);assertEquals(0,metadata.contamination(meta));
         metadata.write(meta,AlchemyMachineCondition.PRISTINE,success);
-        assertTrue(metadata.stability(meta)<100);assertTrue(metadata.contamination(meta)>0);
+        assertTrue(metadata.stability(meta)<100);assertEquals(0,metadata.contamination(meta));
     }
     @Test void unfinishedBottleRemainsConsumableButCannotMasqueradeAsFinished() {
         var metadata=new FinalDrinkMetadata("arcanebrewery");var meta=TestItems.water().getItemMeta();

@@ -13,6 +13,7 @@ import java.util.*;
 
 public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
     private static final int PAGE_SIZE = 8;
+    public static final List<String> PLAYER_COMMANDS=List.of("inspect", "guide", "codex", "discoveries", "recipe", "rename", "visibility", "status", "value", "sell", "help");
 
     private final JavaPlugin plugin;
     private final DiscoveryQueryRuntime queries;
@@ -56,8 +57,6 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
             case "recipe" -> { recipe(player, args); yield true; }
             case "rename" -> { rename(player, args); yield true; }
             case "visibility" -> { visibility(player, args); yield true; }
-            case "share" -> { share(player, args); yield true; }
-            case "revoke" -> { revoke(player, args); yield true; }
             case "status" -> { status(player); yield true; }
             case "value" -> { market.value(player); yield true; }
             case "sell" -> {
@@ -162,7 +161,9 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
             player.sendMessage("§cUsage: /brew rename <held|short-id> <new name>");
             return;
         }
-        String name=String.join(" ",Arrays.copyOfRange(args,2,args.length));
+        boolean confirmed=args.length>=4 && args[args.length-1].equalsIgnoreCase("confirm");
+        if(!confirmed){player.sendMessage("§eOne permanent rename per personal formulation. This cannot be undone. Repeat the command with 'confirm' at the end to accept.");return;}
+        String name=String.join(" ",Arrays.copyOfRange(args,2,args.length-1));
         java.util.function.Consumer<DrinkFingerprint> rename=id->completeMutation(player,mutations.rename(player.getUniqueId(),id,name),
             result->{
                 new me.arcanebrewery.arcaneBrewery.adapter.bukkit.PresentationRefreshListener(plugin,queries).refresh(player);
@@ -180,7 +181,7 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
 
     private void visibility(Player player, String[] args) {
         if (args.length != 3) {
-            player.sendMessage("§cUsage: /brew visibility <fingerprint> <private|shared|public>");
+            player.sendMessage("§cUsage: /brew visibility <fingerprint> <private|public>");
             return;
         }
         DrinkFingerprint fingerprint = fingerprint(player, args[1]);
@@ -188,62 +189,13 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
         final DiscoveryVisibility visibility;
         try {
             visibility = DiscoveryVisibility.valueOf(args[2].toUpperCase(Locale.ROOT));
+            if(visibility==DiscoveryVisibility.SHARED) throw new IllegalArgumentException("Sharing removed");
         } catch (IllegalArgumentException failure) {
-            player.sendMessage("§c[ArcaneBrewery] Visibility must be private, shared, or public.");
+            player.sendMessage("§c[ArcaneBrewery] Visibility must be private or public.");
             return;
         }
         completeMutation(player, mutations.visibility(player.getUniqueId(), fingerprint, visibility),
                 result -> "§a[ArcaneBrewery] Visibility is now §f" + result.visibility());
-    }
-
-    private void share(Player player, String[] args) {
-        if (args.length < 4) {
-            player.sendMessage("§cUsage: /brew share <fingerprint> <player|uuid> <full|partial> [fields]");
-            return;
-        }
-        DrinkFingerprint fingerprint = fingerprint(player, args[1]);
-        if (fingerprint == null) return;
-        UUID recipient = recipient(player, args[2]);
-        if (recipient == null) return;
-
-        if (args[3].equalsIgnoreCase("full")) {
-            if (args.length != 4) {
-                player.sendMessage("§cUsage: /brew share <fingerprint> <player|uuid> full");
-                return;
-            }
-            completeMutation(player, mutations.shareFull(player.getUniqueId(), fingerprint, recipient),
-                    result -> "§a[ArcaneBrewery] Full recipe knowledge shared.");
-            return;
-        }
-
-        if (!args[3].equalsIgnoreCase("partial") || args.length < 5) {
-            player.sendMessage("§cUsage: /brew share <fingerprint> <player|uuid> partial <field,field,...>");
-            return;
-        }
-
-        final Set<ProcessField> fields;
-        try {
-            fields = parseFields(Arrays.copyOfRange(args, 4, args.length));
-        } catch (IllegalArgumentException failure) {
-            player.sendMessage("§c[ArcaneBrewery] " + failure.getMessage());
-            return;
-        }
-        completeMutation(player, mutations.sharePartial(player.getUniqueId(), fingerprint, recipient, fields),
-                result -> "§a[ArcaneBrewery] Partial recipe knowledge shared.");
-    }
-
-    private void revoke(Player player, String[] args) {
-        if (args.length != 3) {
-            player.sendMessage("§cUsage: /brew revoke <fingerprint> <player|uuid>");
-            return;
-        }
-        DrinkFingerprint fingerprint = fingerprint(player, args[1]);
-        if (fingerprint == null) return;
-        UUID recipient = recipient(player, args[2]);
-        if (recipient == null) return;
-
-        completeMutation(player, mutations.revoke(player.getUniqueId(), fingerprint, recipient),
-                result -> "§a[ArcaneBrewery] Recipe access revoked.");
     }
 
     private void completeMutation(Player player,
@@ -278,43 +230,12 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
         }
     }
 
-    private UUID recipient(Player player, String value) {
-        try {
-            return UUID.fromString(value);
-        } catch (IllegalArgumentException ignored) {
-            Player online = Bukkit.getPlayerExact(value);
-            if (online == null) {
-                player.sendMessage("§c[ArcaneBrewery] Player must be online or supplied by UUID.");
-                return null;
-            }
-            return online.getUniqueId();
-        }
-    }
-
-    private Set<ProcessField> parseFields(String[] tokens) {
-        String joined = String.join(",", tokens);
-        var fields = EnumSet.noneOf(ProcessField.class);
-        for (String raw : joined.split(",")) {
-            if (raw.isBlank()) continue;
-            try {
-                fields.add(ProcessField.valueOf(raw.strip().toUpperCase(Locale.ROOT).replace('-', '_')));
-            } catch (IllegalArgumentException failure) {
-                throw new IllegalArgumentException("Unknown recipe field: " + raw.strip());
-            }
-        }
-        if (fields.isEmpty()) throw new IllegalArgumentException("At least one recipe field is required.");
-        if (fields.size() == ProcessField.values().length)
-            throw new IllegalArgumentException("Partial sharing must omit at least one recipe field.");
-        return Set.copyOf(fields);
-    }
-
     private void status(Player player) {
         var condition = consumption.refresh(player, false);
         var state = condition.state();
         player.sendMessage("§d§lArcaneBrewery Status");
         player.sendMessage("§7State: §f" + consumption.status(condition));
         player.sendMessage("§7"+(consumption.legacyEnabled()?"Intoxication":"Arcane Saturation")+": §b" + Math.round(state.intoxication()) + "/100§r");
-        player.sendMessage("§7Contamination Hazard: §f" + Math.round(state.poisoning()) + "/100§r");
         player.sendMessage("§7Recovery: §f" + Math.round(condition.hangover()) + "/100§r");
         if (consumption.legacyEnabled()) {
             player.sendMessage("§7Legacy Tolerance: §f"+Math.round(state.tolerance())+"/100§r");
@@ -346,7 +267,7 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            return List.of("inspect", "guide", "codex", "discoveries", "recipe", "rename", "visibility", "share", "revoke", "status", "value", "sell", "help").stream()
+            return PLAYER_COMMANDS.stream()
                     .filter(value -> value.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
         }
         if (args.length == 2 && (args[0].equalsIgnoreCase("guide") || args[0].equalsIgnoreCase("codex"))) {
@@ -359,12 +280,8 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
         if (args.length==2 && args[0].equalsIgnoreCase("help")) return BrewHelp.TOPICS.stream()
                 .filter(topic -> topic.startsWith(args[1].toLowerCase(Locale.ROOT))).toList();
         if (args.length == 3 && args[0].equalsIgnoreCase("visibility")) {
-            return List.of("private", "shared", "public").stream()
+            return List.of("private", "public").stream()
                     .filter(value -> value.startsWith(args[2].toLowerCase(Locale.ROOT))).toList();
-        }
-        if (args.length == 4 && args[0].equalsIgnoreCase("share")) {
-            return List.of("full", "partial").stream()
-                    .filter(value -> value.startsWith(args[3].toLowerCase(Locale.ROOT))).toList();
         }
         if(args.length==2 && args[0].equalsIgnoreCase("rename")) return List.of("held");
         return List.of();

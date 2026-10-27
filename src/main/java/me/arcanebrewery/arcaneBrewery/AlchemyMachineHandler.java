@@ -111,6 +111,13 @@ public final class AlchemyMachineHandler implements Listener {
             event.setCancelled(true);
             return;
         }
+        if(event.isShiftClick()) {
+            event.setCancelled(true);if(session.processing())return;
+            try{me.arcanebrewery.arcaneBrewery.adapter.bukkit.machine.ShiftTransfers.move(event,contents(gui),INPUTS,new int[]{0,1,2},i->1,(slot,item)->{
+                if(slot==0){try{return new me.arcanebrewery.arcaneBrewery.adapter.bukkit.fermentation.FermentationBatchMetadata(namespace).read(item.getItemMeta()).map(b->b.status()==me.arcanebrewery.arcaneBrewery.application.fermentation.FermentationBatchState.Status.COMPLETED).orElse(false)&&new AlchemyPreparationMetadata(namespace).read(item.getItemMeta()).isEmpty();}catch(RuntimeException bad){return false;}}
+                return BuiltInAlchemyCatalysts.resolveExternal(item.getType().getKey().toString()).isPresent();
+            },next->commit(session,next,Optional.empty()));}catch(RuntimeException rejected){event.getWhoClicked().sendMessage("§eTransfer retained; machine unavailable.");}return;
+        }
         var decision = AlchemyInventoryPolicy.click(event.getClickedInventory() == gui, event.getSlot(),
                 session.processing(), event.getClick(), event.getAction());
         if (decision == AlchemyInventoryPolicy.Decision.PASS) return;
@@ -192,7 +199,7 @@ public final class AlchemyMachineHandler implements Listener {
             if(plugin instanceof ArcaneBrewery brewery)brewery.reconcileMaterialInputs(player,captured);
             schedule(session);
             var assessment = machineService.assess(
-                    AlchemyMachineInputs.catalysts(contents(session.gui)), session.snapshot.condition());
+                    AlchemyMachineInputs.catalysts(contents(session.gui)), new AlchemyMachineCondition(session.snapshot.condition().integrity(),0));
             player.sendMessage("§d[ArcaneBrewery] Infusion started. Instability: §f"
                     + Math.round(assessment.instability()) + "/100 §7| Integrity: §f"
                     + Math.round(session.snapshot.condition().integrity()) + "/100");
@@ -202,8 +209,7 @@ public final class AlchemyMachineHandler implements Listener {
     private boolean maintain(Player player, Session session) {
         ItemStack held = player.getInventory().getItemInMainHand();
         boolean repair = held.getType() == settings.repairMaterial();
-        boolean clean = held.getType() == settings.cleaningMaterial();
-        if (!repair && !clean) return false;
+        if (!repair) return false;
 
         if (session.processing()) {
             player.sendMessage("§c[ArcaneBrewery] The infuser cannot be serviced while processing.");
@@ -211,13 +217,9 @@ public final class AlchemyMachineHandler implements Listener {
         }
 
         AlchemyMachineCondition current = session.snapshot.condition();
-        AlchemyMachineCondition next = repair
-                ? maintenanceService.repair(current)
-                : maintenanceService.clean(current);
+        AlchemyMachineCondition next = maintenanceService.repair(current);
         if (next.equals(current)) {
-            player.sendMessage(repair
-                    ? "§7[ArcaneBrewery] Infuser integrity is already full."
-                    : "§7[ArcaneBrewery] The infuser is already clean.");
+            player.sendMessage("§7[ArcaneBrewery] Infuser integrity is already full.");
             return true;
         }
 
@@ -227,9 +229,7 @@ public final class AlchemyMachineHandler implements Listener {
         } else {
             held.setAmount(held.getAmount() - 1);
         }
-        player.sendMessage(repair
-                ? "§a[ArcaneBrewery] Infuser repaired to §f" + Math.round(next.integrity()) + "/100§a integrity."
-                : "§b[ArcaneBrewery] Infuser cleaned to §f" + Math.round(next.contamination()) + "/100§b contamination.");
+        player.sendMessage("§a[ArcaneBrewery] Infuser repaired to §f" + Math.round(next.integrity()) + "/100§a integrity.");
         return true;
     }
 
@@ -273,9 +273,9 @@ public final class AlchemyMachineHandler implements Listener {
         var operation = session.snapshot.operation().orElseThrow();
         long now = System.currentTimeMillis();
         AlchemyFailureAssessment assessment = machineService.assess(
-                operation.preparation(), session.snapshot.condition());
+                operation.preparation(), new AlchemyMachineCondition(session.snapshot.condition().integrity(),0));
         AlchemyMachineCondition nextCondition = session.snapshot.condition().wear(
-                assessment.integrityDamage(), assessment.contaminationGain());
+                assessment.integrityDamage(), 0);
 
         ItemStack[] result;
         Optional<AlchemyMachineOperation> completedOperation;
@@ -370,7 +370,6 @@ public final class AlchemyMachineHandler implements Listener {
                 if (slot==8) {
                     lore.add(idleStatus(session).equals("READY")?"§7Take the prepared base from slot 3.§r":"§7Click to validate inputs and start infusion.§r");
                     lore.add("§7Integrity: §f"+Math.round(session.snapshot.condition().integrity())+"/100§r");
-                    lore.add("§7Contamination: §f"+Math.round(session.snapshot.condition().contamination())+"/100§r");
                 }
                 if (session.processing() && (slot==7 || slot==8)) {
                     var state=session.snapshot.operation().orElseThrow().state();

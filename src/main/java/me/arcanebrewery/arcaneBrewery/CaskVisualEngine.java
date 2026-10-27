@@ -11,16 +11,13 @@ import java.util.*;
 public final class CaskVisualEngine {
     private CaskVisualEngine() { }
     public static void updateCaskInterface(JavaPlugin plugin,Inventory inv,Block core,String owner) {
-        boolean infected=CaskHygieneEngine.checkInfectionStatus(plugin,core);
-        pane(inv,8,infected?Material.HOPPER:Material.CHARCOAL,"Cleaning / Ventilation",List.of(
-                "§7Owner: §f"+owner+"§r","§7Status: §f"+(infected?"CONTAMINATED":"CLEAN")+"§r",
-                "§7Apply Cleansing Solution from your cursor.§r","§7Then reopen using the [Brewery] sign.§r"));
+        boolean infected=false;
+        pane(inv,8,Material.BOOK,"Maturation",List.of("§7Owner: §f"+owner+"§r","§7Record actual harvest times. No cleaning required.§r"));
         for (int lane=0;lane<4;lane++) {
             int slot=lane*2; ItemStack bottle=inv.getItem(slot);
             String state="EMPTY"; Material type=Material.GRAY_STAINED_GLASS_PANE;
             var lore=new ArrayList<String>(); lore.add("§7Storage: §fLane "+(lane+1)+"§r");
-            if (infected) { state="CONTAMINATED"; type=Material.BARRIER; lore.add("§eContents retained. Clean before use.§r"); }
-            else if (bottle!=null && bottle.getType()==Material.POTION && bottle.getItemMeta()!=null) {
+            if (bottle!=null && bottle.getType()==Material.POTION && bottle.getItemMeta()!=null) {
                 try {
                     var meta=bottle.getItemMeta(); var aging=new AgingBatchMetadata(plugin).read(meta);
                     long started=meta.getPersistentDataContainer().getOrDefault(new NamespacedKey(plugin,"slot_start_time"),PersistentDataType.LONG,System.currentTimeMillis());

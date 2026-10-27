@@ -99,12 +99,13 @@ public final class MethanolProducerEngine implements Listener, AutoCloseable {
                 if (!valid(current)) { player.sendMessage(MessageConfig.get("producer_reject")); return; }
                 var output=new ItemStack(Material.POTION); var outputMeta=(PotionMeta)output.getItemMeta();
                 outputMeta.setDisplayName(MessageConfig.title("cleanser"));
-                outputMeta.setLore(List.of("§7For the existing cask cleaning control.§r","§cUnsafe solution: do not consume.§r"));
+                outputMeta.setLore(List.of("§7Historical industrial solution; no brewing use.§r","§cUnsafe solution: do not consume.§r"));
                 outputMeta.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
                 me.arcanebrewery.arcaneBrewery.adapter.bukkit.PresentationStyle.apply(outputMeta);
                 outputMeta.getPersistentDataContainer().set(stageKey,PersistentDataType.STRING,"INDUSTRIAL_METHANOL"); output.setItemMeta(outputMeta);
+                var inventory=player.getInventory().getStorageContents();var delivery=me.arcanebrewery.arcaneBrewery.adapter.bukkit.machine.ShiftTransfers.plan(output,inventory,java.util.stream.IntStream.range(0,inventory.length).toArray(),i->64,(i,item)->true);if(delivery.remainder()!=null){player.sendMessage("§eMake inventory room first.");return;}
                 var next=contents(gui); next[slot]=null; commit(session,next);
-                player.getInventory().addItem(output).values().forEach(left -> player.getWorld().dropItemNaturally(player.getLocation(),left));
+                player.getInventory().setStorageContents(delivery.destination());
                 player.sendMessage(MessageConfig.get("producer_success")); return;
             }
             ItemStack cursor=player.getItemOnCursor();

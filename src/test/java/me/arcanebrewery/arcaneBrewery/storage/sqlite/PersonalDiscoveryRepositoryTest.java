@@ -23,8 +23,8 @@ class PersonalDiscoveryRepositoryTest {
             var second=repo.recordProduction(b,p,Instant.EPOCH.plusSeconds(1),90,"b");
             assertEquals(RegistrationResult.Status.REGISTERED,second.status());assertEquals(a,second.originalDiscoverer());
             var mutations=new DiscoveryMutationRuntime(repo,Runnable::run);
-            mutations.rename(a,id,"Emberveil").join();mutations.rename(a,id,"Emberveil II").join();mutations.rename(b,id,"Quiet Sky").join();
-            assertEquals("Emberveil II",repo.personalName(a,id).orElseThrow());assertEquals("Quiet Sky",repo.personalName(b,id).orElseThrow());
+            mutations.rename(a,id,"Emberveil").join();assertThrows(CompletionException.class,()->mutations.rename(a,id,"Emberveil II").join());mutations.rename(b,id,"Quiet Sky").join();
+            assertEquals("Emberveil",repo.personalName(a,id).orElseThrow());assertEquals("Quiet Sky",repo.personalName(b,id).orElseThrow());
             assertEquals(DiscoveryVisibility.PRIVATE,repo.findForPlayer(id,a).orElseThrow().discovery().visibility());
             assertEquals(RegistrationResult.Status.ALREADY_DISCOVERED,repo.recordProduction(a,p,Instant.now(),100,"c").status());
             assertTrue(repo.recordInfo(id,a).contains("100%"));assertEquals(1,repo.personalCatalog(a,200,0).size());

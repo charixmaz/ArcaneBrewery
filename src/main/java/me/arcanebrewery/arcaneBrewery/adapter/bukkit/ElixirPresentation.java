@@ -33,7 +33,7 @@ public final class ElixirPresentation {
             if(effects.get().safety()==me.arcanebrewery.arcaneBrewery.application.alchemy.EffectProfile.Safety.DANGEROUS)lore.add("§cDangerous reaction — inspect before use.§r");
         } else data.readAlchemy(meta).filter(a->a.effect()!=me.arcanebrewery.arcaneBrewery.application.alchemy.AlchemyEffect.NONE)
             .ifPresent(a->lore.add("§7Effect §d"+PlayerConditionPolicy.readable(a.effect().name())+"§r"));
-        if(effects.isEmpty()) lore.add("§7Load §b"+Math.round(elixir.strength())+" §8· §7Contamination §f"+Math.round(elixir.contamination())+"§r");
+        if(effects.isEmpty()) lore.add("§7Load §b"+Math.round(elixir.strength())+"§r");
         if(effects.isEmpty()) data.harvestSeconds(meta).ifPresent(h->lore.add("§7Harvested at §f"+h+"s§r"));
         if(data.prematurePoison(meta)) lore.add("§cPoisonous if consumed.§r");
         else if(unfinished) lore.add("§eWithdrawn early; no discovery.§r");
