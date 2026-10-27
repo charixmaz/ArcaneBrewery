@@ -27,8 +27,7 @@ public final class ElixirPresentation {
         data.readAlchemy(meta).filter(a->a.effect()!=me.arcanebrewery.arcaneBrewery.application.alchemy.AlchemyEffect.NONE)
             .ifPresent(a->lore.add("§7Effect §d"+PlayerConditionPolicy.readable(a.effect().name())+"§r"));
         lore.add("§7Load §b"+Math.round(elixir.strength())+" §8· §7Contamination §f"+Math.round(elixir.contamination())+"§r");
-        data.maturityTarget(meta).ifPresent(t->lore.add("§7Ideal §f"+t+"–"+(t+15)+"s"
-            +data.harvestSeconds(meta).map(h->" §8· §7Taken §f"+h+"s").orElse("")+"§r"));
+        data.harvestSeconds(meta).ifPresent(h->lore.add("§7Harvested at §f"+h+"s§r"));
         if(data.prematurePoison(meta)) lore.add("§cPoisonous if consumed.§r");
         else if(unfinished) lore.add("§eWithdrawn early; no discovery.§r");
         if(!unfinished) data.readValue(meta).ifPresent(v->lore.add("§7Value §6"+Math.round(v.units())+" units§r"));

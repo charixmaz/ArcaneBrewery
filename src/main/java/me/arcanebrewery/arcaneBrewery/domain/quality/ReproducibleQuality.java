@@ -31,7 +31,7 @@ public final class ReproducibleQuality {
                 new QualityAssessment.Factor("Cultivation duration",duration,.15,"culture ideal "+culture.seconds()+" s"),
                 new QualityAssessment.Factor("Extraction",extraction,.15,"ideal 78 C and balanced cuts"),
                 new QualityAssessment.Factor("Sanitation and storage",hygiene,.10,"sanitation, oxygen, cleanliness and oxidation"),
-                new QualityAssessment.Factor("Maturation",maturation,.10,"perfect window "+maturityTarget+"–"+(maturityTarget+15)+" s at 18 C"),
+                new QualityAssessment.Factor("Maturation",maturation,.10,"compare harvest times and record successful batches"),
                 new QualityAssessment.Factor("Catalyst stability",stability,.05,"additional catalyst can reduce stability"),
                 new QualityAssessment.Factor("Formulation suitability",composition,.05,"WILD: sugar+starch >=50; LUMINOUS: sugar >=50; QUIET: starch >=50"));
         double penalty=bound(c.contaminationLoad()*.5+p.ingredientRatios().entrySet().stream().mapToDouble(e->e.getValue()*c.ingredients().get(e.getKey()).composition().toxicity()).sum()*.5+Math.max(0,10-d.headsCutPercent())*2+Math.max(0,10-d.tailsCutPercent()));

@@ -57,7 +57,6 @@ public final class BrewingGuide implements Listener {
             if(data.producer(meta).isPresent()) summary.add("Brewed by "+data.producerLabel(meta));
             summary.add("Stage: "+(data.unfinished(meta)?"Unfinished — no discovery":"Finished"));
             data.wood(meta).ifPresent(w->summary.add("Wood: "+w));
-            data.maturityTarget(meta).ifPresent(t->summary.add("Ideal maturation: "+t+"–"+(t+15)+" seconds"));
             data.harvestSeconds(meta).ifPresent(t->summary.add("Harvested at: "+t+" seconds"));
             if(data.prematurePoison(meta)) summary.add("POISONOUS when consumed: withdrawn in the first 60 seconds.");
             entries.add(new GuideCatalog.Entry(Material.POTION,"Batch Summary",summary));

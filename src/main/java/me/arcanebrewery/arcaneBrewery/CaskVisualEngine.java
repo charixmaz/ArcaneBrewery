@@ -45,10 +45,9 @@ public final class CaskVisualEngine {
                             }
                         }
                     }
-                    lore.add("§7Maturity target: §f"+target+"s§r");
-                    state=elapsed>=target?"READY":"AGING"; type=elapsed>=target?Material.LIME_STAINED_GLASS_PANE:Material.BLUE_STAINED_GLASS_PANE;
-                    lore.add("§7Elapsed: §b"+elapsed+"s§r"); lore.add("§7Remaining: §f"+Math.max(0,target-elapsed)+"s§r");
-                    if(aging.isPresent()) lore.add(elapsed>target+15?"§ePast the perfect maturity window; over-aging reduces quality.§r":"§7Perfect maturity window: §f"+target+"–"+(target+15)+"s§r");
+                    state="AGING"; type=Material.BLUE_STAINED_GLASS_PANE;
+                    lore.add("§7Elapsed: §b"+elapsed+"s§r");
+                    lore.add("§7Experiment with harvest times and record the results.§r");
                     lore.add("§7Click or shift-click the bottle to withdraw.§r");
                     lore.add("§eEarly withdrawal: Unfinished Elixir; no discovery.§r");
                 } catch (RuntimeException corrupt) { state="DATA LOCKED"; type=Material.BARRIER; lore.add("§eStored bottle retained for inspection.§r"); }

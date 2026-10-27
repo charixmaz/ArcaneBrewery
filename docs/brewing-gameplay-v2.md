@@ -1,3 +1,11 @@
+> Exploration presentation: ideal maturation times are now hidden from cask
+> lanes, bottle lore, inspection, quality explanations and Codex walkthroughs,
+> including old stored breakdown hints. Casks show elapsed time and a neutral AGING
+> state without a countdown, ready colour or perfect-window warning. Bottles retain
+> the actual harvest time so players can record and reproduce their own results.
+> Hidden targets, quality rules, persistence and discovery identity are unchanged.
+> Player-visible hints below about shown target times are historical and superseded.
+
 > Screenshot regression fix: unfinished V2 batches now have zero final quality
 > throughout the entire period before their captured maturity target. Poison remains
 > specific to new-policy withdrawals in the first 60 seconds. After maturity, final

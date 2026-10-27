@@ -45,7 +45,7 @@ public final class GuideCatalog {
                 "At least 12 matching wood components in the 3×3×3 area.",
                 "Use matching planks, stairs, slabs or logs. Open with the sign.",
                 "Four lanes; insert completed cultivated or infused bases.",
-                "New V2 target: 120–300 seconds, stable for each formulation.",
+                "Maturation timing must be learned through experimentation.",
                 "Before maturity: zero-quality Unfinished Elixir; no discovery.",
                 "First 60s: poisonous. Severe over-aging ruins the batch.",
                 "Mature withdrawal: finished elixir; process determines identity."),
@@ -122,9 +122,9 @@ public final class GuideCatalog {
             "2. Extract with one Glass Bottle: 78 C, Balanced cuts; click START.", "3. Insert the base in a plain Barrel; close, then sneak-click.",
             "4. Select WILD, 22 C / 60 s; click Start Cultivation and wait."));
         if (fire) lines.add("5. Infuse with one Blaze Powder; wait until complete.");
-        lines.add((fire ? "6." : "5.") + " Mature in an Oak Maturation Cask until READY.");
+        lines.add((fire ? "6." : "5.") + " Mature in an Oak cask; choose a harvest time and record it.");
         lines.add("New batches use this server's current durations.");
-        lines.add("For the 100% reference: clean cask, no catalyst, withdraw at the shown target through target + 15 s under default settings.");
+        lines.add("Use a clean cask; compare harvest times to find your best batch.");
         lines.add("Saturation and contamination hazards still apply.");
         return new Entry(icon, title, lines);
     }
@@ -151,8 +151,8 @@ public final class GuideCatalog {
                     "Compatibility reference for older bottles only.",
                     "Fantasy reference label; older item names are retained.",
                     "Required wood: " + label(e.getValue().woodRequired.toLowerCase(Locale.ROOT)),
-                    "Legacy target: " + e.getValue().baseDuration + " seconds.",
-                    "Legacy harvest window: target through target + 15 seconds.",
+                    "Legacy maturation timing must also be learned.",
+                    "Record actual harvest times and compare resulting quality.",
                     "Wrong wood or overaging can ruin legacy quality.",
                     "This is not a complete current ingredient-to-elixir recipe.",
                     "The current extractor does not generate these legacy stages.",
@@ -184,7 +184,7 @@ public final class GuideCatalog {
             entry(Material.CLOCK,"Deterministic Quality","Workmanship weights: purity 20%, culture composition 5%, temperature 20%, duration 15%, extraction 15%,",
                 "sanitation/storage 10%, maturation 10%, catalyst stability 5%; contamination penalizes separately.",
                 "100% reference: wash Wheat to 100%, 78 C Balanced extraction, WILD 22 C/60 s,",
-                "no catalyst, clean sealed cask at 18 C, harvest at the shown target through target + 15 s with default settings.",
+                "no catalyst and a clean sealed cask; discover the best harvest time experimentally.",
                 "Mildness does not cap quality. Use /brew inspect for actual factor losses.",
                 "Unfinished quality is zero; severe over-aging can also reduce quality to zero.",
                 "Wood affects flavor; over-aging reduces quality. No random star roll denies perfection."),

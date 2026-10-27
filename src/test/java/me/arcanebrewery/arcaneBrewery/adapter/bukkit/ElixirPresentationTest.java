@@ -47,4 +47,25 @@ class ElixirPresentationTest {
         var meta=TestItems.water().getItemMeta(); assertFalse(ElixirPresentation.refresh(meta,new FinalDrinkMetadata("arcanebrewery")));
         assertFalse(meta.hasDisplayName());
     }
+    @Test void oldBottleTimingHintsAreHiddenButRecordedHarvestTimeIsPreserved() {
+        var meta=TestItems.water().getItemMeta();var data=meta.getPersistentDataContainer();
+        data.set(new NamespacedKey("arcanebrewery","drink_format"),PersistentDataType.INTEGER,2);
+        data.set(new NamespacedKey("arcanebrewery","drink_stage"),PersistentDataType.STRING,"FINISHED");
+        data.set(new NamespacedKey("arcanebrewery","drink_fingerprint"),PersistentDataType.STRING,"f".repeat(64));
+        for(String key:new String[]{"drink_strength","drink_quality","drink_contamination","drink_magical_potency"})
+            data.set(new NamespacedKey("arcanebrewery",key),PersistentDataType.DOUBLE,50.0);
+        data.set(new NamespacedKey("arcanebrewery","drink_maturity_target"),PersistentDataType.LONG,186L);
+        data.set(new NamespacedKey("arcanebrewery","drink_harvest_seconds"),PersistentDataType.LONG,190L);
+        data.set(new NamespacedKey("arcanebrewery","drink_quality_breakdown"),PersistentDataType.STRING,
+            "Maturation: 100/100 — perfect window 186–201 s at 18 C\nQuality: 100%");
+        var metadata=new FinalDrinkMetadata("arcanebrewery");
+        assertTrue(ElixirPresentation.refresh(meta,metadata));
+        assertTrue(meta.getLore().stream().anyMatch(l->l.contains("190s")));
+        assertFalse(meta.getLore().toString().contains("186"));
+        assertFalse(metadata.qualityBreakdown(meta).toString().contains("186"));
+        assertFalse(metadata.qualityBreakdown(meta).toString().contains("201"));
+        assertEquals(186L,metadata.maturityTarget(meta).orElseThrow());
+        assertEquals(190L,metadata.harvestSeconds(meta).orElseThrow());
+    }
+
 }
