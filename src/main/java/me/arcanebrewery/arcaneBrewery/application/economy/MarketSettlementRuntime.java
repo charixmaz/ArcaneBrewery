@@ -46,7 +46,19 @@ public final class MarketSettlementRuntime implements AutoCloseable {
         });
     }
 
-    private boolean inventory(Supplier<Boolean> operation) {
+    /** Built-in escrow port already confines its individual inventory calls to the server. */
+    public CompletableFuture<MarketSettlementResult> settleWorkerSale(
+            MarketTransactionJournal journal, MarketAssetPort assets, EconomyPort economy,
+            UUID player, MarketAsset asset, MarketQuote quote, UUID transaction) {
+        return submit(worker, () -> {
+            if(isServerThread.getAsBoolean()) throw new IllegalStateException("market storage requires a worker thread");
+            return new MarketSettlementService(journal,assets,economy)
+                    .settleSale(player,asset,quote,transaction,clock.getAsLong());
+        });
+    }
+
+    public <T> T inventory(Supplier<T> operation) {
+        if(isServerThread.getAsBoolean()) throw new IllegalStateException("only a market worker may wait for inventory handoff");
         return submit(server, () -> {
             if (!isServerThread.getAsBoolean()) throw new IllegalStateException("market inventory requires the server thread");
             return operation.get();

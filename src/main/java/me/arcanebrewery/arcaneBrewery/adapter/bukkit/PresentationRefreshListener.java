@@ -18,15 +18,23 @@ public final class PresentationRefreshListener implements Listener {
     private final JavaPlugin plugin;
     private final FinalDrinkMetadata drinks;
     private final me.arcanebrewery.arcaneBrewery.application.discovery.DiscoveryQueryRuntime queries;
+    private final java.util.Set<java.util.UUID> queued=new java.util.HashSet<>();
     public PresentationRefreshListener(JavaPlugin plugin,me.arcanebrewery.arcaneBrewery.application.discovery.DiscoveryQueryRuntime queries) { this.plugin=plugin;this.queries=queries; drinks=new FinalDrinkMetadata(plugin); }
-    @EventHandler public void onJoin(PlayerJoinEvent event) { refresh(event.getPlayer()); }
+    @EventHandler public void onJoin(PlayerJoinEvent event) { schedule(event.getPlayer()); }
     @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true)
-    public void onHeld(PlayerItemHeldEvent event) { refresh(event.getPlayer()); }
+    public void onHeld(PlayerItemHeldEvent event) { schedule(event.getPlayer()); }
     @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true)
-    public void onInteract(PlayerInteractEvent event) { refresh(event.getPlayer()); }
+    public void onInteract(PlayerInteractEvent event) { schedule(event.getPlayer()); }
     @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true)
     public void onClick(InventoryClickEvent event) {
-        if (event.getWhoClicked() instanceof Player player) plugin.getServer().getScheduler().runTask(plugin,() -> refresh(player));
+        if (event.getWhoClicked() instanceof Player player) schedule(player);
+    }
+    private void schedule(Player player) {
+        if(!queued.add(player.getUniqueId())) return;
+        plugin.getServer().getScheduler().runTask(plugin,()->{
+            queued.remove(player.getUniqueId());
+            if(player.isOnline()) refresh(player);
+        });
     }
     public void refresh(Player player) {
         var requested=new java.util.HashSet<String>();

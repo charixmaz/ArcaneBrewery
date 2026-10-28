@@ -14,6 +14,7 @@ import java.util.concurrent.Executor;
 public final class DiscoveryQueryRuntime {
     private final DiscoveryRepository repository;
     private final Executor executor;
+    private final PersonalNameCache names = new PersonalNameCache(System::currentTimeMillis,2048,32,30_000);
 
     public DiscoveryQueryRuntime(DiscoveryRepository repository, Executor executor) {
         this.repository = Objects.requireNonNull(repository);
@@ -27,8 +28,9 @@ public final class DiscoveryQueryRuntime {
     }
     public CompletableFuture<String> info(UUID player,DrinkFingerprint id) { return CompletableFuture.supplyAsync(()->repository.recordInfo(id,player),executor); }
     public CompletableFuture<java.util.Optional<String>> personalName(UUID producer,DrinkFingerprint id) {
-        return CompletableFuture.supplyAsync(()->repository.personalName(producer,id),executor);
+        return names.get(producer,id,executor,()->repository.personalName(producer,id));
     }
+    public void invalidatePersonalNames(UUID producer) { names.invalidate(producer); }
 
     public CompletableFuture<List<OwnedDiscoveryView>> recipes(UUID player,boolean learned,int limit,int offset) {
         return CompletableFuture.supplyAsync(()->repository.personalCatalogByOrigin(player,learned,limit,offset),executor);

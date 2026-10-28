@@ -109,6 +109,11 @@ public final class PersonalDiscoveryRepository implements DiscoveryRepository {
                 if(!rs.next()) return Optional.empty();
                 byte[] payload=rs.getBytes("process_payload");
                 ProcessProfile process=payload==null?fullGrantedProcess(c,id,player):codec.decode(payload);
+                // Keep discovery provenance intact; display the actual best independently produced attempt.
+                try(var best=c.prepareStatement("SELECT process_payload FROM production_batches WHERE identity=? AND player_id=? ORDER BY quality DESC, batch_key ASC LIMIT 1")) {
+                    bind(best,id.value(),player.toString());
+                    try(var batches=best.executeQuery()) { if(batches.next()) process=codec.decode(batches.getBytes(1)); }
+                }
                 if(process==null) return Optional.empty();
                 var grants=new HashMap<UUID,RecipeGrant>();
                 try(var q=c.prepareStatement("SELECT recipient_id,kind,selection_payload FROM personal_grants WHERE identity=? AND source_id=?")) {

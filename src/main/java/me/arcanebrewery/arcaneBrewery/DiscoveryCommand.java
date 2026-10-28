@@ -166,6 +166,7 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
         String name=String.join(" ",Arrays.copyOfRange(args,2,args.length-1));
         java.util.function.Consumer<DrinkFingerprint> rename=id->completeMutation(player,mutations.rename(player.getUniqueId(),id,name),
             result->{
+                queries.invalidatePersonalNames(player.getUniqueId());
                 new me.arcanebrewery.arcaneBrewery.adapter.bukkit.PresentationRefreshListener(plugin,queries).refresh(player);
                 return "§a[ArcaneBrewery] Your brewing record is now §f"+result.displayName().value();
             });

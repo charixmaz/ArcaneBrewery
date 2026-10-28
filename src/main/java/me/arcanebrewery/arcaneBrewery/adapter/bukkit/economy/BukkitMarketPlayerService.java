@@ -69,7 +69,8 @@ public final class BukkitMarketPlayerService implements Listener {
 
         long now = System.currentTimeMillis();
         MarketQuote quote = quotes.quote(asset.get(), MarketSide.PLAYER_SELLS, now, UUID.randomUUID());
-        pending.put(player.getUniqueId(), new PendingSale(asset.get(), quote));
+        pending.put(player.getUniqueId(), new PendingSale(asset.get(), quote,
+                player.getInventory().getHeldItemSlot(), player.getInventory().getItemInMainHand().clone()));
 
         long seconds = Math.max(1L, (quote.expiresAtEpochMillis() - now + 999L) / 1000L);
         player.sendMessage("§d§lArcane Market Quote");
@@ -98,7 +99,9 @@ public final class BukkitMarketPlayerService implements Listener {
         }
 
         var held = bottles.read(player.getInventory().getItemInMainHand());
-        if (held.isEmpty() || !held.get().equals(sale.asset())) {
+        if (held.isEmpty() || !held.get().equals(sale.asset())
+                || player.getInventory().getHeldItemSlot()!=sale.slot()
+                || !BukkitMarketAssetPort.same(player.getInventory().getItemInMainHand(),sale.item())) {
             player.sendMessage("§c[ArcaneBrewery] Hold the same quoted elixir in your main hand to confirm.");
             return;
         }
@@ -106,8 +109,8 @@ public final class BukkitMarketPlayerService implements Listener {
         UUID transactionId = UUID.randomUUID();
         player.sendMessage("§7[ArcaneBrewery] Processing sale...");
         plugin.settleMarketSale(
-                player.getUniqueId(), sale.asset(), sale.quote(), transactionId)
-                .whenComplete((result, failure) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                player.getUniqueId(), sale.asset(), sale.quote(), transactionId, sale.slot(), sale.item())
+                .whenComplete((result, failure) -> { if(!plugin.isEnabled()) return; Bukkit.getScheduler().runTask(plugin, () -> {
                     Player online = Bukkit.getPlayer(player.getUniqueId());
                     if (online == null) return;
 
@@ -126,7 +129,7 @@ public final class BukkitMarketPlayerService implements Listener {
                                 + safeReason(result.reason()));
                         case DUPLICATE -> online.sendMessage("§e[ArcaneBrewery] This transaction was already processed.");
                     }
-                }));
+                }); });
     }
 
     public void clear(UUID playerId) {
@@ -161,5 +164,5 @@ public final class BukkitMarketPlayerService implements Listener {
         if (!Bukkit.isPrimaryThread()) throw new IllegalStateException("market player command must run on server thread");
     }
 
-    private record PendingSale(MarketAsset asset, MarketQuote quote) {}
+    private record PendingSale(MarketAsset asset, MarketQuote quote, int slot, org.bukkit.inventory.ItemStack item) {}
 }

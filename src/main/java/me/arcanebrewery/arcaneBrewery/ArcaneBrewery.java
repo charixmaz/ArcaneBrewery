@@ -32,7 +32,7 @@ public final class ArcaneBrewery extends JavaPlugin {
     private MarketSettlementRuntime marketSettlements;
     private ExecutorService marketWorker;
     private RecoverableMarketTransactionJournal marketJournal;
-    private MarketAssetPort marketAssets;
+    private BukkitMarketAssetPort marketAssets;
     private BukkitMachineAccess machineAccess;
     private DistilleryMenuHandler extractors;
     private AgingCaskEngine casks;
@@ -40,6 +40,7 @@ public final class ArcaneBrewery extends JavaPlugin {
     private me.arcanebrewery.arcaneBrewery.adapter.bukkit.research.SpecialistMachines specialists;
     private me.arcanebrewery.arcaneBrewery.adapter.bukkit.discovery.MaterialDiscoveryListener materialDiscoveries;
     private ExecutorService materialWorker;
+    private ExecutorService discoveryWorker;
     public void reconcileMaterialInputs(org.bukkit.entity.Player player,org.bukkit.inventory.ItemStack[] inputs) {
         if(materialDiscoveries!=null)materialDiscoveries.reconcileOwnedInputs(player,inputs);
     }
@@ -58,9 +59,19 @@ public final class ArcaneBrewery extends JavaPlugin {
         return runtime.settleSale(journal, assets, currentEconomy, player, asset, quote, transactionId);
     }
 
-    /** Built-in durable sale path. No player-facing command is enabled yet. */
+    /** Compatibility entry point: capture the current main-hand item on the server thread. */
     public CompletableFuture<MarketSettlementResult> settleMarketSale(
             UUID player, MarketAsset asset, MarketQuote quote, UUID transactionId) {
+        if(!getServer().isPrimaryThread()) return CompletableFuture.failedFuture(new IllegalStateException("sale selection requires server thread"));
+        var online=getServer().getPlayer(player);
+        if(online==null || !online.isOnline()) return CompletableFuture.failedFuture(new IllegalStateException("player offline"));
+        return settleMarketSale(player,asset,quote,transactionId,online.getInventory().getHeldItemSlot(),online.getInventory().getItemInMainHand());
+    }
+
+    /** Built-in durable sale path, bound to the exact confirmed main-hand item. */
+    public CompletableFuture<MarketSettlementResult> settleMarketSale(
+            UUID player, MarketAsset asset, MarketQuote quote, UUID transactionId,
+            int slot, org.bukkit.inventory.ItemStack selectedItem) {
         var runtime = marketSettlements;
         var currentEconomy = economy;
         var journal = marketJournal;
@@ -68,7 +79,13 @@ public final class ArcaneBrewery extends JavaPlugin {
         if (runtime == null || currentEconomy == null || journal == null || assets == null) {
             return CompletableFuture.failedFuture(new IllegalStateException("market runtime unavailable"));
         }
-        return runtime.settleSale(journal, assets, currentEconomy, player, asset, quote, transactionId);
+        try { assets.select(player,transactionId,slot,selectedItem); }
+        catch(RuntimeException rejected) { return CompletableFuture.failedFuture(rejected); }
+        var result=runtime.settleWorkerSale(journal, assets, currentEconomy, player, asset, quote, transactionId);
+        result.whenComplete((value,failure)->{
+            if(isEnabled()) getServer().getScheduler().runTask(this,()->assets.clearSelection(transactionId));
+        });
+        return result;
     }
 
     public IngredientItemAdapter ingredientItems() {
@@ -97,8 +114,10 @@ public final class ArcaneBrewery extends JavaPlugin {
             return;
         }
 
-        java.util.concurrent.Executor async = command ->
-                getServer().getScheduler().runTaskAsynchronously(this, command);
+        discoveryWorker=new ThreadPoolExecutor(2,2,0,TimeUnit.MILLISECONDS,new ArrayBlockingQueue<>(256),task->{
+            var thread=new Thread(task,"ArcaneBrewery-discovery"); thread.setDaemon(true); return thread;
+        });
+        java.util.concurrent.Executor async = discoveryWorker;
 
         try {
             storage = new SqliteStorageProvider(getDataFolder().toPath().resolve("arcanebrewery.db"));
@@ -109,9 +128,6 @@ public final class ArcaneBrewery extends JavaPlugin {
             discoveryQueries = new DiscoveryQueryRuntime(storage.gameplayDiscoveries(), async);
             discoveryMutations = new DiscoveryMutationRuntime(storage.gameplayDiscoveries(), async);
             marketJournal = storage.marketJournal();
-            var marketBottleReader = new CanonicalMarketBottleReader(
-                    getName().toLowerCase(java.util.Locale.ROOT));
-            marketAssets = new BukkitMarketAssetPort(marketBottleReader, storage.marketEscrow());
             int prepared = marketJournal.prepared(1000).size();
             int unresolvedEscrow = storage.marketEscrow().unresolved(1000).size();
             if (prepared > 0 || unresolvedEscrow > 0) {
@@ -135,6 +151,8 @@ public final class ArcaneBrewery extends JavaPlugin {
                 });
         marketSettlements = new MarketSettlementRuntime(marketWorker,
                 task -> getServer().getScheduler().runTask(this, task), getServer()::isPrimaryThread, System::currentTimeMillis);
+        marketAssets = new BukkitMarketAssetPort(new CanonicalMarketBottleReader(getName().toLowerCase(java.util.Locale.ROOT)),
+                storage.marketEscrow(),marketSettlements);
 
         machineAccess=new BukkitMachineAccess(this);
         getServer().getPluginManager().registerEvents(machineAccess,this);
@@ -208,6 +226,12 @@ public final class ArcaneBrewery extends JavaPlugin {
             alchemyMachines = null;
         }
         if (machineAccess!=null) { machineAccess.close(); machineAccess=null; }
+        if(discoveryWorker!=null) {
+            discoveryWorker.shutdown();
+            try { if(!discoveryWorker.awaitTermination(5,TimeUnit.SECONDS)) discoveryWorker.shutdownNow(); }
+            catch(InterruptedException interrupted) { Thread.currentThread().interrupt(); discoveryWorker.shutdownNow(); }
+            discoveryWorker=null;
+        }
         if (storage != null) {
             try {
                 storage.close();

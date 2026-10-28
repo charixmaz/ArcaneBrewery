@@ -24,7 +24,8 @@ public final class CaskVisualEngine {
                     long elapsed=Math.max(0,(System.currentTimeMillis()-started)/1000);
                     long target=120;
                     lore.add("§7Wood: §f"+me.arcanebrewery.arcaneBrewery.adapter.bukkit.machine.CaskStructure.wood(core)+"§r");
-                    if (aging.isPresent()) { elapsed=aging.get().elapsedSeconds(System.currentTimeMillis()); target=aging.get().maturationSeconds(); }
+                    var harvest=new me.arcanebrewery.arcaneBrewery.adapter.bukkit.aging.CaskHarvestMetadata(plugin.getName().toLowerCase(Locale.ROOT)).read(meta);
+                    if (aging.isPresent()) { elapsed=aging.get().elapsedSeconds(harvest.map(h->h.harvestedAt()).orElseGet(System::currentTimeMillis)); target=aging.get().maturationSeconds(); }
                     else {
                         String stage=meta.getPersistentDataContainer().getOrDefault(new NamespacedKey(plugin,"brew_stage"),PersistentDataType.STRING,"");
                         var profile=BreweryData.RECIPES.get(stage);
@@ -44,7 +45,11 @@ public final class CaskVisualEngine {
                     }
                     state="AGING"; type=Material.BLUE_STAINED_GLASS_PANE;
                     lore.add("§7Elapsed: §b"+elapsed+"s§r");
-                    lore.add("§7Experiment with harvest times and record the results.§r");
+                    if(harvest.isPresent()) {
+                        state="HARVEST RETAINED"; type=Material.YELLOW_STAINED_GLASS_PANE;
+                        lore.add("§7Harvest time preserved while discovery is saved.§r");
+                        lore.add("§7If saving failed, withdraw again to retry safely.§r");
+                    } else lore.add("§7Experiment with harvest times and record the results.§r");
                     lore.add("§7Click or shift-click the bottle to withdraw.§r");
                     lore.add("§eEarly withdrawal: Unfinished Elixir; no discovery.§r");
                 } catch (RuntimeException corrupt) { state="DATA LOCKED"; type=Material.BARRIER; lore.add("§eStored bottle retained for inspection.§r"); }

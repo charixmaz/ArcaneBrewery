@@ -5,7 +5,7 @@ import java.util.List;
 
 public final class SqliteSchema {
     private SqliteSchema() {}
-    public static final int VERSION = 5;
+    public static final int VERSION = 6;
 
     public static List<SqlMigration> migrations() {
         return List.of(
@@ -94,6 +94,9 @@ public final class SqliteSchema {
                     "CREATE TRIGGER personal_rename_guard BEFORE UPDATE OF personal_name,rename_used ON personal_recipes WHEN OLD.rename_used=1 AND (NEW.personal_name IS NOT OLD.personal_name OR NEW.rename_used<>1) BEGIN SELECT RAISE(ABORT,'Personal formulation already permanently renamed'); END",
                     "CREATE TRIGGER personal_rename_mark AFTER UPDATE OF personal_name ON personal_recipes WHEN NEW.personal_name IS NOT NULL AND NEW.rename_used=0 BEGIN UPDATE personal_recipes SET rename_used=1 WHERE identity=NEW.identity AND player_id=NEW.player_id; END",
                     "CREATE TRIGGER personal_rename_insert AFTER INSERT ON personal_recipes WHEN NEW.personal_name IS NOT NULL AND NEW.rename_used=0 BEGIN UPDATE personal_recipes SET rename_used=1 WHERE identity=NEW.identity AND player_id=NEW.player_id; END"
+                )),
+                new SqlMigration(6,List.of(
+                    "CREATE INDEX production_best_process_idx ON production_batches(identity,player_id,quality DESC,batch_key ASC)"
                 ))
         );
     }
