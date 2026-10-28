@@ -142,10 +142,10 @@ public final class MarketDiagnosticsCommand implements CommandExecutor, TabCompl
     }
 
     private void help(CommandSender sender) {
-        sender.sendMessage("§d§lArcane Market Admin");
+        sender.sendMessage("§d§lHistorical Market Records");
         sender.sendMessage("§f/brewmarket pending [limit] §7— inspect unresolved records");
         sender.sendMessage("§f/brewmarket tx <uuid> §7— inspect one transaction and escrow");
-        sender.sendMessage("§7V1.21 diagnostics are read-only; no automatic payout/refund.");
+        sender.sendMessage("§7Selling was removed. Historical diagnostics are read-only; no payout/refund.");
     }
 
     private void fail(CommandSender sender, String context, RuntimeException failure) {

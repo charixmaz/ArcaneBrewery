@@ -85,7 +85,7 @@ for _ in $(seq 1 30); do
     wait "$SERVER_PID"
     trap - EXIT
     exec 3>&-
-    echo "Paper smoke test passed: ArcaneBrewery loaded without ArcaneEconomy."
+    echo "Paper smoke test passed: standalone ArcaneBrewery loaded."
     exit 0
   fi
   sleep 1

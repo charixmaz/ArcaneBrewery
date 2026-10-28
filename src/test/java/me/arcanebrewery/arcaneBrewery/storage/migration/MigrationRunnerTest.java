@@ -73,6 +73,7 @@ class MigrationRunnerTest {
                 assertEquals(4,rows.getInt(1));
                 assertEquals(SqliteSchema.migrations().get(3).checksum(),rows.getString(2));
                 assertTrue(rows.next());assertEquals(5,rows.getInt(1));assertEquals(SqliteSchema.migrations().get(4).checksum(),rows.getString(2));
+                assertTrue(rows.next());assertEquals(6,rows.getInt(1));assertEquals(SqliteSchema.migrations().get(5).checksum(),rows.getString(2));
                 assertFalse(rows.next());
             }
             return null;
@@ -82,8 +83,9 @@ class MigrationRunnerTest {
     @Test
     void failedMigrationRollsBackDdlAndHistoryAndRetainsPriorVersion() {
         runner(SqliteSchema.migrations()).migrate();
-        var broken = new SqlMigration(6, List.of("CREATE TABLE must_rollback (id INTEGER)", "THIS IS NOT VALID SQL"));
-        var runner = runner(List.of(SqliteSchema.migrations().get(0), SqliteSchema.migrations().get(1), SqliteSchema.migrations().get(2), SqliteSchema.migrations().get(3), SqliteSchema.migrations().get(4), broken));
+        var broken = new SqlMigration(SqliteSchema.VERSION+1, List.of("CREATE TABLE must_rollback (id INTEGER)", "THIS IS NOT VALID SQL"));
+        var withBroken = new java.util.ArrayList<>(SqliteSchema.migrations()); withBroken.add(broken);
+        var runner = runner(withBroken);
         assertThrows(StorageException.class, runner::migrate);
         assertFalse(tableExists("must_rollback"));
         assertEquals(SqliteSchema.VERSION, JdbcTransactions.run(connections, false, MigrationRunner::currentVersion));
@@ -120,7 +122,7 @@ class MigrationRunnerTest {
         runner(SqliteSchema.migrations()).migrate();
         JdbcTransactions.run(connections, true, connection -> {
             try (var statement = connection.prepareStatement("INSERT INTO schema_migrations(version, checksum) VALUES (?, ?)")) {
-                statement.setInt(1, 6); statement.setString(2, "future"); statement.executeUpdate();
+                statement.setInt(1, SqliteSchema.VERSION+1); statement.setString(2, "future"); statement.executeUpdate();
             }
             return null;
         });

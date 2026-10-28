@@ -3,7 +3,7 @@
 # Local Paper playtest
 
 Target: Paper 26.1.2, Java 25. Install only the rebuilt ArcaneBrewery JAR for the
-Brewery-only check. The unchanged economy API does not need rebuilding for this
+Brewery-only check. The economy API and built-in selling were removed from this
 update.
 
 The normal deployment remains **Git Pull → Rebuild Project → replace

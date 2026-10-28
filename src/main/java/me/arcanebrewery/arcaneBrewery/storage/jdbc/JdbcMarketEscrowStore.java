@@ -46,7 +46,7 @@ public final class JdbcMarketEscrowStore implements MarketEscrowStore {
     }
 
     @Override public void markRemoved(UUID id) { transition(id, Set.of(MarketEscrowEntry.State.STAGED), MarketEscrowEntry.State.REMOVED); }
-    @Override public void markRestored(UUID id) { transition(id, Set.of(MarketEscrowEntry.State.REMOVED), MarketEscrowEntry.State.RESTORED); }
+    @Override public void markRestored(UUID id) { transition(id, Set.of(MarketEscrowEntry.State.STAGED, MarketEscrowEntry.State.REMOVED), MarketEscrowEntry.State.RESTORED); }
     @Override public void release(UUID id) { transition(id, Set.of(MarketEscrowEntry.State.REMOVED), MarketEscrowEntry.State.RELEASED); }
     @Override public void markReconcile(UUID id) {
         transition(id, Set.of(MarketEscrowEntry.State.STAGED, MarketEscrowEntry.State.REMOVED), MarketEscrowEntry.State.RECONCILE);

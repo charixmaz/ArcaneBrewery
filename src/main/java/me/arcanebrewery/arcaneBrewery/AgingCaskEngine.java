@@ -43,6 +43,7 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
     private final AgingBatchMetadata agingMetadata;
     private final FinalDrinkMetadata finalDrinkMetadata;
     private final AlchemyPreparationMetadata preparationMetadata;
+    private final CaskHarvestMetadata harvestMetadata;
     private final DiscoveryRuntime discoveries;
     private final AlchemyEngine alchemy;
     private final MachineInventoryStorage storage;
@@ -55,12 +56,14 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
     }
     private static final class Session {
         final Block core; final Inventory gui; byte[] raw; BukkitRunnable task;
+        final HarvestSaveGate<RegistrationResult> harvests=new HarvestSaveGate<>();
         Session(Block core,Inventory gui,byte[] raw) { this.core=core; this.gui=gui; this.raw=raw; }
     }
     public AgingCaskEngine(JavaPlugin plugin,IngredientItemAdapter items,DiscoveryRuntime discoveries,BukkitMachineAccess access,ProcessingTimes timing) {
         this.plugin=plugin; ingredientItems=items; this.discoveries=discoveries; this.access=access; this.timing=timing;
         fermentationMetadata=new FermentationBatchMetadata(plugin); agingMetadata=new AgingBatchMetadata(plugin);
         finalDrinkMetadata=new FinalDrinkMetadata(plugin); preparationMetadata=new AlchemyPreparationMetadata(plugin);
+        harvestMetadata=new CaskHarvestMetadata(plugin.getName().toLowerCase(Locale.ROOT));
         alchemy=new AlchemyEngine(items.registry());
         storage=new MachineInventoryStorage(plugin.getName().toLowerCase(Locale.ROOT),"barrel_inventory_storage",null);
         inputPolicy=new MaturationInputPolicy(plugin.getName().toLowerCase(Locale.ROOT));
@@ -180,18 +183,23 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
                     : timing.maturationSeconds(), fermented.get().distillery().preparationMethod().equals("distillation-v2")));
     }
     private void withdraw(Player player,Session session,int slot,boolean shift) {
+        if(session.harvests.pending(slot)) { player.sendMessage("§eSaving this batch; please wait."); return; }
         ItemStack source=session.gui.getItem(slot);
         if (source.getAmount()!=1) { player.sendMessage(MessageConfig.prefix()+"§eThis legacy stacked lane is retained for administrator inspection.§r"); return; }
         PotionMeta meta=source.getItemMeta() instanceof PotionMeta potion?potion:null;
         ItemStack output=source.clone(); AgingResult result=null; boolean mature=false; int legacyStars=-1;
         byte[] privateEvidence=null;String productionKey=null;
+        CaskHarvestMetadata.Checkpoint checkpoint=meta==null?null:harvestMetadata.read(meta).orElse(null);
+        UUID producer=checkpoint==null?player.getUniqueId():checkpoint.producer();
+        String producerName=checkpoint==null?player.getName():checkpoint.producerName();
+        long harvestedAt=checkpoint==null?System.currentTimeMillis():checkpoint.harvestedAt();
         if (meta!=null) {
             var fermentation=fermentationMetadata.read(meta); var aging=agingMetadata.read(meta);
             if (fermentation.isPresent() || aging.isPresent()) {
                 if (fermentation.isEmpty() || aging.isEmpty() || fermentation.get().status()!=FermentationBatchState.Status.COMPLETED
                         || !aging.get().settings().woodType().equalsIgnoreCase(CaskStructure.wood(session.core)))
                     throw new IllegalArgumentException("canonical cask metadata does not match");
-                var state=aging.get(); long now=System.currentTimeMillis();
+                var state=aging.get(); long now=harvestedAt;
                 mature=state.elapsedSeconds(now)>=state.maturationSeconds();
                 var lots=new TreeMap<String,IngredientLot>();
                 fermentation.get().distillery().ingredientPurity().forEach((id,purity) -> lots.put(id,new IngredientLot(ingredientItems.registry().require(id).profile(),purity)));
@@ -200,7 +208,7 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
                 result=new AgingService().finish(fermentation.get().fermentedDraft(),state,now,lots,AgingBalance.wood(CaskStructure.wood(session.core)),
                         Math.min(100,Math.max(0,100-state.settings().caskCleanliness())+alchemyConditions.contamination(meta)),AgingBalance.targets(),state.batchId().getMostSignificantBits()^state.batchId().getLeastSignificantBits(),additives,alchemyConditions.stability(meta));
 
-                output=bottle(result,mature,player);
+                output=bottle(result,mature,producer,producerName);
                 var profiles=new me.arcanebrewery.arcaneBrewery.adapter.bukkit.alchemy.EffectProfileMetadata(plugin.getName().toLowerCase(Locale.ROOT));
                 if(profiles.newOperation(meta)) {
                     double profileQuality=0;
@@ -226,25 +234,73 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
         }
         me.arcanebrewery.arcaneBrewery.adapter.bukkit.machine.ShiftTransfers.Plan delivery=null;
         if(shift){var inventory=player.getInventory().getStorageContents();delivery=me.arcanebrewery.arcaneBrewery.adapter.bukkit.machine.ShiftTransfers.plan(output,inventory,java.util.stream.IntStream.range(0,inventory.length).toArray(),i->64,(i,item)->true);if(delivery.remainder()!=null){player.sendMessage("§eMake room in your inventory first.");return;}}
-        ItemStack[] next=contents(session.gui); next[slot]=null; commit(session,next);
-        if (shift) player.getInventory().setStorageContents(delivery.destination()); else player.setItemOnCursor(output);
+        if (mature && result!=null && result.simulation().quality().overallScore()>0) {
+            if(checkpoint==null) {
+                // Persist the original lane and frozen harvest conditions before any async work.
+                checkpoint=new CaskHarvestMetadata.Checkpoint(harvestedAt,producer,producerName);
+                var frozen=source.clone(); var frozenMeta=frozen.getItemMeta();
+                harvestMetadata.write(frozenMeta,checkpoint); frozen.setItemMeta(frozenMeta);
+                var retained=contents(session.gui); retained[slot]=frozen; commit(session,retained);
+                source=frozen; privateEvidence=frozen.serializeAsBytes();
+                if(privateEvidence.length>1048576) throw new IllegalArgumentException("batch evidence exceeds storage bound");
+            }
+            registerBeforeDelivery(player,session,slot,source,output,shift,result,productionKey,privateEvidence,checkpoint);
+            return;
+        }
+        deliver(player,session,slot,output,shift);
         if (legacyStars>=1) CaskQualityEngine.incrementBatchCounter(plugin,session.core);
         player.sendMessage(MessageConfig.prefix()+(mature?"§aElixir matured and bottled.§r":"§eWithdrawn before full maturity; no recipe discovery is registered.§r"));
-        if (mature && result!=null && result.simulation().quality().overallScore()>0) registerDiscovery(player.getUniqueId(),result,productionKey,privateEvidence);
-
         if(mature && result!=null && result.simulation().quality().overallScore()==0)
             player.sendMessage(MessageConfig.prefix()+"§cThis batch is ruined; no discovery was registered.§r");
-        // Detailed factors are available on demand through /brew inspect.
     }
 
-    private ItemStack bottle(AgingResult result,boolean mature,Player producer) {
+    private boolean deliver(Player player,Session session,int slot,ItemStack output,boolean shift) {
+        var cursor=player.getItemOnCursor();
+        if(cursor!=null && !cursor.getType().isAir()) { player.sendMessage("§eEmpty your cursor before withdrawing the saved batch."); return false; }
+        ShiftTransfers.Plan delivery=null;
+        if(shift) {
+            var inventory=player.getInventory().getStorageContents();
+            delivery=ShiftTransfers.plan(output,inventory,java.util.stream.IntStream.range(0,inventory.length).toArray(),i->64,(i,item)->true);
+            if(delivery.remainder()!=null) { player.sendMessage("§eMake room in your inventory; the batch is retained in the cask."); return false; }
+        }
+        ItemStack[] next=contents(session.gui); next[slot]=null; commit(session,next);
+        if(shift) player.getInventory().setStorageContents(delivery.destination()); else player.setItemOnCursor(output);
+        return true;
+    }
+
+    private void registerBeforeDelivery(Player player,Session session,int slot,ItemStack source,ItemStack output,boolean shift,
+            AgingResult result,String batchKey,byte[] evidence,CaskHarvestMetadata.Checkpoint checkpoint) {
+        var expected=source.clone(); var playerId=player.getUniqueId();
+        player.sendMessage(MessageConfig.prefix()+"§7Saving discovery before bottling...§r");
+        session.harvests.submit(slot,()->discoveries.register(checkpoint.producer(),result.process(),Instant.ofEpochMilli(checkpoint.harvestedAt()),
+                result.simulation().quality().overallScore(),batchKey,evidence),
+            task->{ if(!plugin.isEnabled()) throw new java.util.concurrent.RejectedExecutionException("plugin disabled"); Bukkit.getScheduler().runTask(plugin,task); },
+            (registration,failure)->{
+                if(failure!=null) plugin.getLogger().log(java.util.logging.Level.WARNING,"Discovery save failed; batch retained in cask: "+batchKey,failure);
+                if(closed || sessions.get(session.gui)!=session) return;
+                var online=Bukkit.getPlayer(playerId);
+                if(online==null || !online.isOnline() || !access.active(session.gui,playerId)) return;
+                if(failure!=null) { online.sendMessage(MessageConfig.prefix()+"§cDiscovery could not be saved. Batch retained in the cask; withdraw again to retry.§r"); return; }
+                var current=session.gui.getItem(slot);
+                if(current==null || current.getAmount()!=expected.getAmount() || !current.isSimilar(expected)) return;
+                try {
+                    if(deliver(online,session,slot,output,shift)) {
+                        online.sendMessage(MessageConfig.prefix()+"§aElixir matured and bottled. Personal discovery saved.§r");
+                        if(registration.status()==RegistrationResult.Status.REGISTERED && checkpoint.producer().equals(playerId))
+                            online.sendMessage(MessageConfig.prefix()+"§aYou discovered a new recipe! Private personal record unlocked.§r");
+                    }
+                } catch(RuntimeException deliveryFailure) { unavailable(online,session.core); detach(session); }
+            });
+    }
+
+    private ItemStack bottle(AgingResult result,boolean mature,UUID producer,String producerName) {
         var item=new ItemStack(Material.POTION); var meta=(PotionMeta)item.getItemMeta();
         if (meta==null) throw new IllegalStateException("potion meta unavailable");
         var effect=alchemy.evaluate(result.process(),result.simulation().quality());
         var value=new DrinkValueCalculator().calculate(result.process(),result.simulation().quality(),effect);
         finalDrinkMetadata.write(meta,result,effect,value);
 
-        if(mature && result.process().preparationMethod().equals("distillation-v2")) finalDrinkMetadata.producer(meta,producer.getUniqueId(),producer.getName(),result.process());
+        if(mature && result.process().preparationMethod().equals("distillation-v2")) finalDrinkMetadata.producer(meta,producer,producerName,result.process());
         meta.getPersistentDataContainer().set(new NamespacedKey(plugin,"alcohol_stars"),PersistentDataType.INTEGER,qualityStars(result.simulation().quality().overallScore()));
         String name=mature?new DescriptiveNameGenerator().generate(result.process()).value():MessageConfig.text("names.unfinished");
         meta.setDisplayName("§d§l"+name+"§r"); ElixirPresentation.refresh(meta,finalDrinkMetadata); item.setItemMeta(meta); return item;
@@ -286,26 +342,10 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
         try { if (Arrays.stream(storage.load(event.getBlock()).items()).anyMatch(Objects::nonNull)) event.setCancelled(true); }
         catch (RuntimeException corrupt) { event.setCancelled(true); }
     }
-    private void detach(Session session) { if (session.task!=null) session.task.cancel(); access.closeCore(session.core); sessions.remove(session.gui); }
+    private void detach(Session session) { session.harvests.close(); if (session.task!=null) session.task.cancel(); access.closeCore(session.core); sessions.remove(session.gui); }
     private void unavailable(Player player,Block core) {
         plugin.getLogger().warning("Cask data retained and locked at "+core.getLocation());
         player.sendMessage(MessageConfig.prefix()+"§cCask data could not be updated. Contents were retained.§r");
-    }
-    private void registerDiscovery(UUID playerId,AgingResult result,String batchKey,byte[] evidence) {
-
-        discoveries.register(playerId,result.process(),Instant.now(),result.simulation().quality().overallScore(),batchKey,evidence).whenComplete((registration,failure) -> {
-            if(failure!=null) plugin.getLogger().log(java.util.logging.Level.SEVERE,
-                    "Personal discovery save failed for batch " + batchKey + " (player " + playerId + ")",failure);
-            if (!plugin.isEnabled()) return;
-            Bukkit.getScheduler().runTask(plugin,() -> {
-                Player player=Bukkit.getPlayer(playerId); if (player==null) return;
-
-                if (failure!=null) { player.sendMessage(MessageConfig.prefix()+"§cElixir bottled, but personal discovery could not be saved.§r"); return; }
-                player.sendMessage(MessageConfig.prefix()+(registration.status()==RegistrationResult.Status.REGISTERED
-
-                        ?"§aYou discovered a new recipe! Private personal record unlocked.§r":"§7Recipe reproduced; personal record retained.§r"));
-            });
-        });
     }
     public void close() { closed=true; for (var session:List.copyOf(sessions.values())) detach(session); }
 }

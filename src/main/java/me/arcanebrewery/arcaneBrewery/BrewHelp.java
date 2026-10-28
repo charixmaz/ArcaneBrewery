@@ -16,7 +16,7 @@ public final class BrewHelp {
 
                     "§7Extract with bottles and a washed ingredient; insert bases in a plain Barrel, close, then sneak-click for controls.§r",
                     "§7Infuse a completed base with one or two catalysts, or mature it directly.§r",
-                    "§7Mature withdrawal creates a finished elixir and attempts private discovery registration.§r",
+                    "§7Mature withdrawal saves your private discovery before delivering the finished elixir.§r",
                     "§7Early cask withdrawal gives an Unfinished Elixir and never creates a discovery.§r",
                     "§7Elixirs create temporary saturation; excessive exposure causes overload and recovery.§r");
             case "machines" -> List.of(
@@ -45,9 +45,6 @@ public final class BrewHelp {
                     "§f/brew inspect §7— inspect the held elixir and its quality breakdown.§r",
                     "§f/brew guide §7— open the ingredient, catalyst, machine and recipe Codex.§r",
                     "§f/brew status §7— temporary saturation and recovery.§r",
-                    "§f/brew value §7— calculated value of a supported held finished elixir.§r",
-                    "§f/brew sell §7then §f/brew sell confirm §7— sale when enabled and an economy provider is available.§r",
-                    "§7Economy is optional; brewing remains usable without it. Sales are disabled by default.§r",
                     "§f/brew discoveries §7and §f/brew recipe §7— browse your recipe knowledge.§r");
             default -> List.of("§5§lArcaneBrewery — Brewing & Alchemy§r",
                     "§f/brew inspect §7— inspect the held elixir and its quality breakdown.§r",
@@ -55,7 +52,7 @@ public final class BrewHelp {
                     "§f/brew help getting-started §7— production and washing§r",
                     "§f/brew help machines §7— structures, inputs and ownership§r",
                     "§f/brew help recipes §7— discoveries and short IDs§r",
-                    "§f/brew help commands §7— status, value and optional sales§r");
+                    "§f/brew help commands §7— status, inspection and discoveries§r");
         };
     }
 }

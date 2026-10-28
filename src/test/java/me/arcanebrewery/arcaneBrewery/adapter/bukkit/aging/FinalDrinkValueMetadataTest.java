@@ -41,6 +41,11 @@ class FinalDrinkValueMetadataTest {
         assertEquals(value, metadata.readValue(item.getItemMeta()).orElseThrow());
         assertTrue(metadata.readConsumption(item.getItemMeta()).isPresent());
         assertEquals(alchemy, metadata.readAlchemy(item.getItemMeta()).orElseThrow());
+        // Historical bottle fields remain readable, but no longer advertise a cash value.
+        item.edit(meta -> me.arcanebrewery.arcaneBrewery.adapter.bukkit.ElixirPresentation.refresh(meta,metadata));
+        assertEquals(value, metadata.readValue(item.getItemMeta()).orElseThrow());
+        assertTrue(metadata.readConsumption(item.getItemMeta()).isPresent());
+        assertFalse(item.getItemMeta().getLore().toString().contains("Value"));
     }
 
     @Test

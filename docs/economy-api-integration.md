@@ -1,3 +1,13 @@
+# Historical document — integration removed
+
+The integration described below was removed from the current Brewery release.
+There is no economy API module, provider binding, selling command or payout path.
+See [current standalone release notes](audit-reliability-fixes.md). Historical
+transaction/escrow records and read-only `/brewmarket` diagnostics are retained.
+Do not follow the old build or installation steps below for current versions.
+
+---
+
 # Shared economy API and optional Brewery integration
 
 Starting point: master `2e3a95da8d5af23e61b036423e43f337ccf35355`.
