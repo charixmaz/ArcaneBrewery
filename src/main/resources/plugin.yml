@@ -4,7 +4,6 @@ main: me.arcanebrewery.arcaneBrewery.ArcaneBrewery
 api-version: '26.1'
 author: ArcaneBreweryTeam
 description: Fantasy Brewing & Alchemy for Paper 26.1.2.
-softdepend: [ArcaneEconomy]
 
 commands:
   brew:
@@ -13,7 +12,7 @@ commands:
     aliases: [arcanebrewery]
     permission: arcanebrewery.use
   brewmarket:
-    description: ArcaneBrewery market recovery diagnostics.
+    description: ArcaneBrewery historical market recovery diagnostics (read-only).
     usage: /brewmarket help
     permission: arcanebrewery.admin.market
 
@@ -28,7 +27,3 @@ permissions:
   arcanebrewery.admin.market:
     description: Allows read-only inspection of market recovery records.
     default: op
-
-  arcanebrewery.market.sell:
-    description: Allows a player to sell canonical drinks when the server market is enabled.
-    default: true

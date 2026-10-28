@@ -12,15 +12,15 @@ Overload and recovery are the default player conditions; historical alcohol
 progression is opt-in.
 
 The four ordinary production machines and four researched specialists have persistent ownership and exclusive access.
-No resource pack or economy provider is required. Optional sales remain disabled
-by default.
+No resource pack or economy provider is required. Built-in selling and economy
+integration have been removed; owners control trading through their own server systems.
 
 For this update, the existing deployment workflow remains:
 
 **Git Pull → Rebuild Project → replace ArcaneBrewery JAR → restart Paper.**
 
-Build Brewery with `mvn --batch-mode clean verify`. This update does not change
-or require rebuilding the already installed economy API contract.
+Build Brewery directly with `mvn --batch-mode clean verify`. No economy API build
+or installation is needed.
 
 See [fantasy defaults, ownership, configuration and compatibility](docs/fantasy-machines.md)
 and [the local Paper checklist](docs/local-playtest.md).
@@ -34,3 +34,5 @@ Phase 2 release, exact research/build costs, specialist caps and deployment: [Pe
 New-batch ingredient influence, reproducible ratios and compatibility: [Ingredient relevance](docs/ingredient-relevance.md).
 
 Washing delivery and protection-denial fixes: [Washing safety](docs/washing-safety.md).
+
+Reliability fixes, economy removal, preserved transaction history and deployment: [Standalone release](docs/audit-reliability-fixes.md).

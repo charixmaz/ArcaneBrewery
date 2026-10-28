@@ -37,7 +37,6 @@ public final class ElixirPresentation {
         if(effects.isEmpty()) data.harvestSeconds(meta).ifPresent(h->lore.add("§7Harvested at §f"+h+"s§r"));
         if(data.prematurePoison(meta)) lore.add("§cPoisonous if consumed.§r");
         else if(unfinished) lore.add("§eWithdrawn early; no discovery.§r");
-        if(!unfinished && effects.isEmpty()) data.readValue(meta).ifPresent(v->lore.add("§7Value §6"+Math.round(v.units())+" units§r"));
         lore.add("§8/brew inspect — full details§r");
         meta.setLore(lore);
         meta.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);

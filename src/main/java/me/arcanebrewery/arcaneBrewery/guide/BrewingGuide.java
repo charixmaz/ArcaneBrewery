@@ -75,7 +75,6 @@ public final class BrewingGuide implements Listener {
             data.readEffects(meta).ifPresent(p->effects.addAll(p.summary()));
             if(data.readEffects(meta).isEmpty()) data.readAlchemy(meta).ifPresent(a->{ effects.add("Effect: "+me.arcanebrewery.arcaneBrewery.application.consumption.PlayerConditionPolicy.readable(a.effect().name()));
                 effects.add("Instability: "+Math.round(a.instability())+"/100"); });
-            if(!data.unfinished(meta)) data.readValue(meta).ifPresent(v->effects.add("Calculated value: "+Math.round(v.units())+" units"));
             entries.add(new GuideCatalog.Entry(Material.AMETHYST_SHARD,"Effects & Safety",effects));
             entries(player,"Elixir Inspection",entries,0);
         } catch(IllegalArgumentException invalid) { player.sendMessage(MessageConfig.prefix()+"§cThis bottle has invalid metadata; it was retained.§r"); }

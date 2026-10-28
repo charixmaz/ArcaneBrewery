@@ -3,7 +3,6 @@ package me.arcanebrewery.arcaneBrewery;
 import me.arcanebrewery.arcaneBrewery.application.discovery.*;
 import me.arcanebrewery.arcaneBrewery.domain.discovery.*;
 import me.arcanebrewery.arcaneBrewery.domain.drink.DrinkFingerprint;
-import me.arcanebrewery.arcaneBrewery.adapter.bukkit.economy.BukkitMarketPlayerService;
 import org.bukkit.Bukkit;
 import org.bukkit.command.*;
 import org.bukkit.entity.Player;
@@ -13,24 +12,22 @@ import java.util.*;
 
 public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
     private static final int PAGE_SIZE = 8;
-    public static final List<String> PLAYER_COMMANDS=List.of("inspect", "guide", "codex", "discoveries", "recipe", "rename", "visibility", "status", "value", "sell", "help");
+    public static final List<String> PLAYER_COMMANDS=List.of("inspect", "guide", "codex", "discoveries", "recipe", "rename", "visibility", "status", "help");
 
     private final JavaPlugin plugin;
     private final DiscoveryQueryRuntime queries;
     private final DiscoveryMutationRuntime mutations;
     private final ConsumptionListener consumption;
-    private final BukkitMarketPlayerService market;
     private final me.arcanebrewery.arcaneBrewery.guide.BrewingGuide guide;
     private final DiscoveryTextFormatter formatter = new DiscoveryTextFormatter();
 
     public DiscoveryCommand(JavaPlugin plugin, DiscoveryQueryRuntime queries,
             DiscoveryMutationRuntime mutations, ConsumptionListener consumption,
-            BukkitMarketPlayerService market, me.arcanebrewery.arcaneBrewery.guide.BrewingGuide guide) {
+            me.arcanebrewery.arcaneBrewery.guide.BrewingGuide guide) {
         this.plugin = Objects.requireNonNull(plugin);
         this.queries = Objects.requireNonNull(queries);
         this.mutations = Objects.requireNonNull(mutations);
         this.consumption = Objects.requireNonNull(consumption);
-        this.market = Objects.requireNonNull(market);
         this.guide = Objects.requireNonNull(guide);
     }
 
@@ -58,13 +55,6 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
             case "rename" -> { rename(player, args); yield true; }
             case "visibility" -> { visibility(player, args); yield true; }
             case "status" -> { status(player); yield true; }
-            case "value" -> { market.value(player); yield true; }
-            case "sell" -> {
-                if (args.length == 1) market.quoteSale(player);
-                else if (args.length == 2 && args[1].equalsIgnoreCase("confirm")) market.confirmSale(player);
-                else player.sendMessage("§cUsage: /brew sell [confirm]");
-                yield true;
-            }
             default -> { help(player); yield true; }
         };
     }
@@ -273,10 +263,6 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
         }
         if (args.length == 2 && (args[0].equalsIgnoreCase("guide") || args[0].equalsIgnoreCase("codex"))) {
             return List.of("recipe").stream().filter(value -> value.startsWith(args[1].toLowerCase(Locale.ROOT))).toList();
-        }
-        if (args.length == 2 && args[0].equalsIgnoreCase("sell")) {
-            return List.of("confirm").stream()
-                    .filter(value -> value.startsWith(args[1].toLowerCase(Locale.ROOT))).toList();
         }
         if (args.length==2 && args[0].equalsIgnoreCase("help")) return BrewHelp.TOPICS.stream()
                 .filter(topic -> topic.startsWith(args[1].toLowerCase(Locale.ROOT))).toList();
