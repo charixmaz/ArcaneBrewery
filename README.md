@@ -32,3 +32,5 @@ Material exploration and typed effects: [Discovery and alchemy Phase 1](docs/dis
 Phase 2 release, exact research/build costs, specialist caps and deployment: [Personal research and specialists](docs/phase2-specialists-release.md).
 
 New-batch ingredient influence, reproducible ratios and compatibility: [Ingredient relevance](docs/ingredient-relevance.md).
+
+Washing delivery and protection-denial fixes: [Washing safety](docs/washing-safety.md).
