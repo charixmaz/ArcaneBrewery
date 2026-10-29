@@ -28,3 +28,7 @@ Specialist personal unlocks cost 50 XP levels each. Construction is separate and
 Check startup logs; new and legacy bottles; restart during processing; full/partial inventories; second-player access; denied interactions with protection plugins; crafting and vanilla barrel behavior. Do not treat unit-test counts as a TPS or crash-safety guarantee. Record build SHA, Paper build, installed plugins, reproduction steps and logs in bug reports.
 
 Consult CHANGELOG.md for released versus unreleased behavior. Live Paper startup is skipped in CI unless the owner provides the EULA acceptance setting.
+
+## Bottle crates
+
+Use `/brew crate pack <1–9>` with one ordinary Barrel and finished bottles in your storage inventory. The command packs the first matching bottles in inventory order. Hold the resulting crate and use `/brew crate inspect` before trading, or `/brew crate unpack` to recover its bottles and Barrel. Crates are portable items, not placeable blocks, and cannot hold other crates. Unpacking requires space for every bottle plus the recovered Barrel; otherwise nothing changes. Avoid packing valuable bottles unintentionally: arrange inventory before packing.

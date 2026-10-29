@@ -12,7 +12,7 @@ import java.util.*;
 
 public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
     private static final int PAGE_SIZE = 8;
-    public static final List<String> PLAYER_COMMANDS=List.of("inspect", "guide", "codex", "discoveries", "recipe", "rename", "visibility", "status", "help");
+    public static final List<String> PLAYER_COMMANDS=List.of("inspect", "guide", "codex", "discoveries", "recipe", "rename", "visibility", "status", "crate", "help");
 
     private final JavaPlugin plugin;
     private final DiscoveryQueryRuntime queries;
@@ -49,6 +49,7 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
                 else player.sendMessage(MessageConfig.prefix() + "§eUsage: /brew guide [recipe <full fingerprint>]§r");
                 yield true;
             }
+            case "crate" -> { me.arcanebrewery.arcaneBrewery.adapter.bukkit.BottleCrates.command(player,args); yield true; }
             case "inspect" -> { guide.inspect(player); yield true; }
             case "discoveries" -> { discoveries(player, args); yield true; }
             case "recipe" -> { recipe(player, args); yield true; }

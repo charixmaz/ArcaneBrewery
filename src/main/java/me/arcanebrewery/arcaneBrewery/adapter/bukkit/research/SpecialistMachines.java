@@ -62,7 +62,7 @@ public final class SpecialistMachines implements Listener,AutoCloseable {
   if(!s.state.built())return item.getType().name().equals(slot==0?s.state.type().buildA:s.state.type().buildB)&&!item.hasItemMeta();
   if(s.state.type()==SpecialistType.REAGENT_PROCESSOR)return slot==0?Set.of(Material.REDSTONE,Material.GLOWSTONE_DUST,Material.QUARTZ).contains(item.getType()):Set.of(Material.AMETHYST_SHARD,Material.BLAZE_ROD,Material.HONEYCOMB).contains(item.getType());
   if(slot==0)return item.getType()==Material.POTION&&item.getAmount()==1&&new EffectProfileMetadata("arcanebrewery").read(item.getItemMeta()).isPresent();
-  if(s.state.type()==SpecialistType.PURIFICATION_CHAMBER)return !item.hasItemMeta()&&Set.of(Material.SUGAR,Material.HONEYCOMB,Material.AMETHYST_SHARD).contains(item.getType());
+  if(s.state.type()==SpecialistType.PURIFICATION_CHAMBER)return (!item.hasItemMeta()&&Set.of(Material.SUGAR,Material.HONEYCOMB,Material.AMETHYST_SHARD).contains(item.getType()))||PreparedReagents.read(item).filter(k->k==PreparedReagents.Kind.PURIFICATION).isPresent();
   return PreparedReagents.read(item).map(k->k==required(s.state.type())).orElse(false);
  }
  private PreparedReagents.Kind required(SpecialistType type){return switch(type){case DURATION_INFUSER->PreparedReagents.Kind.DURATION;case ESSENCE_CONCENTRATOR->PreparedReagents.Kind.POTENCY;case PURIFICATION_CHAMBER->PreparedReagents.Kind.PURIFICATION;default->throw new IllegalArgumentException();};}
@@ -72,14 +72,23 @@ public final class SpecialistMachines implements Listener,AutoCloseable {
   try{recover(s);if(s.state.readyAt()>0)return;
    if(event.isShiftClick()){ShiftTransfers.move(event,contents(s),SLOTS,EDIT,i->i==0&&s.state.type()!=SpecialistType.REAGENT_PROCESSOR&&s.state.built()?1:64,(slot,item)->accepts(s,slot,item),next->commit(s,next,s.state));return;}
    if(event.getClick()!=ClickType.LEFT&&event.getClick()!=ClickType.RIGHT)return;if(event.getClickedInventory()!=s.gui){event.setCancelled(false);return;}
-   int slot=event.getSlot();if(slot==15)slot=6;else if(slot==22)slot=8;else if(slot>=3)return;if(slot==6){commit(s,contents(s),new SpecialistState(s.state.type(),s.state.built(),0,(s.state.selection()+1)%REMOVABLE.size()));return;}
+   int slot=event.getSlot();if(slot==15)slot=6;else if(slot==22)slot=8;else if(slot>=3)return;if(slot==6){
+    var available=available(s);if(available.isEmpty()){player.sendMessage("§eInsert a finished bottle with an unwanted effect first.");return;}
+    int next=(s.state.selection()+1)%REMOVABLE.size();for(int i=0;i<REMOVABLE.size()&&!available.contains(REMOVABLE.get(next));i++)next=(next+1)%REMOVABLE.size();
+    commit(s,contents(s),new SpecialistState(s.state.type(),s.state.built(),0,next));return;}
    if(slot==8){start(s);return;}if(slot>2)return;
    var cursor=player.getItemOnCursor();if(cursor!=null&&!cursor.getType().isAir()&&!accepts(s,slot,cursor))return;
    var move=me.arcanebrewery.arcaneBrewery.adapter.bukkit.alchemy.AlchemySlotTransfer.move(s.gui.getItem(slot),cursor,event.getClick()==ClickType.RIGHT,slot==0&&s.state.built()&&s.state.type()!=SpecialistType.REAGENT_PROCESSOR?1:64);
    var next=contents(s);next[slot]=move.slot();commit(s,next,s.state);player.setItemOnCursor(move.cursor());
   }catch(RuntimeException rejected){player.sendMessage("§e"+rejected.getMessage());}
  }
- private void start(Session s){var captured=contents(s);var work=SpecialistWork.start(captured,s.state,System.currentTimeMillis());commit(s,work.items(),work.state());for(var viewer:s.gui.getViewers())if(viewer instanceof Player player)plugin.reconcileMaterialInputs(player,new ItemStack[]{captured[0],captured[1]});}
+ private List<ProfileEffect> available(Session s){
+  var item=s.gui.getItem(0);if(item==null||!item.hasItemMeta())return List.of();
+  return new EffectProfileMetadata("arcanebrewery").read(item.getItemMeta()).map(p->p.effects().stream().map(e->e.effect()).filter(REMOVABLE::contains).toList()).orElse(List.of());
+ }
+ private void start(Session s){var captured=contents(s);var chosen=s.state;
+  if(chosen.type()==SpecialistType.PURIFICATION_CHAMBER&&chosen.built()){var options=available(s);if(!options.isEmpty()&&!options.contains(REMOVABLE.get(chosen.selection())))chosen=new SpecialistState(chosen.type(),true,0,REMOVABLE.indexOf(options.getFirst()));}
+  var work=SpecialistWork.start(captured,chosen,System.currentTimeMillis());commit(s,work.items(),work.state());for(var viewer:s.gui.getViewers())if(viewer instanceof Player player)plugin.reconcileMaterialInputs(player,new ItemStack[]{captured[0],captured[1]});}
  private void control(Session s,int slot,Material icon,String title,List<String> lore){var item=new ItemStack(icon);var meta=item.getItemMeta();DisplayOnlyItems.mark(meta);meta.setDisplayName("§d"+title);meta.setLore(lore);item.setItemMeta(meta);s.gui.setItem(slot,item);}
  private void paint(Session s){try{render(s);}catch(RuntimeException failure){plugin.getLogger().warning("Specialist display unavailable; saved state retained.");}}
  private void render(Session s){

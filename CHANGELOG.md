@@ -8,17 +8,18 @@ Every change must leave a trace here. Entries describe behavior, compatibility, 
 - Permission `arcanebrewery.rename.colors` (default false): color-only `&0–&f` in the one permanent name. No payment integration; owners assign permissions to ranks.
 - Persisted cosmetic tasting notes on newly finished bottles. Refresh and specialist processing retain the note.
 - Cumulative drawback-duration reduction using Sugar (1s each / 25s cap), Honeycomb (3s / 35s cap) or Amethyst Shard (5s / 45s cap). At least one second remains; benefits and reaction safety remain unchanged.
+- Portable nine-bottle crates: `/brew crate pack <1–9>`, `inspect`, `unpack`. Packing consumes one ordinary Barrel; unpacking returns it. Stored bottles retain native metadata. Crates cannot be placed or nested. Full inventories reject safely.
 - Expanded specialist controls with a real processing clock.
 - GitHub overview, documentation index, owner guide and contribution/change-record conventions.
 
 ### Changed
-- Purification consumes ordinary reduction materials instead of a prepared reagent. Historical bottles already fully purified cannot receive this treatment. Existing in-flight operations retain their stored output.
+- Purification consumes ordinary reduction materials as an alternative to prepared reagents. Existing prepared purification reagents remain usable at 5 seconds each, with the same 45-second cap. Historical bottles already fully purified cannot receive this treatment. Existing in-flight operations retain their stored output.
 
 ### Verification
 - Pending final CI. No live Paper, crate or protection-plugin checks claimed.
 
 ### Still pending
-- Nine-bottle crates; broader machine GUI redesign and in-game balance testing.
+- Broader non-specialist GUI redesign and in-game balance testing.
 
 ## 2026-10-29 — `82ca534` (#5)
 

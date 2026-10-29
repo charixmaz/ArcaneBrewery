@@ -44,8 +44,9 @@ public final class SpecialistWork {
    int consumed=1;SpecialistProcess.Result result;
    if(t==SpecialistType.PURIFICATION_CHAMBER){
     if((history&4)!=0)throw new IllegalArgumentException("This historical bottle was already purified");
-    if(DisplayOnlyItems.test(items[1])||items[1].hasItemMeta())throw new IllegalArgumentException("Use ordinary reduction materials");
-    int seconds,cap;switch(items[1].getType()){case SUGAR->{seconds=1;cap=25;}case HONEYCOMB->{seconds=3;cap=35;}case AMETHYST_SHARD->{seconds=5;cap=45;}default->throw new IllegalArgumentException("Use Sugar, Honeycomb or Amethyst Shard");}
+    boolean prepared=PreparedReagents.read(items[1]).filter(k->k==PreparedReagents.Kind.PURIFICATION).isPresent();
+    if(DisplayOnlyItems.test(items[1])||items[1].hasItemMeta()&&!prepared)throw new IllegalArgumentException("Use ordinary reduction materials");
+    int seconds,cap;switch(items[1].getType()){case SUGAR->{seconds=1;cap=25;}case HONEYCOMB->{seconds=3;cap=35;}case AMETHYST_SHARD->{seconds=5;cap=45;}default->{if(!prepared)throw new IllegalArgumentException("Use Sugar, Honeycomb or Amethyst Shard");seconds=5;cap=45;}}
     var reductionKey=new NamespacedKey("arcanebrewery","drawback_reduction_v1");
     if(meta.getPersistentDataContainer().has(reductionKey)&&!meta.getPersistentDataContainer().has(reductionKey,PersistentDataType.INTEGER))throw new IllegalArgumentException("Invalid reduction history");
     int already=meta.getPersistentDataContainer().getOrDefault(reductionKey,PersistentDataType.INTEGER,0);
