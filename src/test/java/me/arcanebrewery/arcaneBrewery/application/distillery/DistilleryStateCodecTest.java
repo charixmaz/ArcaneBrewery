@@ -23,6 +23,17 @@ class DistilleryStateCodecTest {
                 draft, started, 10_000, status);
     }
 
+    @Test void qualityPolicySurvivesRestartAndOldSnapshotsStayV2() {
+        var batch=state(1000,DistilleryBatchState.Status.PROCESSING);
+        for(int effects=0;effects<=2;effects++) {
+            var old=new DistilleryProcessEnvelope(batch,effects);
+            assertEquals(2,DistilleryProcessEnvelope.decode(old.encode()).qualityGeneration());
+            var modern=new DistilleryProcessEnvelope(batch,effects,3);
+            assertEquals(modern,DistilleryProcessEnvelope.decode(modern.encode()));
+        }
+        assertEquals(2,DistilleryProcessEnvelope.decode(codec.encodeBase64(batch)).qualityGeneration());
+        assertThrows(IllegalArgumentException.class,()->new DistilleryProcessEnvelope(batch,2,4));
+    }
     @Test
     void roundTripsExactly() {
         var original = state(1_000, DistilleryBatchState.Status.PROCESSING);

@@ -175,11 +175,14 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
         if (fermented.isEmpty()) return; // Preserve legacy contract without inventing canonical recipes.
         if (fermented.get().status()!=FermentationBatchState.Status.COMPLETED) throw new IllegalArgumentException("cultivation is incomplete");
         preparationMetadata.read(meta); // Malformed additives never silently become absent.
+        var qualityLots=new TreeMap<String,IngredientLot>();
+        fermented.get().distillery().ingredientPurity().forEach((id,purity)->qualityLots.put(id,new IngredientLot(ingredientItems.registry().require(id).profile(),purity)));
+        int qualityGeneration=me.arcanebrewery.arcaneBrewery.adapter.bukkit.QualityPolicyMetadata.read(meta);
         if (agingMetadata.read(meta).isEmpty()) agingMetadata.write(meta,new AgingBatchState(AgingBatchState.VERSION,UUID.randomUUID(),
 
                 new AgingSettings(wood,fermented.get().distillery().preparationMethod().equals("distillation-v2")?0:12,18,fermented.get().distillery().preparationMethod().equals("distillation-v2")?100:95),System.currentTimeMillis(),
                 fermented.get().distillery().preparationMethod().equals("distillation-v2")
-                    ? me.arcanebrewery.arcaneBrewery.application.aging.RecipeMaturation.target(fermented.get().fermentedDraft(),preparationMetadata.read(meta).map(p -> p.additives()).orElseGet(Map::of))
+                    ? qualityGeneration==3?me.arcanebrewery.arcaneBrewery.application.aging.RecipeMaturation.targetV3(fermented.get().fermentedDraft(),preparationMetadata.read(meta).map(p -> p.additives()).orElseGet(Map::of),qualityLots):me.arcanebrewery.arcaneBrewery.application.aging.RecipeMaturation.target(fermented.get().fermentedDraft(),preparationMetadata.read(meta).map(p -> p.additives()).orElseGet(Map::of))
                     : timing.maturationSeconds(), fermented.get().distillery().preparationMethod().equals("distillation-v2")));
     }
     private void withdraw(Player player,Session session,int slot,boolean shift) {
@@ -206,7 +209,7 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
                 var additives=preparationMetadata.read(meta).map(p -> p.additives()).orElseGet(Map::of);
                 var alchemyConditions=new me.arcanebrewery.arcaneBrewery.adapter.bukkit.alchemy.AlchemyBatchConditionsMetadata(plugin.getName().toLowerCase(Locale.ROOT));
                 result=new AgingService().finish(fermentation.get().fermentedDraft(),state,now,lots,AgingBalance.wood(CaskStructure.wood(session.core)),
-                        Math.min(100,Math.max(0,100-state.settings().caskCleanliness())+alchemyConditions.contamination(meta)),AgingBalance.targets(),state.batchId().getMostSignificantBits()^state.batchId().getLeastSignificantBits(),additives,alchemyConditions.stability(meta));
+                        Math.min(100,Math.max(0,100-state.settings().caskCleanliness())+alchemyConditions.contamination(meta)),AgingBalance.targets(),state.batchId().getMostSignificantBits()^state.batchId().getLeastSignificantBits(),additives,alchemyConditions.stability(meta),me.arcanebrewery.arcaneBrewery.adapter.bukkit.QualityPolicyMetadata.read(meta));
 
                 output=bottle(result,mature,producer,producerName);
                 var profiles=new me.arcanebrewery.arcaneBrewery.adapter.bukkit.alchemy.EffectProfileMetadata(plugin.getName().toLowerCase(Locale.ROOT));
@@ -216,7 +219,7 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
                         new me.arcanebrewery.arcaneBrewery.domain.quality.BatchConditions(lots,alchemyConditions.contamination(meta),alchemyConditions.stability(meta),AgingBalance.wood(CaskStructure.wood(session.core))),state.maturationSeconds()).score();
                     var effectProfile=new me.arcanebrewery.arcaneBrewery.application.alchemy.EffectProfileCalculator().calculate(result.process(),
                         profileQuality,0,alchemyConditions.stability(meta),profiles.generation(meta));
-                    var outputMeta=output.getItemMeta();profiles.write(outputMeta,effectProfile);ElixirPresentation.refresh(outputMeta,finalDrinkMetadata);output.setItemMeta(outputMeta);
+                    var outputMeta=output.getItemMeta();me.arcanebrewery.arcaneBrewery.adapter.bukkit.QualityPolicyMetadata.write(outputMeta,me.arcanebrewery.arcaneBrewery.adapter.bukkit.QualityPolicyMetadata.read(meta));profiles.write(outputMeta,effectProfile);ElixirPresentation.refresh(outputMeta,finalDrinkMetadata);output.setItemMeta(outputMeta);
                 }
                 var outputMeta=(PotionMeta)output.getItemMeta();
                 finalDrinkMetadata.maturation(outputMeta,mature,state.recipeTiming() && me.arcanebrewery.arcaneBrewery.application.aging.RecipeMaturation.poisonous(state.elapsedSeconds(now)),state.maturationSeconds(),state.elapsedSeconds(now));

@@ -43,7 +43,7 @@ public final class DistilleryMenuHandler implements Listener, AutoCloseable {
     private static final class Session {
         final Block core; final Inventory gui;
         byte[] raw; DistilleryBatchState state;
-        int temperature=78, cuts=0, effectGeneration;
+        int temperature=78, cuts=0, effectGeneration, qualityGeneration=2;
         Session(Block core,Inventory gui,byte[] raw,DistilleryBatchState state) {
             this.core=core; this.gui=gui; this.raw=raw; this.state=state;
         }
@@ -93,6 +93,7 @@ public final class DistilleryMenuHandler implements Listener, AutoCloseable {
         if (state!=null && !state.machine().equals(key(core))) throw new IllegalArgumentException("wrong machine process");
         var session=new Session(core,gui,saved.raw(),state);
         session.effectGeneration=envelope==null?0:envelope.effectGeneration();
+        session.qualityGeneration=envelope==null?2:envelope.qualityGeneration();
         if(saved.process().startsWith("controls-v2:")) {
             var parts=saved.process().split(":");
             if(parts.length!=3) throw new IllegalArgumentException("invalid extractor controls");
@@ -187,6 +188,7 @@ public final class DistilleryMenuHandler implements Listener, AutoCloseable {
             var state=new DistilleryBatchState(DistilleryBatchState.VERSION,UUID.randomUUID(),key(session.core),draft,
                 System.currentTimeMillis(),timing.extractionMillis(),DistilleryBatchState.Status.PROCESSING);
             session.effectGeneration=legacy?0:2;
+            session.qualityGeneration=legacy?2:3;
             commit(session,contents(session.gui),state);
             if(plugin instanceof ArcaneBrewery brewery)brewery.reconcileMaterialInputs(player,new ItemStack[]{session.gui.getItem(4),session.gui.getItem(5)});
             schedule(session);
@@ -240,6 +242,7 @@ public final class DistilleryMenuHandler implements Listener, AutoCloseable {
                 meta.getPersistentDataContainer().set(new NamespacedKey(plugin,"brew_stage"),PersistentDataType.STRING,"REFINED_INDUSTRIAL_ALCOHOL");
             } else {
                 metadata.write(meta,completed,"DISTILLED_BASE");
+                me.arcanebrewery.arcaneBrewery.adapter.bukkit.QualityPolicyMetadata.write(meta,session.qualityGeneration);
                 if(session.effectGeneration>0)new me.arcanebrewery.arcaneBrewery.adapter.bukkit.alchemy.EffectProfileMetadata(plugin.getName().toLowerCase(Locale.ROOT)).markGeneration(meta,session.effectGeneration);
                 meta.getPersistentDataContainer().set(new NamespacedKey(plugin,"brew_stage"),PersistentDataType.STRING,new LegacyWortBridge().stageFor(completed.draft()));
                 double purity=completed.draft().ingredientPurity().entrySet().stream()
@@ -256,7 +259,7 @@ public final class DistilleryMenuHandler implements Listener, AutoCloseable {
         for (var viewer:session.gui.getViewers()) viewer.sendMessage(MessageConfig.get("distillery_success"));
     }
     private void commit(Session session,ItemStack[] next,DistilleryBatchState state) {
-        byte[] raw=storage.save(session.core,session.raw,next,state==null?"controls-v2:"+session.temperature+":"+session.cuts:new DistilleryProcessEnvelope(state,session.effectGeneration).encode());
+        byte[] raw=storage.save(session.core,session.raw,next,state==null?"controls-v2:"+session.temperature+":"+session.cuts:new DistilleryProcessEnvelope(state,session.effectGeneration,session.qualityGeneration).encode());
         session.raw=raw; session.state=state;
         for (int slot:INPUTS) session.gui.setItem(slot,next[slot]); paint(session);
     }
@@ -269,7 +272,7 @@ public final class DistilleryMenuHandler implements Listener, AutoCloseable {
     }
     private void render(Session session) {
         String state=session.processing()?"PROCESSING":session.state!=null?"READY":Arrays.stream(contents(session.gui)).anyMatch(Objects::nonNull)?"IDLE":"EMPTY / IDLE";
-        control(session.gui,3,Material.BLAZE_POWDER,"Temperature: "+session.temperature+" C",List.of("§7Click: 60–90 C in 2 C steps; ideal 78.§r","§7Slots 1–3: one bottle each.§r"));
+        control(session.gui,3,Material.BLAZE_POWDER,"Temperature: "+session.temperature+" C",List.of("§7Click: 60–90 C in 2 C steps; experiment with different mixtures.§r","§7Slots 1–3: one bottle each.§r"));
 
         control(session.gui,6,Material.PAPER,"Cuts: "+List.of("Balanced","Wide / risky","Clean / mild").get(session.cuts),List.of("§7Click to choose cuts.§r","§7Wide: more potency, contamination risk.§r","§7Clean: milder potency.§r","§7Owner: §f"+access.ownerLabel(session.core)+"§r"));
         var lore=new ArrayList<String>(); lore.add("§7Status: §f"+state+"§r");

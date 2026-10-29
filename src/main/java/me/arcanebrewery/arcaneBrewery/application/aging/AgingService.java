@@ -29,6 +29,12 @@ public final class AgingService {
     public AgingResult finish(FermentedProcessDraft source,AgingBatchState aging,long nowEpochMillis,
             Map<String,IngredientLot> lots,WoodCharacteristics wood,double contaminationLoad,QualityTargets targets,
             long variationSeed,Map<String,Double> additives,double capturedCatalystStability) {
+        return finish(source,aging,nowEpochMillis,lots,wood,contaminationLoad,targets,variationSeed,additives,capturedCatalystStability,2);
+    }
+    public AgingResult finish(FermentedProcessDraft source,AgingBatchState aging,long nowEpochMillis,
+            Map<String,IngredientLot> lots,WoodCharacteristics wood,double contaminationLoad,QualityTargets targets,
+            long variationSeed,Map<String,Double> additives,double capturedCatalystStability,int qualityGeneration) {
+        if(qualityGeneration!=2&&qualityGeneration!=3)throw new IllegalArgumentException("Unsupported quality policy");
         if(!Double.isFinite(capturedCatalystStability)||capturedCatalystStability<0||capturedCatalystStability>100) throw new IllegalArgumentException("invalid catalyst stability");
         Objects.requireNonNull(source);
         Objects.requireNonNull(aging);
@@ -60,7 +66,7 @@ public final class AgingService {
         var simulation=new BatchSimulationResult(me.arcanebrewery.arcaneBrewery.domain.drink.DrinkFingerprint.from(process),
             new BatchQuality(cq.purity(),cq.flavor(),cq.aroma(),cq.stability(),0,cq.magicalPotency()),calculated.contamination());
         if(source.distillery().preparationMethod().equals("distillation-v2")) {
-            var assessment=new ReproducibleQuality().assess(process,conditions,aging.maturationSeconds());
+            var assessment=qualityGeneration==3?new CombinationQuality().assess(process,conditions,aging.maturationSeconds()):new ReproducibleQuality().assess(process,conditions,aging.maturationSeconds());
             var q=simulation.quality();
             var culture=BrewingCulture.of(process.fermentation().yeastOrCatalyst());
             double cuts=process.distillation().headsCutPercent()<10?1.2:process.distillation().headsCutPercent()>10?.8:1;
