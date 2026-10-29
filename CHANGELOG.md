@@ -4,6 +4,9 @@ Every change must leave a trace here. Entries describe behavior, compatibility, 
 
 ## Unreleased — production interfaces
 
+### Added
+- Expanded Extractor, Cultivation, Arcane Infuser and Maturation Cask interfaces to 27 slots. Inputs retain saved indexes; controls and status occupy separate rows. Casks expose elapsed time only.
+
 ### Changed
 - Separated production controls and status from saved item lanes without migrating stored inventories.
 - Old invisible button positions no longer trigger actions; shift-click still uses the existing item indexes.
@@ -13,9 +16,7 @@ Every change must leave a trace here. Entries describe behavior, compatibility, 
 
 ## 2026-10-29 — `7abd91f` (#6)
 
-
 ### Added
-- Expanded Extractor, Cultivation, Arcane Infuser and Maturation Cask interfaces to 27 slots. Inputs retain saved indexes; controls and status occupy separate rows. Casks expose elapsed time only.
 - Permission `arcanebrewery.rename.colors` (default false): color-only `&0–&f` in the one permanent name. No payment integration; owners assign permissions to ranks.
 - Persisted cosmetic tasting notes on newly finished bottles. Refresh and specialist processing retain the note.
 - Cumulative drawback-duration reduction using Sugar (1s each / 25s cap), Honeycomb (3s / 35s cap) or Amethyst Shard (5s / 45s cap). At least one second remains; benefits and reaction safety remain unchanged.
