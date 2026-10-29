@@ -1,5 +1,8 @@
 package me.arcanebrewery.arcaneBrewery;
 
+import me.arcanebrewery.arcaneBrewery.adapter.bukkit.machine.ProductionLayout;
+
+
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.distillery.DistilleryBatchMetadata;
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.fermentation.FermentationBatchMetadata;
 import me.arcanebrewery.arcaneBrewery.application.fermentation.*;
@@ -118,18 +121,22 @@ public final class BreweryListener implements Listener {
         if(!access.authorize(event.getPlayer(),block,Kind.CULTIVATION,false)) return;
         try {
             access.open(event.getPlayer(),block,Kind.CULTIVATION,()->{
-                var view=new Controls(block);view.inventory=org.bukkit.Bukkit.createInventory(view,9,"§5§lCultivation Controls§r");
+                var view=new Controls(block);view.inventory=org.bukkit.Bukkit.createInventory(view,ProductionLayout.SIZE,"§5§lCultivation Controls§r");
                 paint(view);return view.inventory;
             });
         } catch(RuntimeException invalid) { event.getPlayer().sendMessage(MessageConfig.prefix()+"§cControls unavailable; contents retained.§r"); }
     }
     private void paint(Controls view) {
+        ProductionLayout.CULTIVATION.frame(view.inventory);
         var s=settings(view.core);var c=me.arcanebrewery.arcaneBrewery.domain.process.BrewingCulture.of(s.yeastOrCatalyst());
         control(view,0,Material.WHEAT,"Culture: "+c.name(),List.of("Built-in starter library; no external plugin or item needed.",
             "Experiment with temperature and duration for your mixture.","Click for next culture; resets controls to starting values."));
         control(view,2,Material.BLAZE_POWDER,"Temperature: "+s.temperatureCelsius()+" C",List.of("Click: 10–36 C in 2 C steps.","Compare results from different settings."));
         control(view,4,Material.CLOCK,"Duration: "+s.durationSeconds()+" s",List.of("Click: 30–300 s in 30 s steps.","Captured batches keep their original settings."));
         control(view,8,Material.LIME_DYE,"Start Cultivation",List.of("Uses all eligible refined bases in this barrel.","Refined bases must be inserted through the normal barrel first.","Active batch settings are locked; progress continues offline."));
+        ProductionLayout.CULTIVATION.relocate(view.inventory);
+        ProductionLayout.label(view.inventory,16,Material.BARREL,"Physical barrel inventory", "Insert refined bases in the Barrel itself.","Shift-click a base here to insert it safely.","Selected settings are captured when you start.");
+        ProductionLayout.label(view.inventory,20,Material.CLOCK,"Cultivation duration", "Configured duration: "+s.durationSeconds()+" seconds", "Active batches retain their captured settings.","Offline time counts; this is not an ideal-time hint.");
     }
     private void control(Controls view,int slot,Material material,String title,List<String> lore) {
         var item=new ItemStack(material);var meta=item.getItemMeta();me.arcanebrewery.arcaneBrewery.adapter.bukkit.discovery.DisplayOnlyItems.mark(meta);meta.setDisplayName("§b§l"+title+"§r");
@@ -158,7 +165,7 @@ public final class BreweryListener implements Listener {
                 barrel.getInventory().setContents(plan.destination());event.setCurrentItem(plan.remainder());return;
             }
             var s=settings(view.core);
-            int slot=event.getRawSlot();
+            int slot=event.getClickedInventory()==view.inventory?ProductionLayout.CULTIVATION.logical(event.getSlot()):-1;
             if(slot==8) {
                 boolean started=startEligible(barrel.getInventory(),s);
                 player.sendMessage(MessageConfig.prefix()+(started?"§aCultivation started; settings captured.§r":"§eInsert unprocessed refined bases first.§r"));return;

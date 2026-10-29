@@ -32,3 +32,7 @@ Consult CHANGELOG.md for released versus unreleased behavior. Live Paper startup
 ## Bottle crates
 
 Use `/brew crate pack <1–9>` with one ordinary Barrel and finished bottles in your storage inventory. The command packs the first matching bottles in inventory order. Hold the resulting crate and use `/brew crate inspect` before trading, or `/brew crate unpack` to recover its bottles and Barrel. Crates are portable items, not placeable blocks, and cannot hold other crates. Unpacking requires space for every bottle plus the recovered Barrel; otherwise nothing changes. Avoid packing valuable bottles unintentionally: arrange inventory before packing.
+
+## Production machine interfaces
+
+Production interfaces now use three rows. Existing bottle/ingredient input indexes are retained in the top row. Extractor controls are on the bottom row; Infuser input labels and operating controls are separated. Cultivation settings are in its control window; its physical Barrel remains a normal inventory. Cask lane cards show actual elapsed time and saved-harvest recovery state, without a maturity target, countdown, percentage or READY indicator. Clicking the stored bottle still harvests it; lane cards are display-only. No inventory migration is required.

@@ -1,5 +1,8 @@
 package me.arcanebrewery.arcaneBrewery;
 
+import me.arcanebrewery.arcaneBrewery.adapter.bukkit.machine.ProductionLayout;
+
+
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.alchemy.*;
 import me.arcanebrewery.arcaneBrewery.application.alchemy.*;
 import me.arcanebrewery.arcaneBrewery.application.distillery.MachineLocation;
@@ -118,7 +121,7 @@ public final class AlchemyMachineHandler implements Listener {
                 return BuiltInAlchemyCatalysts.resolveExternal(item.getType().getKey().toString()).isPresent();
             },next->commit(session,next,Optional.empty()));}catch(RuntimeException rejected){event.getWhoClicked().sendMessage("§eTransfer retained; machine unavailable.");}return;
         }
-        var decision = AlchemyInventoryPolicy.click(event.getClickedInventory() == gui, event.getSlot(),
+        var decision = AlchemyInventoryPolicy.click(event.getClickedInventory() == gui, ProductionLayout.INFUSER.logical(event.getSlot()),
                 session.processing(), event.getClick(), event.getAction());
         if (decision == AlchemyInventoryPolicy.Decision.PASS) return;
         event.setCancelled(true);
@@ -171,7 +174,7 @@ public final class AlchemyMachineHandler implements Listener {
         else if (loaded.snapshot().operation().isPresent())
             AlchemyMachineInputs.validateCompleted(decoded, namespace, loaded.snapshot().operation().orElseThrow());
         var holder = new Holder(key);
-        Inventory gui = Bukkit.createInventory(holder, 9, MessageConfig.title("infuser"));
+        Inventory gui = Bukkit.createInventory(holder, ProductionLayout.SIZE, MessageConfig.title("infuser"));
         holder.inventory = gui;
         var session = new Session(core, gui, loaded);
         apply(gui, decoded);
@@ -349,6 +352,7 @@ public final class AlchemyMachineHandler implements Listener {
         catch (RuntimeException visualFailure) { plugin.getLogger().warning("Infuser display refresh failed; saved contents retained."); }
     }
     private void render(Session session) {
+        ProductionLayout.INFUSER.frame(session.gui);
         for (int slot = 0; slot < 9; slot++) {
             if (slot == 2 || slot == 4 || slot == 6) continue;
             var item = new ItemStack(slot == 8 ? (session.processing() ? Material.CLOCK : Material.NETHER_STAR)
@@ -385,6 +389,8 @@ public final class AlchemyMachineHandler implements Listener {
             }
             session.gui.setItem(slot, item);
         }
+        ProductionLayout.INFUSER.relocate(session.gui);
+        ProductionLayout.label(session.gui,19,Material.ANVIL,"Equipment integrity", "Integrity: "+Math.round(session.snapshot.condition().integrity())+"/100", "Existing repair interactions remain available.");
     }
     private String idleStatus(Session session) {
         ItemStack base=session.gui.getItem(2);

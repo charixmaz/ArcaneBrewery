@@ -1,5 +1,8 @@
 package me.arcanebrewery.arcaneBrewery;
 
+import me.arcanebrewery.arcaneBrewery.adapter.bukkit.machine.ProductionLayout;
+
+
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.aging.AgingBatchMetadata;
 import org.bukkit.*;
 import org.bukkit.block.*;
@@ -11,7 +14,7 @@ import java.util.*;
 public final class CaskVisualEngine {
     private CaskVisualEngine() { }
     public static void updateCaskInterface(JavaPlugin plugin,Inventory inv,Block core,String owner) {
-        boolean infected=false;
+        ProductionLayout.CASK.frame(inv);
         pane(inv,8,Material.BOOK,"Maturation",List.of("§7Owner: §f"+owner+"§r","§7Record actual harvest times. No cleaning required.§r"));
         for (int lane=0;lane<4;lane++) {
             int slot=lane*2; ItemStack bottle=inv.getItem(slot);
@@ -57,6 +60,9 @@ public final class CaskVisualEngine {
             else lore.add("§7Place a cultivated base in the slot to the left.§r");
             pane(inv,slot+1,type,"Lane "+(lane+1)+" — "+state,lore);
         }
+        ProductionLayout.CASK.relocate(inv);
+        ProductionLayout.label(inv,19,Material.CLOCK,"Elapsed time only", "Each lane records actual time spent aging.","No target, countdown, readiness or ideal time is shown.");
+        ProductionLayout.label(inv,25,Material.GLASS_BOTTLE,"Harvest", "Click or shift-click a stored bottle to withdraw.","Early withdrawal may produce an unfinished elixir.","Compare actual harvests and record your results.");
     }
     private static void pane(Inventory inv,int slot,Material material,String name,List<String> lore) {
         var item=new ItemStack(material); var meta=item.getItemMeta(); me.arcanebrewery.arcaneBrewery.adapter.bukkit.discovery.DisplayOnlyItems.mark(meta); meta.setDisplayName("§b§l"+name+"§r"); meta.setLore(lore); me.arcanebrewery.arcaneBrewery.adapter.bukkit.PresentationStyle.apply(meta); item.setItemMeta(meta); inv.setItem(slot,item);

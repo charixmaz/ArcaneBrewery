@@ -2,9 +2,20 @@
 
 Every change must leave a trace here. Entries describe behavior, compatibility, verification and remaining limits; planned work must not be listed as released.
 
-## Unreleased — release polish
+## Unreleased — production interfaces
+
+### Changed
+- Separated production controls and status from saved item lanes without migrating stored inventories.
+- Old invisible button positions no longer trigger actions; shift-click still uses the existing item indexes.
+
+### Verification
+- Pending final CI. Native Paper GUI, restart and protection-plugin tests have not run.
+
+## 2026-10-29 — `7abd91f` (#6)
+
 
 ### Added
+- Expanded Extractor, Cultivation, Arcane Infuser and Maturation Cask interfaces to 27 slots. Inputs retain saved indexes; controls and status occupy separate rows. Casks expose elapsed time only.
 - Permission `arcanebrewery.rename.colors` (default false): color-only `&0–&f` in the one permanent name. No payment integration; owners assign permissions to ranks.
 - Persisted cosmetic tasting notes on newly finished bottles. Refresh and specialist processing retain the note.
 - Cumulative drawback-duration reduction using Sugar (1s each / 25s cap), Honeycomb (3s / 35s cap) or Amethyst Shard (5s / 45s cap). At least one second remains; benefits and reaction safety remain unchanged.
@@ -19,7 +30,7 @@ Every change must leave a trace here. Entries describe behavior, compatibility, 
 - 498 automated tests, Maven verification and standalone packaging passed in CI before the final control-text alignment. Final commit CI is rechecked before merge. No live Paper, crate or protection-plugin checks claimed.
 
 ### Still pending
-- Broader non-specialist GUI redesign and in-game balance testing.
+- Native GUI, protection-plugin, crash/restart and in-game balance testing.
 
 ## 2026-10-29 — `82ca534` (#5)
 
