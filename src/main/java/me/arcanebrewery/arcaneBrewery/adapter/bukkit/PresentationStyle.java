@@ -9,6 +9,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 public final class PresentationStyle {
     private PresentationStyle() { }
     public static void apply(ItemMeta meta) {
+        BottleColors.apply(meta);
         var serializer=LegacyComponentSerializer.legacySection();
         if (meta.hasDisplayName()) meta.displayName(defaultStyle(serializer.deserialize(meta.getDisplayName())));
         if (meta.hasLore() && meta.getLore()!=null) meta.lore(meta.getLore().stream()

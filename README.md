@@ -11,7 +11,7 @@ and Commands. Discoveries remain private by default. Temporary Arcane Saturation
 Overload and recovery are the default player conditions; historical alcohol
 progression is opt-in.
 
-The four ordinary production machines and four researched specialists have persistent ownership and exclusive access.
+The four ordinary production machines and four XP-unlocked specialists have persistent ownership and exclusive access.
 No resource pack or economy provider is required. Built-in selling and economy
 integration have been removed; owners control trading through their own server systems.
 
@@ -29,7 +29,7 @@ Current closed-beta controls and migration: [Brewing gameplay V2](docs/brewing-g
 
 Material exploration and typed effects: [Discovery and alchemy Phase 1](docs/discovery-alchemy-phase1.md).
 
-Phase 2 release, exact research/build costs, specialist caps and deployment: [Personal research and specialists](docs/phase2-specialists-release.md).
+Phase 2 release, exact unlock/build costs, specialist caps and deployment: [Machine unlocks and specialists](docs/phase2-specialists-release.md).
 
 New-batch ingredient influence, reproducible ratios and compatibility: [Ingredient relevance](docs/ingredient-relevance.md).
 

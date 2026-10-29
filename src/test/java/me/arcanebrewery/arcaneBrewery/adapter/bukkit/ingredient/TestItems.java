@@ -93,6 +93,7 @@ public final class TestItems {
                 case "getCustomModelData" -> values.get("CustomModelData");
                 case "isUnbreakable" -> values.getOrDefault("Unbreakable", false);
                 case "getBasePotionType" -> values.get("BasePotionType");
+                case "getColor" -> values.get("Color");
                 case "hasCustomEffects" -> values.getOrDefault("CustomEffects", false);
                 case "getCustomEffects" -> List.of();
                 case "getItemFlags" -> Set.copyOf((Set<?>)values.getOrDefault("ItemFlags",Set.of()));
@@ -101,7 +102,7 @@ public final class TestItems {
                     @SuppressWarnings("unchecked") var flags=(Set<ItemFlag>)values.computeIfAbsent("ItemFlags",ignored -> new HashSet<ItemFlag>());
                     flags.addAll(Arrays.asList((ItemFlag[])args[0])); yield null;
                 }
-                case "setDisplayName", "setLore", "setCustomModelData", "setUnbreakable", "setBasePotionType" -> {
+                case "setDisplayName", "setLore", "setCustomModelData", "setUnbreakable", "setBasePotionType", "setColor" -> {
                     values.put(method.getName().substring(3), args[0] instanceof List<?> list ? new ArrayList<>(list) : args[0]);
                     yield null;
                 }
