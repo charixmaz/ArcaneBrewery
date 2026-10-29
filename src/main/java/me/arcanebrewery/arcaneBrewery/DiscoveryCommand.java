@@ -154,7 +154,7 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
         boolean confirmed=args.length>=4 && args[args.length-1].equalsIgnoreCase("confirm");
         if(!confirmed){player.sendMessage("§eOne permanent rename per personal formulation. This cannot be undone. Repeat the command with 'confirm' at the end to accept.");return;}
         String name=String.join(" ",Arrays.copyOfRange(args,2,args.length-1));
-        java.util.function.Consumer<DrinkFingerprint> rename=id->completeMutation(player,mutations.rename(player.getUniqueId(),id,name),
+        java.util.function.Consumer<DrinkFingerprint> rename=id->completeMutation(player,mutations.rename(player.getUniqueId(),id,name,player.hasPermission("arcanebrewery.rename.colors")),
             result->{
                 queries.invalidatePersonalNames(player.getUniqueId());
                 new me.arcanebrewery.arcaneBrewery.adapter.bukkit.PresentationRefreshListener(plugin,queries).refresh(player);

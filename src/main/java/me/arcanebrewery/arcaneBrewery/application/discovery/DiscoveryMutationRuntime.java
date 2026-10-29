@@ -25,6 +25,9 @@ public final class DiscoveryMutationRuntime {
         return mutate(actor, fingerprint, discovery -> discovery.rename(actor, name));
     }
 
+    public CompletableFuture<DiscoveryMutationResult> rename(UUID actor,DrinkFingerprint id,String name,boolean colorsAllowed) {
+        return mutate(actor,id,discovery->discovery.rename(actor,name,colorsAllowed));
+    }
     public CompletableFuture<DiscoveryMutationResult> visibility(
             UUID actor, DrinkFingerprint fingerprint, DiscoveryVisibility visibility) {
         return mutate(actor, fingerprint, discovery -> discovery.changeVisibility(actor, visibility));

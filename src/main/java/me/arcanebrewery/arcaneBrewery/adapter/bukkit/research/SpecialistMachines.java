@@ -48,7 +48,7 @@ public final class SpecialistMachines implements Listener,AutoCloseable {
    if(!player.isSneaking()&&access.identity(core).isEmpty()){player.sendMessage("§eStructure correct. Sneak-right-click the core to claim and construct "+type.label+".");return;}
    var saved=storage.load(core);var state=saved.process().isBlank()?new SpecialistState(type,false,0,0):SpecialistState.decode(saved.process());if(state.type()!=type)throw new IllegalArgumentException("Stored machine type mismatch");
    access.open(player,core,MachineIdentity.Kind.SPECIALIST,()->{
-    var holder=new Holder();holder.inventory=Bukkit.createInventory(holder,9,type.label);var s=new Session(core,holder.inventory,saved.raw(),state);
+    var holder=new Holder();holder.inventory=Bukkit.createInventory(holder,27,type.label);var s=new Session(core,holder.inventory,saved.raw(),state);
     var data=saved.items();for(int i=3;i<9;i++)if(data[i]!=null)throw new IllegalArgumentException("Protected slot contains data");
     for(int i=0;i<3;i++)s.gui.setItem(i,data[i]);sessions.put(s.gui,s);if(s.raw==null)commit(s,data,state);recover(s);paint(s);return s.gui;
    });
@@ -62,6 +62,7 @@ public final class SpecialistMachines implements Listener,AutoCloseable {
   if(!s.state.built())return item.getType().name().equals(slot==0?s.state.type().buildA:s.state.type().buildB)&&!item.hasItemMeta();
   if(s.state.type()==SpecialistType.REAGENT_PROCESSOR)return slot==0?Set.of(Material.REDSTONE,Material.GLOWSTONE_DUST,Material.QUARTZ).contains(item.getType()):Set.of(Material.AMETHYST_SHARD,Material.BLAZE_ROD,Material.HONEYCOMB).contains(item.getType());
   if(slot==0)return item.getType()==Material.POTION&&item.getAmount()==1&&new EffectProfileMetadata("arcanebrewery").read(item.getItemMeta()).isPresent();
+  if(s.state.type()==SpecialistType.PURIFICATION_CHAMBER)return !item.hasItemMeta()&&Set.of(Material.SUGAR,Material.HONEYCOMB,Material.AMETHYST_SHARD).contains(item.getType());
   return PreparedReagents.read(item).map(k->k==required(s.state.type())).orElse(false);
  }
  private PreparedReagents.Kind required(SpecialistType type){return switch(type){case DURATION_INFUSER->PreparedReagents.Kind.DURATION;case ESSENCE_CONCENTRATOR->PreparedReagents.Kind.POTENCY;case PURIFICATION_CHAMBER->PreparedReagents.Kind.PURIFICATION;default->throw new IllegalArgumentException();};}
@@ -71,7 +72,7 @@ public final class SpecialistMachines implements Listener,AutoCloseable {
   try{recover(s);if(s.state.readyAt()>0)return;
    if(event.isShiftClick()){ShiftTransfers.move(event,contents(s),SLOTS,EDIT,i->i==0&&s.state.type()!=SpecialistType.REAGENT_PROCESSOR&&s.state.built()?1:64,(slot,item)->accepts(s,slot,item),next->commit(s,next,s.state));return;}
    if(event.getClick()!=ClickType.LEFT&&event.getClick()!=ClickType.RIGHT)return;if(event.getClickedInventory()!=s.gui){event.setCancelled(false);return;}
-   int slot=event.getSlot();if(slot==6){commit(s,contents(s),new SpecialistState(s.state.type(),s.state.built(),0,(s.state.selection()+1)%REMOVABLE.size()));return;}
+   int slot=event.getSlot();if(slot==15)slot=6;else if(slot==22)slot=8;else if(slot>=3)return;if(slot==6){commit(s,contents(s),new SpecialistState(s.state.type(),s.state.built(),0,(s.state.selection()+1)%REMOVABLE.size()));return;}
    if(slot==8){start(s);return;}if(slot>2)return;
    var cursor=player.getItemOnCursor();if(cursor!=null&&!cursor.getType().isAir()&&!accepts(s,slot,cursor))return;
    var move=me.arcanebrewery.arcaneBrewery.adapter.bukkit.alchemy.AlchemySlotTransfer.move(s.gui.getItem(slot),cursor,event.getClick()==ClickType.RIGHT,slot==0&&s.state.built()&&s.state.type()!=SpecialistType.REAGENT_PROCESSOR?1:64);
@@ -82,11 +83,12 @@ public final class SpecialistMachines implements Listener,AutoCloseable {
  private void control(Session s,int slot,Material icon,String title,List<String> lore){var item=new ItemStack(icon);var meta=item.getItemMeta();DisplayOnlyItems.mark(meta);meta.setDisplayName("§d"+title);meta.setLore(lore);item.setItemMeta(meta);s.gui.setItem(slot,item);}
  private void paint(Session s){try{render(s);}catch(RuntimeException failure){plugin.getLogger().warning("Specialist display unavailable; saved state retained.");}}
  private void render(Session s){
-  for(int i=3;i<9;i++)control(s,i,Material.GRAY_STAINED_GLASS_PANE,"",List.of());var t=s.state.type();
-  control(s,4,Material.BOOK,t.label,List.of("Owner: "+access.ownerLabel(s.core),"Inputs: first two slots; output: third slot.",s.state.built()?"Built permanently on this core":"Build: "+t.amountA+" "+t.buildA+" + "+t.amountB+" "+t.buildB,"Shift-click supported; outputs stay locked during work."));
-  if(s.state.built())control(s,5,Material.PAPER,"Process Inputs",t==SpecialistType.REAGENT_PROCESSOR?List.of("§eSlot 1: 4 raw items · Slot 2: 1 binder", "§bRedstone + Amethyst Shard → Duration", "§bGlowstone Dust + Blaze Rod → Potency", "§bNether Quartz + Honeycomb → Purification", "§7Exact recipe icons: /brew guide → Machines"):List.of("First: one versioned finished elixir.","Second: one prepared "+required(t).name().toLowerCase(Locale.ROOT)+" reagent.","Old single-effect and unfinished bottles stay unchanged.","No repeat pass of this type on the same bottle."));
-  if(t==SpecialistType.PURIFICATION_CHAMBER)control(s,6,Material.MILK_BUCKET,"Remove: "+REMOVABLE.get(s.state.selection()),List.of("Click to select one unwanted effect."));
-  control(s,8,Material.ANVIL,s.state.readyAt()>0?"Processing":s.state.built()?"Start (10 seconds)":"Construct",List.of("Consumes the displayed inputs once.","Collect output before the next operation."));
+  for(int i=3;i<27;i++)control(s,i,Material.GRAY_STAINED_GLASS_PANE,"",List.of());var t=s.state.type();
+  control(s,13,Material.BOOK,t.label,List.of("Owner: "+access.ownerLabel(s.core),"Inputs: first two slots; output: third slot.",s.state.built()?"Built permanently on this core":"Build: "+t.amountA+" "+t.buildA+" + "+t.amountB+" "+t.buildB,"Shift-click supported; outputs stay locked during work."));
+  if(s.state.built())control(s,14,Material.PAPER,"Process Inputs",t==SpecialistType.REAGENT_PROCESSOR?List.of("§eSlot 1: 4 raw items · Slot 2: 1 binder", "§bRedstone + Amethyst Shard → Duration", "§bGlowstone Dust + Blaze Rod → Potency", "§bNether Quartz + Honeycomb → Purification", "§7Exact recipe icons: /brew guide → Machines"):List.of("First: one versioned finished elixir.","Second: one prepared "+required(t).name().toLowerCase(Locale.ROOT)+" reagent.","Old single-effect and unfinished bottles stay unchanged.","No repeat pass of this type on the same bottle."));
+  if(t==SpecialistType.PURIFICATION_CHAMBER)control(s,15,Material.MILK_BUCKET,"Remove: "+REMOVABLE.get(s.state.selection()),List.of("Click to select an unwanted effect present in your bottle.","Sugar: 1s each, 25s cap; Honeycomb: 3s, 35s cap.","Amethyst: 5s each, 45s cumulative bottle cap.","At least 1 second remains; only needed items consumed."));
+  control(s,16,Material.CLOCK,"Processing time",List.of(s.state.readyAt()>0?"Remaining: "+Math.max(0,(s.state.readyAt()-System.currentTimeMillis()+999)/1000)+" seconds":"Operation duration: 10 seconds","Captured output is released after processing."));
+  control(s,22,Material.ANVIL,s.state.readyAt()>0?"Processing":s.state.built()?"Start (10 seconds)":"Construct",List.of("Consumes the displayed inputs once.","Collect output before the next operation."));
  }
  @EventHandler public void close(InventoryCloseEvent event){sessions.remove(event.getInventory());}
  @EventHandler public void unload(ChunkUnloadEvent event){for(var s:List.copyOf(sessions.values()))if(s.core.getChunk().equals(event.getChunk())){access.closeCore(s.core);sessions.remove(s.gui);}}

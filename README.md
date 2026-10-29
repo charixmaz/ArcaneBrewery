@@ -1,38 +1,49 @@
-# ArcaneBrewery — Brewing & Alchemy
+# ArcaneBrewery
 
-A standalone fantasy brewing and alchemy plugin for **Paper 26.1.2 / Java 25**.
+Fantasy brewing and alchemy for **Paper 26.1.2 · Java 25**.
 
-Wash supported ingredients, extract refined bases, cultivate them, optionally
-infuse catalysts, then mature and discover elixirs. Exact process determines
-recipe identity; batch variation affects quality rather than identity.
+Experiment with ingredient proportions, extraction, cultures, catalysts and maturation. Discover private formulations, name them once and improve reproducible elixirs. Brewery runs standalone: no economy provider or resource pack is required.
 
-Use `/brew help` for short topics: Getting Started, Machines, Recipes
-and Commands. Discoveries remain private by default. Temporary Arcane Saturation,
-Overload and recovery are the default player conditions; historical alcohol
-progression is opt-in.
+## Start here
 
-The four ordinary production machines and four XP-unlocked specialists have persistent ownership and exclusive access.
-No resource pack or economy provider is required. Built-in selling and economy
-integration have been removed; owners control trading through their own server systems.
+| Reader | Documentation |
+|---|---|
+| Server owner | [Installation and updates](docs/server-owner.md) |
+| Player | [Machines and controls](docs/phase2-specialists-release.md) · `/brew guide` |
+| Developer | [Repository map and workflow](CONTRIBUTING.md) |
+| Looking for changes | [Changelog](CHANGELOG.md) |
+| Looking for all documentation | [Documentation index](docs/README.md) |
 
-For this update, the existing deployment workflow remains:
+## Current gameplay
 
-**Git Pull → Rebuild Project → replace ArcaneBrewery JAR → restart Paper.**
+- Wash → extract → cultivate → optional infusion → mature → inspect and consume.
+- Eight obtainable ingredient entries, 26 raw reagents and three prepared reagents.
+- Four production machines and four specialists; personal XP unlocks, physical construction, exclusive ownership and sessions.
+- V3 mixture-dependent quality, with old batches retaining their captured policy.
+- Private discoveries, one permanent personal rename, and persistent server-first recognition.
 
-Build Brewery directly with `mvn --batch-mode clean verify`. No economy API build
-or installation is needed.
+## Build and deploy
 
-See [fantasy defaults, ownership, configuration and compatibility](docs/fantasy-machines.md)
-and [the local Paper checklist](docs/local-playtest.md).
+```sh
+mvn --batch-mode clean verify
+python3 scripts/verify-standalone-packaging.py
+```
 
-Current closed-beta controls and migration: [Brewing gameplay V2](docs/brewing-gameplay-v2.md).
+Back up plugin data, worlds and player data. **Pull → rebuild → replace Brewery JAR → restart Paper.** Use `target/ArcaneBrewery-1.0-SNAPSHOT.jar`.
 
-Material exploration and typed effects: [Discovery and alchemy Phase 1](docs/discovery-alchemy-phase1.md).
+Automated CI is not live gameplay certification. Paper startup requires owner-provided EULA acceptance; plugin/protection compatibility and multiplayer crash recovery must be checked on the target server. See the changelog for verification of each change.
 
-Phase 2 release, exact unlock/build costs, specialist caps and deployment: [Machine unlocks and specialists](docs/phase2-specialists-release.md).
+## Project layout
 
-New-batch ingredient influence, reproducible ratios and compatibility: [Ingredient relevance](docs/ingredient-relevance.md).
+| Path | Purpose |
+|---|---|
+| `src/main/java/.../domain` | Ingredients, formulation identity and quality models |
+| `src/main/java/.../application` | Brewing processes and use cases |
+| `src/main/java/.../adapter` | Paper inventory, metadata and machine boundaries |
+| `src/main/java/.../storage` | Database repositories and migrations |
+| `src/main/resources` | Server configuration, messages and permissions |
+| `src/test` | Domain, persistence and inventory regression tests |
+| `docs` | Current guides and historical implementation notes |
+| `scripts` | Packaging and optional Paper checks |
 
-Washing delivery and protection-denial fixes: [Washing safety](docs/washing-safety.md).
-
-Reliability fixes, economy removal, preserved transaction history and deployment: [Standalone release](docs/audit-reliability-fixes.md).
+Some older runtime classes remain in the root Java package. Package moves will be done separately from behavior changes to keep review and compatibility manageable.
