@@ -1,3 +1,5 @@
+> Updated behavior: see [Changelog](../CHANGELOG.md). The processor now uses Smooth Stone (old oxidized copper remains accepted). Purification reduces drawback duration using capped material costs rather than fully removing an effect.
+
 # Phase 2 — machine unlocks and specialist processing
 
 Target: Paper 26.1.2, Java 25. This document supersedes Phase 1 descriptions of sharing, repeatable naming, contamination, and specialist availability. No economy or economy API source changes or new dependencies are required.

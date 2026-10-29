@@ -16,7 +16,7 @@ Every change must leave a trace here. Entries describe behavior, compatibility, 
 - Purification consumes ordinary reduction materials as an alternative to prepared reagents. Existing prepared purification reagents remain usable at 5 seconds each, with the same 45-second cap. Historical bottles already fully purified cannot receive this treatment. Existing in-flight operations retain their stored output.
 
 ### Verification
-- Pending final CI. No live Paper, crate or protection-plugin checks claimed.
+- 498 automated tests, Maven verification and standalone packaging passed in CI before the final control-text alignment. Final commit CI is rechecked before merge. No live Paper, crate or protection-plugin checks claimed.
 
 ### Still pending
 - Broader non-specialist GUI redesign and in-game balance testing.
