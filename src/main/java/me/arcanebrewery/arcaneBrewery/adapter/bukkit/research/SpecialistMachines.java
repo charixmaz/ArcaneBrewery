@@ -31,20 +31,28 @@ public final class SpecialistMachines implements Listener,AutoCloseable {
   access.occupancy(MachineIdentity.Kind.SPECIALIST,b->{var saved=storage.load(b);return Arrays.stream(saved.items()).anyMatch(Objects::nonNull)||!saved.process().isEmpty()&&SpecialistState.decode(saved.process()).readyAt()>0;});
   timer=Bukkit.getScheduler().runTaskTimer(plugin,()->{for(var s:List.copyOf(sessions.values()))try{if(s.gui.getViewers().isEmpty()){sessions.remove(s.gui);continue;}recover(s);}catch(RuntimeException bad){access.closeCore(s.core);sessions.remove(s.gui);}},20,20);
  }
- private static SpecialistType structure(Block core){for(var t:SpecialistType.values())if(core.getType().name().equals(t.core)&&core.getRelative(0,-1,0).getType().name().equals(t.foundation))return t;return null;}
+ static Block coreFor(Block clicked) {
+  for(var type:SpecialistType.values()) if(type.foundation.equals(clicked.getType().name())) {
+   var above=clicked.getRelative(0,1,0);
+   if(structure(above)==type)return above;
+  }
+  return clicked;
+ }
+ static SpecialistType structure(Block core){for(var t:SpecialistType.values())if(core.getType().name().equals(t.core)&&core.getRelative(0,-1,0).getType().name().equals(t.foundation))return t;return null;}
  @EventHandler(priority=EventPriority.HIGH,ignoreCancelled=true) public void open(PlayerInteractEvent event){
   if(event.getAction()!=Action.RIGHT_CLICK_BLOCK||event.getHand()!=EquipmentSlot.HAND||event.getClickedBlock()==null)return;
-  var core=event.getClickedBlock();var type=structure(core);if(type==null)return;
-  if(!event.getPlayer().isSneaking()&&access.identity(core).isEmpty())return;event.setCancelled(true);var player=event.getPlayer();
+  final Block core=coreFor(event.getClickedBlock());var type=structure(core);if(type==null)return;
+  event.setCancelled(true);var player=event.getPlayer();
   try{
-   if(!PlayerResearch.read(player).earned().contains(type.name())){player.sendMessage("§eResearch "+type.label+" in /brew guide first.");return;}
+   if(!PlayerResearch.read(player).earned().contains(type.name())){player.sendMessage("§eUnlock "+type.label+" for "+type.levels+" XP levels: /brew guide → Machines & Controls.");return;}
+   if(!player.isSneaking()&&access.identity(core).isEmpty()){player.sendMessage("§eStructure correct. Sneak-right-click the core to claim and construct "+type.label+".");return;}
    var saved=storage.load(core);var state=saved.process().isBlank()?new SpecialistState(type,false,0,0):SpecialistState.decode(saved.process());if(state.type()!=type)throw new IllegalArgumentException("Stored machine type mismatch");
    access.open(player,core,MachineIdentity.Kind.SPECIALIST,()->{
     var holder=new Holder();holder.inventory=Bukkit.createInventory(holder,9,type.label);var s=new Session(core,holder.inventory,saved.raw(),state);
     var data=saved.items();for(int i=3;i<9;i++)if(data[i]!=null)throw new IllegalArgumentException("Protected slot contains data");
     for(int i=0;i<3;i++)s.gui.setItem(i,data[i]);sessions.put(s.gui,s);if(s.raw==null)commit(s,data,state);recover(s);paint(s);return s.gui;
    });
-  }catch(RuntimeException bad){player.sendMessage("§cSpecialist data unavailable. Stored items retained.");}
+  }catch(RuntimeException bad){plugin.getLogger().warning("Specialist open failed ("+type.name()+"): "+bad);player.sendMessage("§cSpecialist data unavailable. Stored items retained; check server log.");}
  }
  private ItemStack[] contents(Session s){var items=new ItemStack[9];for(int i=0;i<3;i++){var item=s.gui.getItem(i);items[i]=item==null?null:item.clone();}return items;}
  private void commit(Session s,ItemStack[] items,SpecialistState state){var raw=storage.save(s.core,s.raw,items,state.encode());s.raw=raw;s.state=state;for(int i=0;i<3;i++)s.gui.setItem(i,items[i]);paint(s);}
@@ -76,7 +84,7 @@ public final class SpecialistMachines implements Listener,AutoCloseable {
  private void render(Session s){
   for(int i=3;i<9;i++)control(s,i,Material.GRAY_STAINED_GLASS_PANE,"",List.of());var t=s.state.type();
   control(s,4,Material.BOOK,t.label,List.of("Owner: "+access.ownerLabel(s.core),"Inputs: first two slots; output: third slot.",s.state.built()?"Built permanently on this core":"Build: "+t.amountA+" "+t.buildA+" + "+t.amountB+" "+t.buildB,"Shift-click supported; outputs stay locked during work."));
-  if(s.state.built())control(s,5,Material.PAPER,"Process Inputs",t==SpecialistType.REAGENT_PROCESSOR?List.of("4 raw grains + 1 matching binder -> 1 reagent.","Red grains + violet fragment: duration.","Luminous grains + whole fiery trophy: potency.","Pale infernal mineral + honey harvest: purification."):List.of("First: one versioned finished elixir.","Second: one prepared "+required(t).name().toLowerCase(Locale.ROOT)+" reagent.","Old single-effect and unfinished bottles stay unchanged.","No repeat pass of this type on the same bottle."));
+  if(s.state.built())control(s,5,Material.PAPER,"Process Inputs",t==SpecialistType.REAGENT_PROCESSOR?List.of("§eSlot 1: 4 raw items · Slot 2: 1 binder", "§bRedstone + Amethyst Shard → Duration", "§bGlowstone Dust + Blaze Rod → Potency", "§bNether Quartz + Honeycomb → Purification", "§7Exact recipe icons: /brew guide → Machines"):List.of("First: one versioned finished elixir.","Second: one prepared "+required(t).name().toLowerCase(Locale.ROOT)+" reagent.","Old single-effect and unfinished bottles stay unchanged.","No repeat pass of this type on the same bottle."));
   if(t==SpecialistType.PURIFICATION_CHAMBER)control(s,6,Material.MILK_BUCKET,"Remove: "+REMOVABLE.get(s.state.selection()),List.of("Click to select one unwanted effect."));
   control(s,8,Material.ANVIL,s.state.readyAt()>0?"Processing":s.state.built()?"Start (10 seconds)":"Construct",List.of("Consumes the displayed inputs once.","Collect output before the next operation."));
  }

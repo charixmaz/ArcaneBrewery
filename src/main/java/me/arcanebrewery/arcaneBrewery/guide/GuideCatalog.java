@@ -50,10 +50,10 @@ public final class GuideCatalog {
                 "Before maturity: zero-quality Unfinished Elixir; no discovery.",
                 "First 60s: poisonous. Severe over-aging ruins the batch.",
                 "Mature withdrawal: finished elixir; process determines identity."),
-            entry(Material.STONECUTTER,"Reagent Processor", "Personal research first: see Specialist Research.","Stonecutter above Copper Block. Sneak-right-click to claim.","Construction resources go in first two slots; click Construct.","Then process 4 raw grains + 1 binder into one prepared reagent in 10s.","Valid pairs: red grains + violet shard; luminous grains + fiery rod; pale mineral + honey harvest.","Outputs remain locked during processing; offline time counts."),
-            entry(Material.LOOM,"Duration Infuser","Research first, then Loom above Redstone Block.","Construct with resources shown in Research.","One versioned finished elixir + one prepared duration reagent.","10s; utility can reach 5–10 minutes at tier I. Other families have lower caps.","One duration pass per bottle; no free reprocessing loops."),
-            entry(Material.SMITHING_TABLE,"Essence Concentrator","Research first, then Smithing Table above Iron Block.","One versioned finished elixir + one prepared potency reagent.","10s; increase eligible tier, keep only 35% duration, within family caps.","Utility up to tier III / 90s, Strength II / 30s. Other effects retain conservative limits.","One concentration pass per bottle; exactly one input/output bottle."),
-            entry(Material.GRINDSTONE,"Purification Chamber","Research first, then Grindstone above Amethyst Block.","One versioned finished elixir + one prepared purification reagent.","Click selector to choose an unwanted effect; Start consumes inputs.","10s; removes exactly the selected unwanted effect, once per bottle.","An absent/non-removable selection rejects without consumption."));
+            entry(Material.STONECUTTER,"Reagent Processor", "Unlock in Machines & Controls for 50 XP levels.","Stonecutter above Copper Block. Sneak-right-click to claim.","Construction resources go in first two slots; click Construct.","Then process 4 raw grains + 1 binder into one prepared reagent in 10s.","Valid pairs: red grains + violet shard; luminous grains + fiery rod; pale mineral + honey harvest.","Outputs remain locked during processing; offline time counts."),
+            entry(Material.LOOM,"Duration Infuser","Unlock for 50 XP levels, then Loom above Redstone Block.","Construction resources are shown in the build guide.","One versioned finished elixir + one prepared duration reagent.","10s; utility can reach 5–10 minutes at tier I. Other families have lower caps.","One duration pass per bottle; no free reprocessing loops."),
+            entry(Material.SMITHING_TABLE,"Essence Concentrator","Unlock for 50 XP levels, then Smithing Table above Iron Block.","One versioned finished elixir + one prepared potency reagent.","10s; increase eligible tier, keep only 35% duration, within family caps.","Utility up to tier III / 90s, Strength II / 30s. Other effects retain conservative limits.","One concentration pass per bottle; exactly one input/output bottle."),
+            entry(Material.GRINDSTONE,"Purification Chamber","Unlock for 50 XP levels, then Grindstone above Amethyst Block.","One versioned finished elixir + one prepared purification reagent.","Click selector to choose an unwanted effect; Start consumes inputs.","10s; removes exactly the selected unwanted effect, once per bottle.","An absent/non-removable selection rejects without consumption."));
     }
     public List<Entry> ingredients() {
         return ingredients.definitions().values().stream().map(d -> {
@@ -146,7 +146,7 @@ public final class GuideCatalog {
     public List<Entry> knowledge() {
         return List.of(
             entry(Material.POTION,"Personal Names and Bottles","/brew rename held <name> confirm for a finished bottle brewed by you.",
-                "/brew rename <short-id> <name> confirm for your independently discovered or fully learned record.",
+                "/brew rename <short-id> <name> confirm for your independently discovered record.",
                 "One permanent rename per personal formulation; 1–80 visible characters, no control/format codes.",
                 "Your name does not rename another producer's bottle.","Old bottles with no reliable producer remain unattributed."),
             entry(Material.WRITABLE_BOOK,"Formulation, Variant and Batch","Ingredients and relative proportions, culture and catalyst doses define discovery identity.",

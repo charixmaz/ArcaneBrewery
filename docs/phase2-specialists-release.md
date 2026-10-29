@@ -1,4 +1,4 @@
-# Phase 2 — personal research and specialist processing
+# Phase 2 — machine unlocks and specialist processing
 
 Target: Paper 26.1.2, Java 25. This document supersedes Phase 1 descriptions of sharing, repeatable naming, contamination, and specialist availability. No economy or economy API source changes or new dependencies are required.
 
@@ -6,24 +6,26 @@ Target: Paper 26.1.2, Java 25. This document supersedes Phase 1 descriptions of 
 
 * `/brew share`, `/brew revoke`, grant routes, their completion/help, and sharing buttons are removed. Players exchange instructions outside the plugin. Historical grants and LEARNED provenance remain readable through the existing permission projections; public discovery names never reveal another player's exact process.
 * `/brew rename <held|short-id> <name> confirm` spends the **one permanent rename for that player's formulation**. Without the final `confirm`, the command displays the irreversible rule and makes no change. Every database update is guarded; another bottle, an exact-process alias, concurrent requests, and restart do not reset it. Existing names count as used. Visibility changes remain possible after naming.
-* `/brew guide` has a numbered starter journey, machine instructions, material collections, independent and historical learned records, and a Research page with precise unmet prerequisites. Research uses a second confirmation screen. Unknown discovery prerequisites display their acquisition clue, not an internal ID/name. Existing hidden maturation targets remain hidden.
+* `/brew guide` has a starter journey, material collections, independent/public discoveries and icon-based machine build tutorials. Learned Recipes and Specialist Research pages are removed. Machines & Controls shows red barrier icons for locked specialists with their name and XP cost; left-click unlocks immediately, right-click opens the build guide. Tooltips use spacing and colored labels; details are split into short cards. Existing hidden maturation targets remain hidden.
 * There are **8 obtainable ingredients and 29 reagent discoveries**: the existing 26 raw reagents plus three genuinely crafted prepared reagents. All **37** locked entries have distinct acquisition riddles; unlocked descriptions replace the riddles. The broader 25-entry ingredient library is retained, but unsupported ingredients are not advertised as usable unlocks.
 * Shift-click routes accepted player items to actual input slots, merges partial stacks within slot caps, and transfers outputs only when inventory space exists. Extraction uses bottle slots 1–3 and mixing slots 5–6; starter infusion uses one item per base/catalyst slot. Cultivation's native barrel retains ordinary transfers; its separate controls also accept shift-insertion into the physical barrel. Maturation lanes retain their timestamp/harvest conversion and do not drop outputs when inventory is full. Decorations, controls and guide icons cannot supply inputs. Number-key, offhand, creative, drag and automation restrictions remain.
 
-## Persistent personal research
+## Persistent personal unlocks
 
-Research and XP levels are saved together in the **same Minecraft player-data save**, using versioned `arcanebrewery:research_v1` PDC data. There is no SQL-versus-XP two-store transaction. The server thread rechecks current levels and persisted earned flags at confirmation, deducts only whole Minecraft levels (not points), then calls `Player.saveData()`. A failed save restores the in-memory XP level/progress/total and prior metadata. Repeated confirmations cannot charge an earned unlock. Unknown versions/types fail closed. Keep normal server/player-data backups, as with all vanilla inventory and XP persistence.
+Unlocks and XP levels are saved together in the **same Minecraft player-data save**, using versioned `arcanebrewery:research_v1` PDC data. There is no SQL-versus-XP two-store transaction. The server thread rechecks current levels and persisted earned flags at the purchase click, deducts only whole Minecraft levels (not points), then calls `Player.saveData()`. A failed save restores the in-memory XP level/progress/total and prior metadata. Repeated clicks cannot charge an earned unlock. Unknown versions/types fail closed. Keep normal server/player-data backups, as with all vanilla inventory and XP persistence.
 
-Earned flags use stable machine IDs, never a fraction of the catalog. Later catalog additions cannot relock them. Material prerequisites are personal persisted acquisitions; specialists also require one independently discovered formulation. Historic learned recipes alone do not satisfy that requirement. Existing four ordinary production machines remain available without new research.
+Earned flags use stable machine IDs. Existing earned unlocks are preserved. There are **no material, recipe, percentage or prior-machine prerequisites**. The four ordinary production machines remain available without an XP unlock.
 
-| Research | Discovery prerequisites | One-time levels | Physical core above foundation | Construction in slots 1 / 2 |
-|---|---|---:|---|---|
-| Reagent Processor | Redstone Dust and Amethyst Shard | 6 | Stonecutter / Copper Block | 4 Iron Ingots / 8 Copper Ingots |
-| Duration Infuser | Processor researched, Redstone Dust, one independent formulation | 8 | Loom / Redstone Block | 4 Gold Ingots / 2 Redstone Blocks |
-| Essence Concentrator | Processor researched, Glowstone Block, Blaze Rod, one independent formulation | 12 | Smithing Table / Iron Block | 2 Diamonds / 1 Iron Block |
-| Purification Chamber | Processor researched, Nether Quartz, Honeycomb, one independent formulation | 10 | Grindstone / Amethyst Block | 4 Amethyst Blocks / 2 Gold Ingots |
+| Machine | One-time XP levels | Physical core above foundation | Construction in slots 1 / 2 |
+|---|---:|---|---|
+| Reagent Processor | 50 | Stonecutter / Copper Block | 4 Iron Ingots / 8 Copper Ingots |
+| Duration Infuser | 50 | Loom / Redstone Block | 4 Gold Ingots / 2 Redstone Blocks |
+| Essence Concentrator | 50 | Smithing Table / Iron Block | 2 Diamonds / 1 Iron Block |
+| Purification Chamber | 50 | Grindstone / Amethyst Block | 4 Amethyst Blocks / 2 Gold Ingots |
 
-Research belongs to the player. Construction belongs to that physical core, not every machine the player owns. Place the two specified blocks, sneak-right-click the core, insert construction resources in its first two slots and click **Construct**. Resources are consumed from the persisted machine inventory in the same snapshot as its built flag. Reopening does not rebuild or charge again. Extra resources remain retrievable. Breaking an empty constructed core discards its construction investment; nothing is refunded or transferred to a replacement. Owner and exclusive viewer leases use the existing machine-access boundary. The core and foundation must remain intact to operate/recover; structure restoration resumes a retained operation.
+A player at level 50 becomes level 0; level 63 becomes level 13. Insufficient XP changes nothing. The cost is 50 levels, not all the player's XP.
+
+An unlock belongs to the player. Construction belongs to that physical core, not every machine the player owns. Place the two specified blocks, sneak-right-click the core, insert construction resources in its first two slots and click **Construct**. Resources are consumed from the persisted machine inventory in the same snapshot as its built flag. Reopening does not rebuild or charge again. Extra resources remain retrievable. Breaking an empty constructed core discards its construction investment; nothing is refunded or transferred to a replacement. Owner and exclusive viewer leases use the existing machine-access boundary. The core and foundation must remain intact to operate/recover; structure restoration resumes a retained operation.
 
 ## Working processes and costs
 
@@ -78,10 +80,18 @@ Deployment remains **Git Pull → Maven rebuild → replace Brewery JAR → rest
 
 1. Join with known materials; inspect locked riddles, known descriptions and independent recipe privacy. Confirm sharing commands/completion/buttons are absent.
 2. Rename a personal formulation with confirmation; try another bottle, old exact-process alias, restart and a second request. Verify the first name remains.
-3. Research with insufficient and sufficient knowledge/levels. Confirm only one charge, permanent flags after restart, and separate construction on a second core.
+3. Unlock with 49 levels (refused), then 50 levels (becomes 0). Confirm only one charge, permanent flags after restart, and separate construction on a second core.
 4. Build each structure, deposit resources and construct. Test owner/second-viewer/hopper/number-key/drag restrictions and full/partial inventories with shift-click.
 5. Make all three prepared reagents, then test duration, concentration and selected purification. Try repeated passes and wrong/absent inputs; verify no free modifiers or input loss.
 6. Restart/unload during processing; restore the structure if interrupted; collect exactly one stored output. Check original name/identity/producer and stored quality remain.
 7. Check old single-effect bottles and stored profiles, active legacy batches, early poison, unfinished zero quality and severe over-aging. Contaminated historical casks should work without cleaning, with hidden maturation targets and compact lore preserved.
 
-Automated tests cover persistence races, rename aliases/restarts/guards, XP save rollback and duplicate confirmations, research requirements, prepared recipes and consumed quantities, machine snapshot/CAS recovery, effect caps/order/loop prevention, selective purification, legacy profiles, acquisition riddles and shift conservation. Native Paper startup and live player checks must be reported separately from those API-boundary tests.
+Automated tests cover persistence races, rename aliases/restarts/guards, XP save rollback and duplicate confirmations, XP-only unlocks, prepared recipes and consumed quantities, machine snapshot/CAS recovery, effect caps/order/loop prevention, selective purification, legacy profiles, acquisition riddles and shift conservation. Native Paper startup and live player checks must be reported separately from those API-boundary tests.
+
+## Cosmetic bottle colors
+
+Finished elixirs use the first stored primary effect for their liquid tint (for example Speed blue, Haste gold, Strength red). Plain elixirs use amber; refined and cultivated bases use gold and violet. The refresh changes only visual color and lore, never native potion effects, effect profiles, durations, tiers, identity or historical statistics. Existing recognized bottles refresh through the normal presentation listener; ordinary vanilla water remains unchanged.
+
+## Processor access
+
+Stonecutter directly above Copper Block is the processor structure. Interacting with either structure block resolves the same saved core. A locked machine explains the XP unlock location. An unlocked, unclaimed structure explains the sneak-right-click action rather than silently opening the vanilla workbench. Claim with sneak-right-click, insert 4 Iron Ingots and 8 Copper Ingots into the first two GUI slots, then Construct. After construction, use the raw recipes above. Existing owner/session and protection-event denials remain enforced. The build guide includes input and output icons for all three prepared reagents.
