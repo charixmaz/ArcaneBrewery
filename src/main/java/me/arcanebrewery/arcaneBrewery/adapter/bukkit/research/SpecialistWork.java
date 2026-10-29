@@ -36,18 +36,30 @@ public final class SpecialistWork {
    switch(items[0].getType()){case REDSTONE-> {kind=PreparedReagents.Kind.DURATION;second="AMETHYST_SHARD";}case GLOWSTONE_DUST->{kind=PreparedReagents.Kind.POTENCY;second="BLAZE_ROD";}case QUARTZ->{kind=PreparedReagents.Kind.PURIFICATION;second="HONEYCOMB";}default->throw new IllegalArgumentException("Use a documented raw reagent pair");}
    require(items[0],items[0].getType().name(),4);require(items[1],second,1);items[2]=PreparedReagents.create(kind,factory);use(items,0,4);use(items,1,1);
   }else{
-   if(items[0].getType()!=Material.POTION||items[0].getAmount()!=1||DisplayOnlyItems.test(items[0])||PreparedReagents.read(items[1]).orElseThrow()!=required(t))throw new IllegalArgumentException("One versioned finished elixir and matching prepared reagent required");
+   if(items[0].getType()!=Material.POTION||items[0].getAmount()!=1||DisplayOnlyItems.test(items[0])||(t!=SpecialistType.PURIFICATION_CHAMBER&&PreparedReagents.read(items[1]).orElseThrow()!=required(t)))throw new IllegalArgumentException("One versioned finished elixir and matching prepared reagent required");
    var meta=items[0].getItemMeta();var finalData=new FinalDrinkMetadata("arcanebrewery");if(finalData.unfinished(meta)||finalData.prematurePoison(meta)||finalData.readConsumption(meta).isEmpty())throw new IllegalArgumentException("A finished usable elixir is required");
    var metadata=new EffectProfileMetadata("arcanebrewery");var profile=metadata.read(meta).orElseThrow(()->new IllegalArgumentException("Historical single-effect bottles cannot be specialist-processed"));
    if(meta.getPersistentDataContainer().has(HISTORY)&&!meta.getPersistentDataContainer().has(HISTORY,PersistentDataType.INTEGER))throw new IllegalArgumentException("Invalid specialist history type");
-   int history=meta.getPersistentDataContainer().getOrDefault(HISTORY,PersistentDataType.INTEGER,0);var result=SpecialistProcess.apply(t,profile,history,REMOVABLE.get(state.selection()));
+   int history=meta.getPersistentDataContainer().getOrDefault(HISTORY,PersistentDataType.INTEGER,0);
+   int consumed=1;SpecialistProcess.Result result;
+   if(t==SpecialistType.PURIFICATION_CHAMBER){
+    if((history&4)!=0)throw new IllegalArgumentException("This historical bottle was already purified");
+    boolean prepared=PreparedReagents.read(items[1]).filter(k->k==PreparedReagents.Kind.PURIFICATION).isPresent();
+    if(DisplayOnlyItems.test(items[1])||items[1].hasItemMeta()&&!prepared)throw new IllegalArgumentException("Use ordinary reduction materials");
+    int seconds,cap;switch(items[1].getType()){case SUGAR->{seconds=1;cap=25;}case HONEYCOMB->{seconds=3;cap=35;}case AMETHYST_SHARD->{seconds=5;cap=45;}default->{if(!prepared)throw new IllegalArgumentException("Use Sugar, Honeycomb or Amethyst Shard");seconds=5;cap=45;}}
+    var reductionKey=new NamespacedKey("arcanebrewery","drawback_reduction_v1");
+    if(meta.getPersistentDataContainer().has(reductionKey)&&!meta.getPersistentDataContainer().has(reductionKey,PersistentDataType.INTEGER))throw new IllegalArgumentException("Invalid reduction history");
+    int already=meta.getPersistentDataContainer().getOrDefault(reductionKey,PersistentDataType.INTEGER,0);
+    var reduced=DrawbackReduction.apply(profile,REMOVABLE.get(state.selection()),seconds,cap,items[1].getAmount(),already);
+    consumed=reduced.consumed();meta.getPersistentDataContainer().set(reductionKey,PersistentDataType.INTEGER,reduced.totalSeconds());result=new SpecialistProcess.Result(reduced.profile(),history);
+   }else result=SpecialistProcess.apply(t,profile,history,REMOVABLE.get(state.selection()));
    var logKey=new NamespacedKey("arcanebrewery","specialist_log_v1");
    String previous=meta.getPersistentDataContainer().getOrDefault(logKey,PersistentDataType.STRING,"1");
    if(previous.length()>8192)throw new IllegalArgumentException("Processing history too large");
    var codec=new EffectProfileCodec();String record=t.name()+"@"+now+":"+java.util.Base64.getEncoder().encodeToString(codec.encode(profile))+":"+java.util.Base64.getEncoder().encodeToString(codec.encode(result.profile()));
    meta.getPersistentDataContainer().set(logKey,PersistentDataType.STRING,previous+"|"+record);
    metadata.write(meta,result.profile());meta.getPersistentDataContainer().set(HISTORY,PersistentDataType.INTEGER,result.history());
-   me.arcanebrewery.arcaneBrewery.adapter.bukkit.ElixirPresentation.refresh(meta,finalData);items[2]=items[0].clone();items[2].setItemMeta(meta);items[0]=null;use(items,1,1);
+   me.arcanebrewery.arcaneBrewery.adapter.bukkit.ElixirPresentation.refresh(meta,finalData);items[2]=items[0].clone();items[2].setItemMeta(meta);items[0]=null;use(items,1,consumed);
   }
   // Stored output + consumed inputs + deadline are one CAS-protected chunk snapshot. Recovery never recomputes or recharges.
   return new Work(items,new SpecialistState(t,true,Math.addExact(now,10000),state.selection()));

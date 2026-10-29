@@ -85,8 +85,12 @@ public final class PlayerDiscovery {
     }
 
     public PlayerDiscovery rename(UUID actor, String name) {
+        return rename(actor,name,false);
+    }
+    public PlayerDiscovery rename(UUID actor,String name,boolean colorsAllowed) {
+        name=NameColors.prepare(name,colorsAllowed);
         requireOwner(actor);
-        if(name!=null && name.indexOf('§')>=0) throw new IllegalArgumentException("new names cannot contain formatting codes");
+
         if (renameUsed())
             throw new IllegalStateException("legacy discovery has already been renamed");
         return copy(Optional.of(new DrinkName(name)), visibility, grants);

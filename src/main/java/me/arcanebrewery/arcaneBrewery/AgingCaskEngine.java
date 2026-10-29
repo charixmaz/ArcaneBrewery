@@ -211,7 +211,7 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
                 result=new AgingService().finish(fermentation.get().fermentedDraft(),state,now,lots,AgingBalance.wood(CaskStructure.wood(session.core)),
                         Math.min(100,Math.max(0,100-state.settings().caskCleanliness())+alchemyConditions.contamination(meta)),AgingBalance.targets(),state.batchId().getMostSignificantBits()^state.batchId().getLeastSignificantBits(),additives,alchemyConditions.stability(meta),me.arcanebrewery.arcaneBrewery.adapter.bukkit.QualityPolicyMetadata.read(meta));
 
-                output=bottle(result,mature,producer,producerName);
+                output=bottle(result,mature,producer,producerName,harvestedAt);
                 var profiles=new me.arcanebrewery.arcaneBrewery.adapter.bukkit.alchemy.EffectProfileMetadata(plugin.getName().toLowerCase(Locale.ROOT));
                 if(profiles.newOperation(meta)) {
                     double profileQuality=0;
@@ -296,7 +296,7 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
             });
     }
 
-    private ItemStack bottle(AgingResult result,boolean mature,UUID producer,String producerName) {
+    private ItemStack bottle(AgingResult result,boolean mature,UUID producer,String producerName,long harvestedAt) {
         var item=new ItemStack(Material.POTION); var meta=(PotionMeta)item.getItemMeta();
         if (meta==null) throw new IllegalStateException("potion meta unavailable");
         var effect=alchemy.evaluate(result.process(),result.simulation().quality());
@@ -306,6 +306,7 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
         if(mature && result.process().preparationMethod().equals("distillation-v2")) finalDrinkMetadata.producer(meta,producer,producerName,result.process());
         meta.getPersistentDataContainer().set(new NamespacedKey(plugin,"alcohol_stars"),PersistentDataType.INTEGER,qualityStars(result.simulation().quality().overallScore()));
         String name=mature?"Unnamed Elixir":MessageConfig.text("names.unfinished");
+        if(mature)me.arcanebrewery.arcaneBrewery.adapter.bukkit.TastingNotes.capture(meta,harvestedAt^producer.getMostSignificantBits());
         meta.setDisplayName("§d§l"+name+"§r"); ElixirPresentation.refresh(meta,finalDrinkMetadata); item.setItemMeta(meta); return item;
     }
     private ItemStack legacyBottle(int stars) {

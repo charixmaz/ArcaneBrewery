@@ -129,6 +129,7 @@ public final class ArcaneBrewery extends JavaPlugin {
         brewMarket.setExecutor(diagnostics);
         brewMarket.setTabCompleter(diagnostics);
 
+        getServer().getPluginManager().registerEvents(new me.arcanebrewery.arcaneBrewery.adapter.bukkit.BottleCrates(),this);
         getLogger().info("ArcaneBrewery enabled.");
     }
 

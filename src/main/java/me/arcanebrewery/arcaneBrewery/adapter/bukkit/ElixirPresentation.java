@@ -15,7 +15,8 @@ public final class ElixirPresentation {
         var profile = data.readConsumption(meta);
         if (profile.isEmpty()) return false;
         var elixir = profile.orElseThrow();
-        String name = meta.hasDisplayName() ? ChatColor.stripColor(meta.getDisplayName()) : MessageConfig.text("names.elixir");
+        String name = meta.hasDisplayName() ? meta.getDisplayName() : MessageConfig.text("names.elixir");
+        name=name.replaceFirst("^§d§l", "").replaceFirst("§r$", "");
         if (name.equals("Undermatured Cask Batch")) name = MessageConfig.text("names.unfinished");
         if (name.equals("Finished Drink")) name = MessageConfig.text("names.elixir");
         meta.setDisplayName("§d§l" + name + "§r");
@@ -37,6 +38,7 @@ public final class ElixirPresentation {
         if(effects.isEmpty()) data.harvestSeconds(meta).ifPresent(h->lore.add("§7Harvested at §f"+h+"s§r"));
         if(data.prematurePoison(meta)) lore.add("§cPoisonous if consumed.§r");
         else if(unfinished) lore.add("§eWithdrawn early; no discovery.§r");
+        TastingNotes.read(meta).ifPresent(note->lore.add("§7Taste §f"+note+"§r"));
         lore.add("§8/brew inspect — full details§r");
         meta.setLore(lore);
         meta.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);

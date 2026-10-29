@@ -17,6 +17,9 @@ commands:
     permission: arcanebrewery.admin.market
 
 permissions:
+  arcanebrewery.rename.colors:
+    description: Allows color-only codes (&0–&f) in the one permanent elixir rename.
+    default: false
   arcanebrewery.admin.bypass:
     description: Access machines without changing ownership; exclusive sessions and safety locks still apply.
     default: op
