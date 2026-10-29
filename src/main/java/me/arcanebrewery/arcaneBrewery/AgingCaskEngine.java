@@ -1,5 +1,8 @@
 package me.arcanebrewery.arcaneBrewery;
 
+import me.arcanebrewery.arcaneBrewery.adapter.bukkit.machine.ProductionLayout;
+
+
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.*;
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.machine.*;
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.aging.*;
@@ -104,7 +107,7 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
                 throw new IllegalArgumentException("legacy cask has a bottle outside its storage lanes");
             var created=new Session[1];
             boolean opened=access.open(event.getPlayer(),core,Kind.CASK,() -> {
-                var holder=new Holder(); Inventory gui=Bukkit.createInventory(holder,9,MessageConfig.title("cask")); holder.inventory=gui;
+                var holder=new Holder(); Inventory gui=Bukkit.createInventory(holder,ProductionLayout.SIZE,MessageConfig.title("cask")); holder.inventory=gui;
                 for (int slot:LANES) gui.setItem(slot,saved.items()[slot]);
                 var session=new Session(core,gui,saved.raw()); created[0]=session; sessions.put(gui,session);
                 if (session.raw==null) session.raw=storage.save(core,null,contents(gui),"");

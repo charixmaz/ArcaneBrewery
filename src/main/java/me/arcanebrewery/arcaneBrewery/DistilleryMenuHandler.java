@@ -1,5 +1,8 @@
 package me.arcanebrewery.arcaneBrewery;
 
+import me.arcanebrewery.arcaneBrewery.adapter.bukkit.machine.ProductionLayout;
+
+
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.ProcessingTimes;
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.machine.*;
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.alchemy.AlchemySlotTransfer;
@@ -82,7 +85,7 @@ public final class DistilleryMenuHandler implements Listener, AutoCloseable {
     private Session load(Block core) {
         Session present=sessions.get(key(core)); if (present!=null) return present;
         var saved=storage.load(core); var holder=new Holder();
-        Inventory gui=Bukkit.createInventory(holder,9,MessageConfig.title("extractor")); holder.inventory=gui;
+        Inventory gui=Bukkit.createInventory(holder,ProductionLayout.SIZE,MessageConfig.title("extractor")); holder.inventory=gui;
         for (int i=0;i<9;i++) {
             if (!Set.of(0,1,2,4,5).contains(i) && saved.items()[i]!=null)
                 throw new IllegalArgumentException("legacy machine has items in protected slots");
@@ -122,7 +125,7 @@ public final class DistilleryMenuHandler implements Listener, AutoCloseable {
         }
         if (event.getClick()!=ClickType.LEFT && event.getClick()!=ClickType.RIGHT) { event.setCancelled(true); return; }
         if (event.getClickedInventory()!=gui) return;
-        event.setCancelled(true); int slot=event.getSlot();
+        event.setCancelled(true); int slot=ProductionLayout.EXTRACTOR.logical(event.getSlot());
         if(session.processing()) return;
         if(slot==3 || slot==6 || slot==8) {
             try {
@@ -271,10 +274,11 @@ public final class DistilleryMenuHandler implements Listener, AutoCloseable {
         catch (RuntimeException visualFailure) { plugin.getLogger().warning("Extractor display refresh failed; saved contents retained."); }
     }
     private void render(Session session) {
+        ProductionLayout.EXTRACTOR.frame(session.gui);
         String state=session.processing()?"PROCESSING":session.state!=null?"READY":Arrays.stream(contents(session.gui)).anyMatch(Objects::nonNull)?"IDLE":"EMPTY / IDLE";
         control(session.gui,3,Material.BLAZE_POWDER,"Temperature: "+session.temperature+" C",List.of("§7Click: 60–90 C in 2 C steps; experiment with different mixtures.§r","§7Slots 1–3: one bottle each.§r"));
 
-        control(session.gui,6,Material.PAPER,"Cuts: "+List.of("Balanced","Wide / risky","Clean / mild").get(session.cuts),List.of("§7Click to choose cuts.§r","§7Wide: more potency, contamination risk.§r","§7Clean: milder potency.§r","§7Owner: §f"+access.ownerLabel(session.core)+"§r"));
+        control(session.gui,6,Material.PAPER,"Cuts: "+List.of("Balanced","Wide / risky","Clean / mild").get(session.cuts),List.of("§7Click to choose cuts.§r","§7Wide: more potency, unsafe cuts risk.§r","§7Clean: milder potency.§r","§7Owner: §f"+access.ownerLabel(session.core)+"§r"));
         var lore=new ArrayList<String>(); lore.add("§7Status: §f"+state+"§r");
         if (session.processing()) {
             long elapsed=Math.max(0,System.currentTimeMillis()-session.state.startedAtEpochMillis());
@@ -284,6 +288,9 @@ public final class DistilleryMenuHandler implements Listener, AutoCloseable {
         lore.add("§7Processing locks all machine inputs.§r");
         control(session.gui,7,session.processing()?Material.CLOCK:Material.LIME_STAINED_GLASS_PANE,state,lore);
         control(session.gui,8,Material.CRAFTING_TABLE,"Essence Extraction",List.of("§7Click to START with valid inputs.§r","§7Slots 5 and 6: 1–8 washed ingredients each.§r","§7All selected quantities consumed per run.§r","§7Stand must remain above a Crafting Table.§r"));
+        ProductionLayout.EXTRACTOR.relocate(session.gui);
+        ProductionLayout.label(session.gui,10,Material.GLASS_BOTTLE,"Bottle lanes", "Top slots 1–3: one bottle each.","Finished bases are collected from these same lanes.");
+        ProductionLayout.label(session.gui,14,Material.WHEAT,"Ingredient inputs", "Top slots 5–6: 1–8 washed ingredients each.","Selected quantities are consumed when extraction completes.");
     }
     private void control(Inventory inv,int slot,Material type,String name,List<String> lore) {
         var item=new ItemStack(type); var meta=item.getItemMeta(); me.arcanebrewery.arcaneBrewery.adapter.bukkit.discovery.DisplayOnlyItems.mark(meta); meta.setDisplayName("§b§l"+name+"§r"); meta.setLore(lore); me.arcanebrewery.arcaneBrewery.adapter.bukkit.PresentationStyle.apply(meta); item.setItemMeta(meta); inv.setItem(slot,item);
