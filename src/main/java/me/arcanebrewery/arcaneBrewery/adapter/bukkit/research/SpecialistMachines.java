@@ -32,13 +32,13 @@ public final class SpecialistMachines implements Listener,AutoCloseable {
   timer=Bukkit.getScheduler().runTaskTimer(plugin,()->{for(var s:List.copyOf(sessions.values()))try{if(s.gui.getViewers().isEmpty()){sessions.remove(s.gui);continue;}recover(s);}catch(RuntimeException bad){access.closeCore(s.core);sessions.remove(s.gui);}},20,20);
  }
  static Block coreFor(Block clicked) {
-  for(var type:SpecialistType.values()) if(type.foundation.equals(clicked.getType().name())) {
+  for(var type:SpecialistType.values()) if(type.acceptsFoundation(clicked.getType().name())) {
    var above=clicked.getRelative(0,1,0);
    if(structure(above)==type)return above;
   }
   return clicked;
  }
- static SpecialistType structure(Block core){for(var t:SpecialistType.values())if(core.getType().name().equals(t.core)&&core.getRelative(0,-1,0).getType().name().equals(t.foundation))return t;return null;}
+ static SpecialistType structure(Block core){for(var t:SpecialistType.values())if(core.getType().name().equals(t.core)&&t.acceptsFoundation(core.getRelative(0,-1,0).getType().name()))return t;return null;}
  @EventHandler(priority=EventPriority.HIGH,ignoreCancelled=true) public void open(PlayerInteractEvent event){
   if(event.getAction()!=Action.RIGHT_CLICK_BLOCK||event.getHand()!=EquipmentSlot.HAND||event.getClickedBlock()==null)return;
   final Block core=coreFor(event.getClickedBlock());var type=structure(core);if(type==null)return;

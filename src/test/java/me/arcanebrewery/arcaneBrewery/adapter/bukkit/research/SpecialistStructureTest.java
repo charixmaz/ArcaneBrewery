@@ -16,6 +16,12 @@ class SpecialistStructureTest {
   assertEquals(SpecialistType.REAGENT_PROCESSOR,SpecialistMachines.structure(core.block));
   assertSame(core.block,SpecialistMachines.coreFor(core.block));assertSame(core.block,SpecialistMachines.coreFor(foundation.block));
  }
+ @Test void oldProcessorAcceptsEveryOxidationStageAndNewFoundation(){
+  for(var m:java.util.List.of(Material.SMOOTH_STONE,Material.COPPER_BLOCK,Material.EXPOSED_COPPER,Material.WEATHERED_COPPER,Material.OXIDIZED_COPPER,Material.WAXED_COPPER_BLOCK,Material.WAXED_EXPOSED_COPPER,Material.WAXED_WEATHERED_COPPER,Material.WAXED_OXIDIZED_COPPER)){
+   var core=new Cell(Material.STONECUTTER);var below=new Cell(m);core.below=below;below.above=core;
+   assertEquals(SpecialistType.REAGENT_PROCESSOR,SpecialistMachines.structure(core.block));assertSame(core.block,SpecialistMachines.coreFor(below.block));
+  }
+ }
  @Test void everySpecialistUsesItsDocumentedVerticalStructure(){for(var type:SpecialistType.values()){
   var core=new Cell(Material.valueOf(type.core));var foundation=new Cell(Material.valueOf(type.foundation));core.below=foundation;foundation.above=core;
   assertEquals(type,SpecialistMachines.structure(core.block));assertSame(core.block,SpecialistMachines.coreFor(foundation.block));core.below=new Cell(Material.STONE);assertNull(SpecialistMachines.structure(core.block));

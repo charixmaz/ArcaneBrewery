@@ -22,7 +22,7 @@ class AgingServiceTest {
         var v3=service.finish(modern,state,201000,lots(),AgingBalance.wood("oak"),0,AgingBalance.targets(),42,Map.of(),100,3);
         assertEquals(baseline,v2);assertEquals(v2.simulation().fingerprint(),v3.simulation().fingerprint());
         assertNotEquals(v2.assessment().score(),v3.assessment().score());
-        assertEquals(v3,service.finish(modern,state,201000,lots(),AgingBalance.wood("oak"),0,AgingBalance.targets(),42,Map.of(),100,3));
+        assertEquals(v3,service.finish(modern,state,201000,lots(),AgingBalance.wood("oak"),0,AgingBalance.targets(),987654,Map.of(),100,3));
     }
     @Test void capturedMaturityControlsIdentityWithoutReinterpretingOldStages() {
         var old=new AgingBatchState(1,UUID.randomUUID(),new AgingSettings("oak",12,18,95),1000);

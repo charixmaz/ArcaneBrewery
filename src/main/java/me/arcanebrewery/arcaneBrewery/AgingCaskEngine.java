@@ -305,7 +305,7 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
 
         if(mature && result.process().preparationMethod().equals("distillation-v2")) finalDrinkMetadata.producer(meta,producer,producerName,result.process());
         meta.getPersistentDataContainer().set(new NamespacedKey(plugin,"alcohol_stars"),PersistentDataType.INTEGER,qualityStars(result.simulation().quality().overallScore()));
-        String name=mature?new DescriptiveNameGenerator().generate(result.process()).value():MessageConfig.text("names.unfinished");
+        String name=mature?"Unnamed Elixir":MessageConfig.text("names.unfinished");
         meta.setDisplayName("§d§l"+name+"§r"); ElixirPresentation.refresh(meta,finalDrinkMetadata); item.setItemMeta(meta); return item;
     }
     private ItemStack legacyBottle(int stars) {
