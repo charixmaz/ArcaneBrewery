@@ -61,7 +61,7 @@ public final class AgingService {
             new me.arcanebrewery.arcaneBrewery.domain.process.FermentationProfile(f.yeastOrCatalyst(),f.temperatureCelsius(),f.durationSeconds(),100,0),process.distillation(),
             new me.arcanebrewery.arcaneBrewery.domain.process.AgingProfile(a.woodType(),a.durationSeconds(),0,a.storageTemperatureCelsius(),100),process.alchemicalAdditives());
         var activeConditions=new BatchConditions(lots,0,conditions.catalystStability(),wood);
-        var calculated=calculator.calculateWithoutContamination(measured,targets,activeConditions,BatchVariation.fromSeed(variationSeed));
+        var calculated=calculator.calculateWithoutContamination(measured,targets,activeConditions,qualityGeneration==3?BatchVariation.NONE:BatchVariation.fromSeed(variationSeed));
         var cq=calculated.quality();
         var simulation=new BatchSimulationResult(me.arcanebrewery.arcaneBrewery.domain.drink.DrinkFingerprint.from(process),
             new BatchQuality(cq.purity(),cq.flavor(),cq.aroma(),cq.stability(),0,cq.magicalPotency()),calculated.contamination());

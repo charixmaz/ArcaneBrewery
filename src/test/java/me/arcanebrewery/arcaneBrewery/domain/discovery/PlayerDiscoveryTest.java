@@ -22,7 +22,7 @@ class PlayerDiscoveryTest {
     @Test
     void generatedTemporaryNameIsDeterministic() {
         assertEquals(discovery().temporaryName(), discovery().temporaryName());
-        assertEquals(discovery().temporaryName(), discovery().displayName());
+        assertEquals("Unnamed Elixir", discovery().displayName().value());
     }
 
     @Test

@@ -61,7 +61,7 @@ public final class PlayerDiscovery {
     public DrinkName temporaryName() { return temporaryName; }
     public Optional<DrinkName> canonicalName() { return canonicalName; }
     public boolean renameUsed() { return canonicalName.isPresent(); }
-    public DrinkName displayName() { return canonicalName.orElse(temporaryName); }
+    public DrinkName displayName() { return canonicalName.orElseGet(()->new DrinkName("Unnamed Elixir")); }
     public DiscoveryVisibility visibility() { return visibility; }
 
     /** Trusted state export. Player-facing code must continue using knowledgeFor instead. */

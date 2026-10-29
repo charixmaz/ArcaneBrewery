@@ -280,7 +280,7 @@ public final class PersonalDiscoveryRepository implements DiscoveryRepository {
         return JdbcTransactions.run(connections,false,c->{
             var id=resolve(c,requested);
             try(var s=c.prepareStatement("SELECT personal_name,temporary_name FROM personal_recipes WHERE identity=? AND player_id=?")) {
-                bind(s,id.value(),player.toString());try(var rs=s.executeQuery()) {return rs.next()?Optional.of(rs.getString(1)==null?rs.getString(2):rs.getString(1)):Optional.empty();}
+                bind(s,id.value(),player.toString());try(var rs=s.executeQuery()) {return rs.next()?Optional.of(rs.getString(1)==null?"Unnamed Elixir":rs.getString(1)):Optional.empty();}
             }
         });
     }
