@@ -38,8 +38,8 @@ class GuideCatalogTest {
     }
     @Test void walkthroughsDoNotPretendToBeSeededNamedRecipes() {
         var text = catalog.starters().toString();
-        assertTrue(text.contains("no fixed named-elixir catalog"));
-        assertTrue(text.contains("not seeded discoveries"));
+        assertTrue(text.contains("Record your settings"));
+        assertFalse(text.contains("100%"));
         assertFalse(text.contains("guaranteed Fire Resistance"));
     }
     @Test void legacyReferencesUseActualProfilesAndExplainTheirLimits() {

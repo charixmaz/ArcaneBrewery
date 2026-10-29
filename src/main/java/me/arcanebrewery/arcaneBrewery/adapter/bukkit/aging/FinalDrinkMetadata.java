@@ -65,7 +65,7 @@ public final class FinalDrinkMetadata {
     public boolean unfinished(ItemMeta meta) { return "UNFINISHED".equals(meta.getPersistentDataContainer().get(key("drink_stage"),PersistentDataType.STRING)); }
     public java.util.List<String> qualityBreakdown(ItemMeta meta) {
         String text=meta.getPersistentDataContainer().get(key("drink_quality_breakdown"),PersistentDataType.STRING);
-        return text==null?java.util.List.of("No factor breakdown recorded for this older bottle."):java.util.Arrays.stream(text.split("\\n")).map(line -> line.replaceAll(
+        return text==null?java.util.List.of("No factor breakdown recorded for this older bottle."):java.util.Arrays.stream(text.split("\\n")).map(line -> line.replaceAll("culture ideal [0-9.]+ [Cs]", "compare recorded experiments").replaceAll("ideal 78 C and balanced cuts", "compare recorded extraction settings").replaceAll("WILD: sugar\\+starch >=50; LUMINOUS: sugar >=50; QUIET: starch >=50", "mixture and culture compatibility").replaceAll(
             "perfect window [0-9]+[–-][0-9]+ s at 18 C", "compare harvest times and record successful batches")).toList();
     }
     public boolean prematurePoison(ItemMeta meta) {

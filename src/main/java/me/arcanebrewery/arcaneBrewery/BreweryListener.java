@@ -126,8 +126,8 @@ public final class BreweryListener implements Listener {
     private void paint(Controls view) {
         var s=settings(view.core);var c=me.arcanebrewery.arcaneBrewery.domain.process.BrewingCulture.of(s.yeastOrCatalyst());
         control(view,0,Material.WHEAT,"Culture: "+c.name(),List.of("Built-in starter library; no external plugin or item needed.",
-            "Ideal: "+c.temperature()+" C / "+c.seconds()+" s","Click for next culture; also resets ideal controls."));
-        control(view,2,Material.BLAZE_POWDER,"Temperature: "+s.temperatureCelsius()+" C",List.of("Click: 10–36 C in 2 C steps.","Outside the ideal loses quality."));
+            "Experiment with temperature and duration for your mixture.","Click for next culture; resets controls to starting values."));
+        control(view,2,Material.BLAZE_POWDER,"Temperature: "+s.temperatureCelsius()+" C",List.of("Click: 10–36 C in 2 C steps.","Compare results from different settings."));
         control(view,4,Material.CLOCK,"Duration: "+s.durationSeconds()+" s",List.of("Click: 30–300 s in 30 s steps.","Captured batches keep their original settings."));
         control(view,8,Material.LIME_DYE,"Start Cultivation",List.of("Uses all eligible refined bases in this barrel.","Refined bases must be inserted through the normal barrel first.","Active batch settings are locked; progress continues offline."));
     }

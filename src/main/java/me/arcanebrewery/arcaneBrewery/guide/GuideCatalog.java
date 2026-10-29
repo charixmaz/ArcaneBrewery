@@ -90,16 +90,9 @@ public final class GuideCatalog {
             "Discover by obtaining it. Exact combinations require experimentation.",d.risky()?"Deliberately dangerous transformation.":"Inspect the resulting profile for actual effects.")).toList();
     }
     public List<Entry> starters() {
-        return List.of(
-            entry(Material.BOOK, "About Available Recipes", "The modern pipeline has no fixed named-elixir catalog.",
-                "These are public production walkthroughs, not seeded discoveries.",
-                "They do not grant items or pre-register discoveries; execution determines quality.",
-                "Use My Discoveries and Public Discoveries for recorded recipes.",
-                "Legacy Profiles documents older compatibility bottles separately.",
-                "Inspect only your permitted records: /brew guide recipe <full fingerprint>."),
-            starter(Material.WHEAT, "Plain Wheat Walkthrough", "Wheat", false),
-            starter(Material.APPLE, "Plain Apple Walkthrough", "Apple", false),
-            starter(Material.BOOK, "Experimenting with Infusion", "Wheat", true));
+        return List.of(entry(Material.BOOK,"Experimentation","Wash → extract → cultivate → optionally infuse → mature.",
+            "Machine build diagrams and controls are in Machines & Controls.","Record your settings and actual harvest time; compare results.",
+            "Different mixtures respond to different settings. There is no universal perfect recipe."));
     }
     private Entry starter(Material icon, String title, String ingredient, boolean fire) {
         List<String> lines = new ArrayList<>(List.of("1. Wash one " + ingredient + " to 100% purity.",
@@ -166,18 +159,14 @@ public final class GuideCatalog {
                 "Historical learned records retain their provenance and permissions.",
                 "Exchange instructions outside the plugin; no sharing commands exist."),
             entry(Material.WHEAT,"Cultures and Controls","Built-in starter culture library: no external plugin or consumable required.",
-                "WILD: ideal 22 C / 60 s; LUMINOUS: 28 C / 90 s, 1.2x potency.",
-                "QUIET: 16 C / 120 s, 0.75x potency. Culture selection resets to its ideal.",
+                "Cultures respond differently to ingredient mixtures.",
+                "Record temperature and cultivation duration for each experiment.",
                 "Temperature 10–36 C in 2 C steps; duration 30–300 s in 30 s steps.",
-                "Extractor: 60–90 C in 2 C steps; ideal 78 C. Balanced, Wide or Clean cuts.",
+                "Extractor: 60–90 C in 2 C steps; experiment with temperature. Balanced, Wide or Clean cuts.",
                 "Wide increases potency and toxicity risk; Clean produces a milder batch."),
-            entry(Material.CLOCK,"Deterministic Quality","Workmanship weights: purity 20%, culture composition 5%, temperature 20%, duration 15%, extraction 15%,",
-                "storage 10%, maturation 10%, catalyst stability 5%; dangerous materials/cuts penalize separately.",
-                "100% reference: wash Wheat to 100%, 78 C Balanced extraction, WILD 22 C/60 s,",
-                "no catalyst and suitable storage; discover the best harvest time experimentally.",
-                "Mildness does not cap quality. Use /brew inspect for actual factor losses.",
-                "Unfinished quality is zero; severe over-aging can also reduce quality to zero.",
-                "Wood affects flavor; over-aging reduces quality. No random star roll denies perfection."),
+            entry(Material.CLOCK,"Reproducible Quality","New batches use a mixture-dependent quality policy.",
+                "Ingredient condition, proportions, culture and processing interact.","Compare your recorded batches to improve quality.",
+                "Existing batches keep their captured rules. Unfinished and ruined batches can have zero quality."),
             entry(Material.TRIPWIRE_HOOK,"Privacy and Safety","Short IDs resolve across your complete accessible catalog; ambiguous prefixes fail.",
                 "Historical grants remain permission checked. Public names are not process permission.",
                 "Owner-only machines, one active viewer. Automation blocked only for recognized machines.",

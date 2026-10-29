@@ -13,6 +13,17 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class AgingServiceTest {
     private final AgingService service = new AgingService();
+    @Test void explicitV2PreservesOldQualityAndV3DoesNotChangeIdentity() {
+        var old=source();var d=old.distillery();
+        var modern=new FermentedProcessDraft(new DistilleryProcessDraft(d.ingredientRatios(),d.ingredientPurity(),"distillation-v2",d.controls()),old.fermentation());
+        var state=new AgingBatchState(AgingBatchState.VERSION,UUID.randomUUID(),new AgingSettings("oak",0,18,100),1000,200,true);
+        var baseline=service.finish(modern,state,201000,lots(),AgingBalance.wood("oak"),0,AgingBalance.targets(),42,Map.of(),100);
+        var v2=service.finish(modern,state,201000,lots(),AgingBalance.wood("oak"),0,AgingBalance.targets(),42,Map.of(),100,2);
+        var v3=service.finish(modern,state,201000,lots(),AgingBalance.wood("oak"),0,AgingBalance.targets(),42,Map.of(),100,3);
+        assertEquals(baseline,v2);assertEquals(v2.simulation().fingerprint(),v3.simulation().fingerprint());
+        assertNotEquals(v2.assessment().score(),v3.assessment().score());
+        assertEquals(v3,service.finish(modern,state,201000,lots(),AgingBalance.wood("oak"),0,AgingBalance.targets(),42,Map.of(),100,3));
+    }
     @Test void capturedMaturityControlsIdentityWithoutReinterpretingOldStages() {
         var old=new AgingBatchState(1,UUID.randomUUID(),new AgingSettings("oak",12,18,95),1000);
         var configured=new AgingBatchState(1,UUID.randomUUID(),new AgingSettings("oak",12,18,95),1000,240);
