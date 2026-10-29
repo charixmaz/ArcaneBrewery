@@ -1,7 +1,7 @@
 # Experimental brewing release phases
 
-1. Candidate deterministic combination-quality policy and balance tests. **Implemented in isolation; not active gameplay.** No new RNG, recipe identity changes, migrations or historical bottle changes.
-2. Capture V3 policy on new extraction starts, persist through restart and subsequent machines; freeze all old batches. Integrate mixture-derived cultivation/extraction/maturation targets. Audit all target leaks, automatic ideal resets and starter-perfect walkthroughs. Test complete live pipeline and old/new side by side before activating.
+1. Candidate deterministic combination-quality policy and balance tests. **Implemented and integrated for newly started extraction batches.** No new RNG, recipe identity changes, migrations or historical bottle changes.
+2. **Integration implemented:** capture V3 policy on new extraction starts, persist through restart and subsequent machines; freeze all old batches. Integrate mixture-derived cultivation/extraction/maturation targets. Audit all target leaks, automatic ideal resets and starter-perfect walkthroughs. Test complete live pipeline and old/new side by side before activating.
 3. Smooth Stone processor foundation with recovery support for old oxidized copper structures; consistent Unnamed Elixir presentation; permission-gated color-only permanent naming; functional machine controls.
 4. Purification duration reduction with consumed quantities, selected unwanted effect, Sugar 1s/25s, Honeycomb 3s/35s, Amethyst Shard 5s/45s; cumulative history prevents repeated treatment bypass, minimum 1 second, preserve premature poison rules.
 5. Persisted cosmetic tasting notes and nine-bottle crates with no nesting, inventory conservation and crash/restart coverage.
@@ -10,4 +10,12 @@ Every phase requires Maven verification, standalone packaging and CI. Paper star
 
 ## Candidate policy
 
-Sorted weighted ingredient properties and a sugar–starch interaction set reachable temperature (2-degree steps), cultivation (30-second steps) and extraction (2-degree steps) targets. Actual upstream deviations influence maturation (15-second steps, 120–600 seconds). Gaussian response curves tolerate nearby settings. A 30-second maturation plateau avoids exact-second requirements; immature quality stays zero and severe over-aging approaches zero. Toxic materials retain a quality penalty. Purity and equipment stability use actual snapshots. Coefficients are provisional balance, not chemistry; broader ingredient/culture sweep tests are required before activation.
+Sorted weighted ingredient properties and a sugar–starch interaction set reachable temperature (2-degree steps), cultivation (30-second steps) and extraction (2-degree steps) targets. Actual upstream deviations influence maturation (15-second steps, 120–600 seconds). Gaussian response curves tolerate nearby settings. A 30-second maturation plateau avoids exact-second requirements; immature quality stays zero and severe over-aging approaches zero. Toxic materials retain a quality penalty. Purity and equipment stability use actual snapshots. Coefficients are provisional balance, not chemistry; broader live balance testing remains pending.
+
+## Integration and compatibility
+
+New ordinary extraction starts capture quality policy 3 in the restart-safe extraction envelope. Existing envelopes and bottles without a quality marker resolve to policy 2. Effect generation remains independent. The marker is written to refined bases and carried through cultivation/infusion into maturation. The cask captures its mixture-dependent maturation target once; harvest assesses using the captured policy and target. Finished bottles retain their computed quality/effects; no database reset, existing bottle rewrite or recipe identity change is performed. Existing early poison and unfinished gates remain.
+
+Perfect Wheat/Apple walkthroughs and exposed ideal cultivation/extraction hints have been removed from player-facing guide/control routes. Existing stored breakdowns are redacted at display time; stored statistics are unchanged. Actual selected settings and harvest records remain visible.
+
+CI for the integration passed Maven verification and standalone packaging. Paper startup/live GUI/protection tests were skipped; no EULA was accepted. Later phases remain unimplemented.
