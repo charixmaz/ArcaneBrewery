@@ -1,6 +1,7 @@
 package me.arcanebrewery.arcaneBrewery;
 
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.machine.ProductionLayout;
+import me.arcanebrewery.arcaneBrewery.adapter.bukkit.machine.CultivationStructure;
 
 
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.distillery.DistilleryBatchMetadata;
@@ -116,7 +117,11 @@ public final class BreweryListener implements Listener {
         var block=event.getClickedBlock();
         if(block==null || !event.getPlayer().isSneaking() || event.getHand()!=org.bukkit.inventory.EquipmentSlot.HAND
             || event.getAction()!=org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK || !(block.getState() instanceof Barrel)
-            || access.recognized(block)!=Kind.CULTIVATION) return;
+            ) return;
+        if(access.recognized(block)!=Kind.CULTIVATION){
+            if(access.recognized(block)!=Kind.CASK)event.getPlayer().sendMessage(MessageConfig.prefix()+"§eCultivation structure: face the Barrel horizontally and place a wooden Fence directly behind it at the same height. Right-click for inventory; sneak-right-click for controls.§r");
+            return;
+        }
         event.setCancelled(true);
         if(!access.authorize(event.getPlayer(),block,Kind.CULTIVATION,false)) return;
         try {
@@ -133,7 +138,7 @@ public final class BreweryListener implements Listener {
             "Experiment with temperature and duration for your mixture.","Click for next culture; resets controls to starting values."));
         control(view,2,Material.BLAZE_POWDER,"Temperature: "+s.temperatureCelsius()+" C",List.of("Click: 10–36 C in 2 C steps.","Compare results from different settings."));
         control(view,4,Material.CLOCK,"Duration: "+s.durationSeconds()+" s",List.of("Click: 30–300 s in 30 s steps.","Captured batches keep their original settings."));
-        control(view,8,Material.LIME_DYE,"Start Cultivation",List.of("Uses all eligible refined bases in this barrel.","Refined bases must be inserted through the normal barrel first.","Active batch settings are locked; progress continues offline."));
+        control(view,8,Material.LIME_DYE,"Start Cultivation",List.of("Uses all eligible refined bases in this barrel.","Right-click the Barrel for its inventory; sneak-right-click for controls.","A wooden Fence must be directly behind the Barrel.","Active batch settings are locked; progress continues offline."));
         ProductionLayout.CULTIVATION.relocate(view.inventory);
         ProductionLayout.label(view.inventory,16,Material.BARREL,"Physical barrel inventory", "Insert refined bases in the Barrel itself.","Shift-click a base here to insert it safely.","Selected settings are captured when you start.");
         ProductionLayout.label(view.inventory,20,Material.CLOCK,"Cultivation duration", "Configured duration: "+s.durationSeconds()+" seconds", "Active batches retain their captured settings.","Offline time counts; this is not an ideal-time hint.");
@@ -167,6 +172,7 @@ public final class BreweryListener implements Listener {
             var s=settings(view.core);
             int slot=event.getClickedInventory()==view.inventory?ProductionLayout.CULTIVATION.logical(event.getSlot()):-1;
             if(slot==8) {
+                if(!CultivationStructure.valid(view.core)){player.sendMessage(MessageConfig.prefix()+"§eRestore a wooden Fence directly behind the horizontal Barrel before starting. Existing bottles and progress are retained.§r");return;}
                 boolean started=startEligible(barrel.getInventory(),s);
                 player.sendMessage(MessageConfig.prefix()+(started?"§aCultivation started; settings captured.§r":"§eInsert unprocessed refined bases first.§r"));return;
             }

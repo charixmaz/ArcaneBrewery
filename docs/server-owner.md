@@ -36,3 +36,9 @@ Use `/brew crate pack <1–9>` with one ordinary Barrel and finished bottles in 
 ## Production machine interfaces
 
 Production interfaces now use three rows. Existing bottle/ingredient input indexes are retained in the top row. Extractor controls are on the bottom row; Infuser input labels and operating controls are separated. Cultivation settings are in its control window; its physical Barrel remains a normal inventory. Cask lane cards show actual elapsed time and saved-harvest recovery state, without a maturity target, countdown, percentage or READY indicator. Clicking the stored bottle still harvests it; lane cards are display-only. No inventory migration is required.
+
+## Cultivation Barrel structure
+
+Place a Barrel horizontally, then one wooden Fence directly behind it, opposite its front face, at the same height. Any wooden fence is supported, including crimson/warped; fence gates and Nether Brick Fence are not. Right-click the Barrel to insert refined bases, then sneak-right-click it for cultivation controls and Start. The empty multiblock can open controls before bottles are inserted.
+
+Old owned cultivation barrels retain ownership, contents and captured progress even without the fence. Restore the structure before starting another batch. Ordinary unstructured storage barrels remain ordinary containers. Maturation Cask recognition takes precedence when its sign/wood casing exists.

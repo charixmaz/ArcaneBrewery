@@ -28,6 +28,7 @@ final class MachineFixture {
     final Map<String,Material> materials=new HashMap<>();
     final Map<String,PersistentDataContainer> tiles=new HashMap<>();
     final Map<String,Chunk> chunks=new HashMap<>();
+    final Map<String,BlockFace> facings=new HashMap<>();
     boolean loaded=true;
     final World world=proxy(World.class,(name,args) -> switch(name) {
         case "getUID" -> new UUID(0,1); case "getName" -> "test"; case "isChunkLoaded" -> loaded;
@@ -51,6 +52,7 @@ final class MachineFixture {
         return blocks.computeIfAbsent(key,ignored -> proxy(Block.class,(name,args) -> switch(name) {
             case "getX" -> x; case "getY" -> y; case "getZ" -> z; case "getWorld" -> world;
             case "getType" -> materials.getOrDefault(key,Material.AIR);
+            case "getBlockData" -> proxy(org.bukkit.block.data.Directional.class,(method,values)->method.equals("getFacing")?facings.getOrDefault(key,BlockFace.NORTH):null);
             case "getChunk" -> chunk(x>>4,z>>4);
             case "getLocation" -> new Location(world,x,y,z);
             case "getRelative" -> {

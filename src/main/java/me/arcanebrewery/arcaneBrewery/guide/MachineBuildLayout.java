@@ -28,7 +28,8 @@ public final class MachineBuildLayout {
                 part(14, Material.AMETHYST_BLOCK, "Side · Amethyst Block", "Same height as the Enchanting Table."),
                 part(22, Material.CRYING_OBSIDIAN, "Below · Crying Obsidian", "Directly below the Enchanting Table."));
             case BARREL -> List.of(
-                part(4, Material.BOOK, "Build · Single Block", "A plain Barrel; no sign or surrounding cask structure."),
+                part(4, Material.BOOK, "Build · Side View", "Horizontal Barrel + wooden Fence directly behind it.","Both blocks must be at the same height; any wooden fence works."),
+                part(14, Material.OAK_FENCE, "Behind · Wooden Fence", "Behind means opposite the Barrel front face.","Fence gates and Nether Brick Fence do not count."),
                 part(13, Material.BARREL, "Cultivation Barrel", "Insert refined bases, close, then sneak-right-click.", "Select settings and Start Cultivation."));
             case CAULDRON -> List.of(
                 part(4, Material.BOOK, "Prepare · Water Cauldron", "Fill the cauldron with water first."),

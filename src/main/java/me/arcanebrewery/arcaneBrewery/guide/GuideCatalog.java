@@ -32,8 +32,8 @@ public final class GuideCatalog {
                 "Slots 1–3: one bottle per slot.", "Slots 5–6: 1–8 washed ingredients each; all consumed.",
                 "New batch duration: " + times.extractionMillis() / 1000.0 + " seconds.",
                 "Produces Refined Brewing Bases; inputs lock while working."),
-            entry(Material.BARREL, MessageConfig.text("names.cultivation"), "Use a plain Barrel, without a cask structure.",
-                "Insert Refined Brewing Bases; close, then sneak-click the barrel.", "New batch duration: " + times.cultivationSeconds() + " seconds.",
+            entry(Material.BARREL, MessageConfig.text("names.cultivation"), "Horizontal Barrel with a wooden Fence directly behind it at the same height.",
+                "The rear is opposite the Barrel front; fence gates do not count.","Right-click for inventory. Insert refined bases; sneak-right-click for controls.", "New batch duration: " + times.cultivationSeconds() + " seconds.",
                 "Choose culture, temperature and duration; click Start Cultivation.", "Offline time counts; active batches keep their captured timing."),
             entry(Material.ENCHANTING_TABLE, MessageConfig.text("names.infuser"),
                 "Enchanting Table with Crying Obsidian directly below.", "At least one Amethyst Block horizontally adjacent.",
@@ -96,7 +96,7 @@ public final class GuideCatalog {
     }
     private Entry starter(Material icon, String title, String ingredient, boolean fire) {
         List<String> lines = new ArrayList<>(List.of("1. Wash one " + ingredient + " to 100% purity.",
-            "2. Extract with one Glass Bottle: 78 C, Balanced cuts; click START.", "3. Insert the base in a plain Barrel; close, then sneak-click.",
+            "2. Extract with one Glass Bottle: 78 C, Balanced cuts; click START.", "3. Insert the base in a Barrel with a rear wooden Fence; close, then sneak-click.",
             "4. Select WILD, 22 C / 60 s; click Start Cultivation and wait."));
         if (fire) lines.add("5. Obtain an active catalyst; its unlocked Codex entry explains the broad role. Experiment in the infuser.");
         lines.add((fire ? "6." : "5.") + " Mature in an Oak cask; choose a harvest time and record it.");
