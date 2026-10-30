@@ -39,7 +39,7 @@ public final class ElixirPresentation {
         if(data.prematurePoison(meta)) lore.add("§cPoisonous if consumed.§r");
         else if(unfinished) lore.add("§eWithdrawn early; no discovery.§r");
         TastingNotes.read(meta).ifPresent(note->lore.add("§7Taste §f"+note+"§r"));
-        lore.add("§8/brew inspect — full details§r");
+        lore.add("§8/al inspect — full details§r");
         meta.setLore(lore);
         meta.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
         PresentationStyle.apply(meta);

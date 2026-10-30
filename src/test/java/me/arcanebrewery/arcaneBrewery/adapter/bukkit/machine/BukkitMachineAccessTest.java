@@ -11,6 +11,13 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class BukkitMachineAccessTest {
+    @Test void guestsOperateButCannotBreakAndRevocationClosesTheirSession(){
+        var w=new MachineFixture();var core=w.put(0,64,0,Material.BARREL);var access=new BukkitMachineAccess(w.plugin);var owner=w.player(UUID.randomUUID(),false);var guest=w.player(UUID.randomUUID(),false);
+        access.authorize(owner,core,Kind.CULTIVATION,true);access.grants().change(owner.getUniqueId(),"all",guest.getUniqueId(),"Guest",true);
+        assertTrue(access.permitted(guest,core));assertTrue(access.open(guest,core,Kind.CULTIVATION,()->w.inventory(null)));
+        var broken=new org.bukkit.event.block.BlockBreakEvent(core,guest);access.onBreak(broken);assertTrue(broken.isCancelled());
+        access.grants().change(owner.getUniqueId(),"all",guest.getUniqueId(),"Guest",false);access.refreshAccess(owner.getUniqueId());assertFalse(access.permitted(guest,core));
+    }
     @Test void ownershipPersistsAcrossServiceRecreationWithoutTileStateOrNameLookup() {
         var world=new MachineFixture(); var core=world.put(0,64,0,Material.BREWING_STAND);
         var owner=world.player(UUID.randomUUID(),false); var stranger=world.player(UUID.randomUUID(),false);

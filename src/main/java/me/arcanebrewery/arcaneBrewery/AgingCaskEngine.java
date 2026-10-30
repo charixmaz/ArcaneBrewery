@@ -66,23 +66,23 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
         this.plugin=plugin; ingredientItems=items; this.discoveries=discoveries; this.access=access; this.timing=timing;
         fermentationMetadata=new FermentationBatchMetadata(plugin); agingMetadata=new AgingBatchMetadata(plugin);
         finalDrinkMetadata=new FinalDrinkMetadata(plugin); preparationMetadata=new AlchemyPreparationMetadata(plugin);
-        harvestMetadata=new CaskHarvestMetadata(plugin.getName().toLowerCase(Locale.ROOT));
+        harvestMetadata=new CaskHarvestMetadata("arcanebrewery");
         alchemy=new AlchemyEngine(items.registry());
-        storage=new MachineInventoryStorage(plugin.getName().toLowerCase(Locale.ROOT),"barrel_inventory_storage",null);
-        inputPolicy=new MaturationInputPolicy(plugin.getName().toLowerCase(Locale.ROOT));
-        slotTimeKey=new NamespacedKey(plugin,"slot_start_time"); recipeTypeKey=new NamespacedKey(plugin,"brew_stage");
+        storage=new MachineInventoryStorage("arcanebrewery","barrel_inventory_storage",null);
+        inputPolicy=new MaturationInputPolicy("arcanebrewery");
+        slotTimeKey=new NamespacedKey("arcanebrewery","slot_start_time"); recipeTypeKey=new NamespacedKey("arcanebrewery","brew_stage");
         access.occupancy(Kind.CASK,core -> Arrays.stream(storage.load(core).items()).anyMatch(Objects::nonNull)
                 || core.getState() instanceof Barrel barrel && !barrel.getInventory().isEmpty());
     }
     @EventHandler(ignoreCancelled=true)
     public void onSignWrite(SignChangeEvent event) {
         Block adjacent=CaskStructure.adjacentBarrel(event.getBlock());
-        if (adjacent!=null && !access.permitted(event.getPlayer(),adjacent)) { event.setCancelled(true); return; }
+        if (adjacent!=null && !access.ownerMayAlter(event.getPlayer(),adjacent)) { event.setCancelled(true); return; }
         String tag=event.getLine(0);
-        if (tag!=null && tag.equalsIgnoreCase("[Brewery]")) {
+        if (tag!=null && (tag.equalsIgnoreCase("[Brewery]")||tag.equalsIgnoreCase("[Alchemy]"))) {
             Block core=CaskStructure.adjacentBarrel(event.getBlock());
-            if (core!=null && !access.permitted(event.getPlayer(),core)) { event.setCancelled(true); return; }
-            event.setLine(0,"§a§l[Brewery]§r"); event.setLine(1,"§7Maturation Cask§r"); event.setLine(2,"§7Right-click to use§r");
+            if (core!=null && !access.ownerMayAlter(event.getPlayer(),core)) { event.setCancelled(true); return; }
+            event.setLine(0,"§a§l[Alchemy]§r"); event.setLine(1,"§7Maturation Cask§r"); event.setLine(2,"§7Right-click to use§r");
         } else if (tag!=null && (tag.equalsIgnoreCase("[Status]") || tag.equalsIgnoreCase("[Stats]"))) {
             event.setLine(0,"§2§l[Diagnostics]§r");
         }
@@ -91,9 +91,11 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
     public void onOpen(PlayerInteractEvent event) {
         if (closed || event.getAction()!=Action.RIGHT_CLICK_BLOCK || event.getClickedBlock()==null
                 || !(event.getClickedBlock().getState() instanceof Sign sign)) return;
-        if (!sign.getSide(Side.FRONT).getLine(0).contains("[Brewery]")) return;
+        if (!sign.getSide(Side.FRONT).getLine(0).contains("[Brewery]")&&!sign.getSide(Side.FRONT).getLine(0).contains("[Alchemy]")) return;
         event.setCancelled(true); if (event.getHand()!=EquipmentSlot.HAND) return;
         Block core=CaskStructure.adjacentBarrel(event.getClickedBlock());
+        boolean valid=core!=null&&!CaskStructure.wood(core).equals("UNKNOWN");
+        if(core==null||access.permitted(event.getPlayer(),core)){sign.getSide(Side.FRONT).setLine(1,valid?"§a§lACTIVE":"§c§lINVALID");sign.update(false,false);}
         if (core==null || CaskStructure.wood(core).equals("UNKNOWN")) {
             event.getPlayer().sendMessage(MessageConfig.prefix()+"§eA cask needs an adjacent Barrel and at least 12 matching wood components in its 3×3×3 casing.§r"); return;
         }
@@ -129,7 +131,7 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
                 event.setCancelled(true);
                 ItemStack input=event.getCurrentItem();
                 if (me.arcanebrewery.arcaneBrewery.adapter.bukkit.discovery.DisplayOnlyItems.test(input) || input==null || input.getType()!=Material.POTION || !(input.getItemMeta() instanceof PotionMeta meta)
-                        || meta.getPersistentDataContainer().has(new NamespacedKey(plugin,"drink_format"))) return;
+                        || meta.getPersistentDataContainer().has(new NamespacedKey("arcanebrewery","drink_format"))) return;
 
                 try {
                     for (int lane:LANES) if (gui.getItem(lane)==null || gui.getItem(lane).getType().isAir()) {
@@ -159,7 +161,7 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
             }
             if (cursor==null || cursor.getType().isAir()) return;
             if (cursor.getType()!=Material.POTION || !(cursor.getItemMeta() instanceof PotionMeta meta)
-                    || meta.getPersistentDataContainer().has(new NamespacedKey(plugin,"drink_format"))) {
+                    || meta.getPersistentDataContainer().has(new NamespacedKey("arcanebrewery","drink_format"))) {
                 player.sendMessage(MessageConfig.prefix()+"§eInsert a cultivated base or a compatible legacy base.§r"); return;
             }
             var move=AlchemySlotTransfer.move(null,cursor,event.getClick()==ClickType.RIGHT,1);
@@ -210,12 +212,12 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
                 var lots=new TreeMap<String,IngredientLot>();
                 fermentation.get().distillery().ingredientPurity().forEach((id,purity) -> lots.put(id,new IngredientLot(ingredientItems.registry().require(id).profile(),purity)));
                 var additives=preparationMetadata.read(meta).map(p -> p.additives()).orElseGet(Map::of);
-                var alchemyConditions=new me.arcanebrewery.arcaneBrewery.adapter.bukkit.alchemy.AlchemyBatchConditionsMetadata(plugin.getName().toLowerCase(Locale.ROOT));
+                var alchemyConditions=new me.arcanebrewery.arcaneBrewery.adapter.bukkit.alchemy.AlchemyBatchConditionsMetadata("arcanebrewery");
                 result=new AgingService().finish(fermentation.get().fermentedDraft(),state,now,lots,AgingBalance.wood(CaskStructure.wood(session.core)),
                         Math.min(100,Math.max(0,100-state.settings().caskCleanliness())+alchemyConditions.contamination(meta)),AgingBalance.targets(),state.batchId().getMostSignificantBits()^state.batchId().getLeastSignificantBits(),additives,alchemyConditions.stability(meta),me.arcanebrewery.arcaneBrewery.adapter.bukkit.QualityPolicyMetadata.read(meta));
 
                 output=bottle(result,mature,producer,producerName,harvestedAt);
-                var profiles=new me.arcanebrewery.arcaneBrewery.adapter.bukkit.alchemy.EffectProfileMetadata(plugin.getName().toLowerCase(Locale.ROOT));
+                var profiles=new me.arcanebrewery.arcaneBrewery.adapter.bukkit.alchemy.EffectProfileMetadata("arcanebrewery");
                 if(profiles.newOperation(meta)) {
                     double profileQuality=0;
                     if(mature) profileQuality=result.assessment()!=null?result.assessment().score():new me.arcanebrewery.arcaneBrewery.domain.quality.ReproducibleQuality().assess(result.process(),
@@ -307,7 +309,7 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
         finalDrinkMetadata.write(meta,result,effect,value);
 
         if(mature && result.process().preparationMethod().equals("distillation-v2")) finalDrinkMetadata.producer(meta,producer,producerName,result.process());
-        meta.getPersistentDataContainer().set(new NamespacedKey(plugin,"alcohol_stars"),PersistentDataType.INTEGER,qualityStars(result.simulation().quality().overallScore()));
+        meta.getPersistentDataContainer().set(new NamespacedKey("arcanebrewery","alcohol_stars"),PersistentDataType.INTEGER,qualityStars(result.simulation().quality().overallScore()));
         String name=mature?"Unnamed Elixir":MessageConfig.text("names.unfinished");
         if(mature)me.arcanebrewery.arcaneBrewery.adapter.bukkit.TastingNotes.capture(meta,harvestedAt^producer.getMostSignificantBits());
         meta.setDisplayName("§d§l"+name+"§r"); ElixirPresentation.refresh(meta,finalDrinkMetadata); item.setItemMeta(meta); return item;
@@ -315,7 +317,7 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
     private ItemStack legacyBottle(int stars) {
         var item=new ItemStack(Material.POTION); var meta=(PotionMeta)item.getItemMeta();
         meta.setDisplayName("§d§lLegacy Elixir§r"); meta.setLore(List.of("§7Legacy Quality: §f"+stars+" stars§r","§7Compatibility batch; no canonical recipe discovery.§r"));
-        meta.getPersistentDataContainer().set(new NamespacedKey(plugin,"alcohol_stars"),PersistentDataType.INTEGER,stars);
+        meta.getPersistentDataContainer().set(new NamespacedKey("arcanebrewery","alcohol_stars"),PersistentDataType.INTEGER,stars);
         meta.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP); PresentationStyle.apply(meta); item.setItemMeta(meta); return item;
     }
     private int qualityStars(double value) { return value<20?0:value<40?1:value<55?2:value<70?3:value<82?4:value<94?5:6; }

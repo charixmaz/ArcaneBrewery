@@ -38,7 +38,7 @@ public final class MachineBuildLayout {
             case OAK_STAIRS -> List.of(
                 part(4, Material.BOOK, "Maturation Cask · Flexible Structure", "This build uses a wood count rather than one fixed pattern."),
                 part(13, Material.BARREL, "Core · Barrel", "Place at least 12 matching wood components", "inside the 3 × 3 × 3 area centred on the Barrel.", "Matching planks, stairs, slabs and logs count."),
-                part(22, Material.OAK_SIGN, "Adjacent Sign · [Brewery]", "First line must be [Brewery].", "Right-click the sign to open the cask.", "Experiment with harvest timing; no readiness indicator."));
+                part(22, Material.OAK_SIGN, "Adjacent Sign · [Alchemy]", "First line must be [Alchemy].", "Right-click the sign to open the cask.", "Experiment with harvest timing; no readiness indicator."));
             default -> throw new IllegalArgumentException("No build guide for " + icon);
         };
     }

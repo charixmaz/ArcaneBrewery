@@ -69,7 +69,7 @@ public final class AlchemyMachineHandler implements Listener {
     public AlchemyMachineHandler(JavaPlugin plugin, AlchemyRuntimeSettings settings,BukkitMachineAccess access) {
         this.plugin = Objects.requireNonNull(plugin);
         this.settings = Objects.requireNonNull(settings);
-        this.namespace = plugin.getName().toLowerCase(Locale.ROOT);
+        this.namespace = "arcanebrewery";
         this.storage = new AlchemyMachineStorage(namespace, items);
         this.machineService = new AlchemyMachineService(settings.balance());
         this.maintenanceService = new AlchemyMaintenanceService(settings.balance());
@@ -98,7 +98,7 @@ public final class AlchemyMachineHandler implements Listener {
             evictIdle(session);
         } catch (RuntimeException failure) {
             warn(core);
-            event.getPlayer().sendMessage("§c[ArcaneBrewery] Machine data is unavailable; stored items have been retained.");
+            event.getPlayer().sendMessage("§c[ArcaneAlchemy] Machine data is unavailable; stored items have been retained.");
         }
     }
 
@@ -138,7 +138,7 @@ public final class AlchemyMachineHandler implements Listener {
             player.setItemOnCursor(move.cursor()); // Only after the machine snapshot is accepted.
         } catch (RuntimeException failure) {
             fault(session);
-            player.sendMessage("§c[ArcaneBrewery] Transfer rejected; machine items were retained.");
+            player.sendMessage("§c[ArcaneAlchemy] Transfer rejected; machine items were retained.");
         }
     }
 
@@ -191,7 +191,7 @@ public final class AlchemyMachineHandler implements Listener {
         try { operation = AlchemyMachineInputs.start(contents(session.gui), namespace,
                 System.currentTimeMillis(), settings.balance().processingDurationMillis()); }
         catch (RuntimeException invalid) {
-            player.sendMessage("§c[ArcaneBrewery] Cannot start infusion: §f" + invalid.getMessage());
+            player.sendMessage("§c[ArcaneAlchemy] Cannot start infusion: §f" + invalid.getMessage());
             return;
         }
         try {
@@ -204,7 +204,7 @@ public final class AlchemyMachineHandler implements Listener {
             schedule(session);
             var assessment = machineService.assess(
                     AlchemyMachineInputs.catalysts(contents(session.gui)), new AlchemyMachineCondition(session.snapshot.condition().integrity(),0));
-            player.sendMessage("§d[ArcaneBrewery] Infusion started. Instability: §f"
+            player.sendMessage("§d[ArcaneAlchemy] Infusion started. Instability: §f"
                     + Math.round(assessment.instability()) + "/100 §7| Integrity: §f"
                     + Math.round(session.snapshot.condition().integrity()) + "/100");
         } catch (RuntimeException failure) { fault(session); }
@@ -216,14 +216,14 @@ public final class AlchemyMachineHandler implements Listener {
         if (!repair) return false;
 
         if (session.processing()) {
-            player.sendMessage("§c[ArcaneBrewery] The infuser cannot be serviced while processing.");
+            player.sendMessage("§c[ArcaneAlchemy] The infuser cannot be serviced while processing.");
             return true;
         }
 
         AlchemyMachineCondition current = session.snapshot.condition();
         AlchemyMachineCondition next = maintenanceService.repair(current);
         if (next.equals(current)) {
-            player.sendMessage("§7[ArcaneBrewery] Infuser integrity is already full.");
+            player.sendMessage("§7[ArcaneAlchemy] Infuser integrity is already full.");
             return true;
         }
 
@@ -233,7 +233,7 @@ public final class AlchemyMachineHandler implements Listener {
         } else {
             held.setAmount(held.getAmount() - 1);
         }
-        player.sendMessage("§a[ArcaneBrewery] Infuser repaired to §f" + Math.round(next.integrity()) + "/100§a integrity.");
+        player.sendMessage("§a[ArcaneAlchemy] Infuser repaired to §f" + Math.round(next.integrity()) + "/100§a integrity.");
         return true;
     }
 
@@ -303,10 +303,10 @@ public final class AlchemyMachineHandler implements Listener {
 
     private void feedback(Session session, AlchemyFailureAssessment assessment) {
         String message = switch (assessment.outcome()) {
-            case STABLE_SUCCESS -> "§d[ArcaneBrewery] Infusion complete. The base is ready for maturation.";
-            case UNSTABLE_SUCCESS -> "§6[ArcaneBrewery] Infusion succeeded, but the infuser was strained.";
-            case FAILED_INFUSION -> "§c[ArcaneBrewery] Infusion failed. Catalysts were consumed; the base survived.";
-            case CRITICAL_FAILURE -> "§4§l[ArcaneBrewery] Critical reaction! The batch was destroyed.";
+            case STABLE_SUCCESS -> "§d[ArcaneAlchemy] Infusion complete. The base is ready for maturation.";
+            case UNSTABLE_SUCCESS -> "§6[ArcaneAlchemy] Infusion succeeded, but the infuser was strained.";
+            case FAILED_INFUSION -> "§c[ArcaneAlchemy] Infusion failed. Catalysts were consumed; the base survived.";
+            case CRITICAL_FAILURE -> "§4§l[ArcaneAlchemy] Critical reaction! The batch was destroyed.";
         };
         for (var viewer : session.gui.getViewers()) viewer.sendMessage(message);
 
@@ -407,7 +407,7 @@ public final class AlchemyMachineHandler implements Listener {
             if (!touches(session.core, block)) continue;
             if (session.processing() || occupied(session.core)) {
                 event.setCancelled(true);
-                event.getPlayer().sendMessage("§c[ArcaneBrewery] This infuser is occupied or processing. Remove its contents before breaking the structure.");
+                event.getPlayer().sendMessage("§c[ArcaneAlchemy] This infuser is occupied or processing. Remove its contents before breaking the structure.");
                 return;
             }
             detach(session);
@@ -415,7 +415,7 @@ public final class AlchemyMachineHandler implements Listener {
 
         if (block.getType() == Material.ENCHANTING_TABLE && occupied(block)) {
             event.setCancelled(true);
-            event.getPlayer().sendMessage("§c[ArcaneBrewery] Remove machine items before breaking its core.");
+            event.getPlayer().sendMessage("§c[ArcaneAlchemy] Remove machine items before breaking its core.");
         }
     }
 

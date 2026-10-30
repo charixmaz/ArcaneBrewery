@@ -1,4 +1,4 @@
-name: ArcaneBrewery
+name: ArcaneAlchemy
 version: 1.0
 main: me.arcanebrewery.arcaneBrewery.ArcaneBrewery
 api-version: '26.1'
@@ -6,10 +6,10 @@ author: ArcaneBreweryTeam
 description: Fantasy Brewing & Alchemy for Paper 26.1.2.
 
 commands:
-  brew:
+  arcanealchemy:
     description: ArcaneBrewery player commands.
-    usage: /brew help
-    aliases: [arcanebrewery]
+    usage: /al help
+    aliases: [al, brew, arcanebrewery]
     permission: arcanebrewery.use
   brewmarket:
     description: ArcaneBrewery historical market recovery diagnostics (read-only).

@@ -41,7 +41,7 @@ public class MessageConfig {
             "producer_incomplete","Processing incomplete! Fluid condensation lines are still running.",
             "producer_success","✔ Successfully collected 1x bottle of pure Industrial Methanol Fluid.");
     private static final Map<String,String> DEFAULTS = Map.ofEntries(
-            Map.entry("prefix","§d§l[ArcaneBrewery]§r §f"),
+            Map.entry("prefix","§d§l[ArcaneAlchemy]§r §f"),
             Map.entry("structure_broken","§eStructure incomplete. Contents and progress are retained.§r"),
             Map.entry("distillery_wash_first","§eWash this supported ingredient in a water cauldron first.§r"),
             Map.entry("distillery_needs_catalyst","§eThis legacy refinement requires a Golden Apple catalyst.§r"),
@@ -72,7 +72,7 @@ public class MessageConfig {
         return config == null ? DEFAULTS.getOrDefault(path,path) : config.getString(path,DEFAULTS.getOrDefault(path,path));
     }
     public static String title(String name) { return "§5§l" + text("names." + name) + "§r"; }
-    public static String prefix() { return text("prefix"); }
+    public static String prefix() { return text("prefix").replace("ArcaneBrewery","ArcaneAlchemy"); }
 
     public static String get(String path) {
         return prefix() + text(path) + "§r";

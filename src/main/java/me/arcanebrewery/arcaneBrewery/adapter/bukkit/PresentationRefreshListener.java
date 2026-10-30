@@ -65,14 +65,14 @@ public final class PresentationRefreshListener implements Listener {
             boolean changed=ElixirPresentation.refresh(meta,drinks);
             if (!changed) {
                 var data=meta.getPersistentDataContainer();
-                if (data.has(new NamespacedKey(plugin,"drink_format"))) return false;
-                String stage=data.getOrDefault(new NamespacedKey(plugin,"brew_stage"),PersistentDataType.STRING,"");
+                if (data.has(new NamespacedKey("arcanebrewery","drink_format"))) return false;
+                String stage=data.getOrDefault(new NamespacedKey("arcanebrewery","brew_stage"),PersistentDataType.STRING,"");
                 var fermented=new FermentationBatchMetadata(plugin).read(meta);
                 if (fermented.isPresent()) {
                     boolean ready=fermented.get().status()==me.arcanebrewery.arcaneBrewery.application.fermentation.FermentationBatchState.Status.COMPLETED;
                     meta.setDisplayName(ready?MessageConfig.title("cultivated-base"):"§6§lCultivating Brewing Base§r");
                     meta.setLore(List.of(ready?"§7Ready for infusion or maturation.§r":"§7Cultivation continues while offline.§r")); changed=true;
-                } else if (data.has(new NamespacedKey(plugin,"distillery_format"))) {
+                } else if (data.has(new NamespacedKey("arcanebrewery","distillery_format"))) {
                     meta.setDisplayName(MessageConfig.title("refined-base"));
                     meta.setLore(List.of("§7Insert in a Cultivation Barrel; sneak-click for controls.§r")); changed=true;
                 } else if (stage.equals("INDUSTRIAL_METHANOL")) {

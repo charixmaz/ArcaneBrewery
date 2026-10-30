@@ -16,7 +16,7 @@ public final class DistilleryBatchMetadata {
     private final DistilleryStateCodec codec = new DistilleryStateCodec();
 
     public DistilleryBatchMetadata(JavaPlugin plugin) {
-        this(plugin.getName().toLowerCase(java.util.Locale.ROOT));
+        this("arcanebrewery");
     }
 
     public DistilleryBatchMetadata(String namespace) {

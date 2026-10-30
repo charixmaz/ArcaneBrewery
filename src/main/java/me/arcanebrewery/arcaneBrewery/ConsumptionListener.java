@@ -39,18 +39,18 @@ public final class ConsumptionListener implements Listener {
         java.util.Optional<AlchemyResult> reaction;
         java.util.Optional<EffectProfile> effects;
         try {
-            String legacyStage=meta.getPersistentDataContainer().get(new org.bukkit.NamespacedKey(plugin,"brew_stage"),org.bukkit.persistence.PersistentDataType.STRING);
+            String legacyStage=meta.getPersistentDataContainer().get(new org.bukkit.NamespacedKey("arcanebrewery","brew_stage"),org.bukkit.persistence.PersistentDataType.STRING);
             if ("INDUSTRIAL_METHANOL".equals(legacyStage)) {
                 event.setCancelled(true); event.getPlayer().sendMessage(MessageConfig.prefix()+"§eCleansing Solution is a machine input, not an elixir.§r"); return;
             }
             profile=drinks.readConsumption(meta);
             if (profile.isEmpty()) {
-                if (meta.getPersistentDataContainer().has(new org.bukkit.NamespacedKey(plugin,"drink_format"))) event.setCancelled(true);
+                if (meta.getPersistentDataContainer().has(new org.bukkit.NamespacedKey("arcanebrewery","drink_format"))) event.setCancelled(true);
                 return;
             }
             reaction=drinks.readAlchemy(meta);
             effects=drinks.readEffects(meta);
-            int format=meta.getPersistentDataContainer().getOrDefault(new org.bukkit.NamespacedKey(plugin,"drink_format"),org.bukkit.persistence.PersistentDataType.INTEGER,0);
+            int format=meta.getPersistentDataContainer().getOrDefault(new org.bukkit.NamespacedKey("arcanebrewery","drink_format"),org.bukkit.persistence.PersistentDataType.INTEGER,0);
             if (format>=3 && reaction.isEmpty()) throw new IllegalArgumentException("incomplete alchemy metadata");
         } catch (RuntimeException corrupt) {
             event.setCancelled(true);
@@ -121,9 +121,9 @@ public final class ConsumptionListener implements Listener {
         if (alchemy.dangerousReaction()) {
             player.addPotionEffect(new PotionEffect(
                     PotionEffectType.WEAKNESS, 8 * 20, 0, false, true, true));
-            player.sendMessage("§4§l[ArcaneBrewery] Unstable magical backlash!");
+            player.sendMessage("§4§l[ArcaneAlchemy] Unstable magical backlash!");
         } else {
-            player.sendMessage("§d[ArcaneBrewery] " + PlayerConditionPolicy.readable(alchemy.effect().name()) + " §7("
+            player.sendMessage("§d[ArcaneAlchemy] " + PlayerConditionPolicy.readable(alchemy.effect().name()) + " §7("
                     + Math.round(alchemy.potency()) + "% potency)");
         }
     }
@@ -143,7 +143,7 @@ public final class ConsumptionListener implements Listener {
                 return;
             }
         }
-        player.sendMessage("§5[ArcaneBrewery] The teleportation reaction collapses without a safe destination.");
+        player.sendMessage("§5[ArcaneAlchemy] The teleportation reaction collapses without a safe destination.");
     }
 
     @EventHandler
@@ -215,10 +215,10 @@ public final class ConsumptionListener implements Listener {
 
         if (!announce) return;
         if (condition.hangover() >= 25) {
-            player.sendMessage("§7[ArcaneBrewery] Hangover symptoms are active.");
+            player.sendMessage("§7[ArcaneAlchemy] Hangover symptoms are active.");
         }
         if (condition.withdrawal() >= 25) {
-            player.sendMessage("§c[ArcaneBrewery] Withdrawal symptoms are active.");
+            player.sendMessage("§c[ArcaneAlchemy] Withdrawal symptoms are active.");
         }
     }
 }

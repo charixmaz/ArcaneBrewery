@@ -18,9 +18,9 @@ public class CaskQualityEngine {
         if (potion == null || !potion.hasItemMeta()) return 0; // 0-Star Default fail
 
         PotionMeta meta = (PotionMeta) potion.getItemMeta();
-        NamespacedKey slotTimeKey = new NamespacedKey(plugin, "slot_start_time");
-        NamespacedKey recipeTypeKey = new NamespacedKey(plugin, "brew_stage");
-        NamespacedKey pityCounterKey = new NamespacedKey(plugin, "cask_batch_pity");
+        NamespacedKey slotTimeKey = new NamespacedKey("arcanebrewery", "slot_start_time");
+        NamespacedKey recipeTypeKey = new NamespacedKey("arcanebrewery", "brew_stage");
+        NamespacedKey pityCounterKey = new NamespacedKey("arcanebrewery", "cask_batch_pity");
 
         String recipeKey = meta.getPersistentDataContainer().getOrDefault(recipeTypeKey, PersistentDataType.STRING, "WORT_BEER");
 
@@ -84,7 +84,7 @@ public class CaskQualityEngine {
     public static void incrementBatchCounter(JavaPlugin plugin, Block barrelBlock) {
         if (barrelBlock == null || !(barrelBlock.getState() instanceof TileState tileState)) return;
 
-        NamespacedKey pityCounterKey = new NamespacedKey(plugin, "cask_batch_pity");
+        NamespacedKey pityCounterKey = new NamespacedKey("arcanebrewery", "cask_batch_pity");
         int current = tileState.getPersistentDataContainer().getOrDefault(pityCounterKey, PersistentDataType.INTEGER, 0);
 
         tileState.getPersistentDataContainer().set(pityCounterKey, PersistentDataType.INTEGER, current + 1);

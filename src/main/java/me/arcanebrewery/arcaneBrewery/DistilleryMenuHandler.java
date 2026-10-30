@@ -54,7 +54,7 @@ public final class DistilleryMenuHandler implements Listener, AutoCloseable {
     }
     public DistilleryMenuHandler(JavaPlugin plugin,IngredientItemAdapter items,BukkitMachineAccess access,ProcessingTimes timing) {
         this.plugin=plugin; this.access=access; this.timing=timing;
-        storage=new MachineInventoryStorage(plugin.getName().toLowerCase(Locale.ROOT),"distillery_inventory_storage","distillery_batch_state");
+        storage=new MachineInventoryStorage("arcanebrewery","distillery_inventory_storage","distillery_batch_state");
         ingredients=new MachineIngredientExtractor(items); metadata=new DistilleryBatchMetadata(plugin);
         access.occupancy(Kind.EXTRACTOR,this::occupied);
     }
@@ -152,7 +152,7 @@ public final class DistilleryMenuHandler implements Listener, AutoCloseable {
         if (item.getType()==Material.GLASS_BOTTLE) return true;
         if (item.getType()!=Material.POTION || !(item.getItemMeta() instanceof PotionMeta meta)) return false;
         var data=meta.getPersistentDataContainer();
-        String ns=plugin.getName().toLowerCase(Locale.ROOT);
+        String ns="arcanebrewery";
         return !data.has(new NamespacedKey(ns,"drink_format")) && !data.has(new NamespacedKey(ns,"fermentation_format"))
                 && !data.has(new NamespacedKey(ns,"distillery_format"));
     }
@@ -203,7 +203,7 @@ public final class DistilleryMenuHandler implements Listener, AutoCloseable {
         for (int slot:new int[]{0,1,2}) {
             ItemStack item=inv.getItem(slot);
             if (item!=null && item.getItemMeta() instanceof PotionMeta meta && metadata.stage(meta).isBlank()
-                    && "WORT_ETHANOL".equals(meta.getPersistentDataContainer().get(new NamespacedKey(plugin,"brew_stage"),PersistentDataType.STRING))) return true;
+                    && "WORT_ETHANOL".equals(meta.getPersistentDataContainer().get(new NamespacedKey("arcanebrewery","brew_stage"),PersistentDataType.STRING))) return true;
         }
         return false;
     }
@@ -242,15 +242,15 @@ public final class DistilleryMenuHandler implements Listener, AutoCloseable {
             if (legacy) {
                 meta.setDisplayName("§d§lRefined Catalyst Base§r");
                 meta.setLore(List.of("§7For the Cleansing Solution producer.§r"));
-                meta.getPersistentDataContainer().set(new NamespacedKey(plugin,"brew_stage"),PersistentDataType.STRING,"REFINED_INDUSTRIAL_ALCOHOL");
+                meta.getPersistentDataContainer().set(new NamespacedKey("arcanebrewery","brew_stage"),PersistentDataType.STRING,"REFINED_INDUSTRIAL_ALCOHOL");
             } else {
                 metadata.write(meta,completed,"DISTILLED_BASE");
                 me.arcanebrewery.arcaneBrewery.adapter.bukkit.QualityPolicyMetadata.write(meta,session.qualityGeneration);
-                if(session.effectGeneration>0)new me.arcanebrewery.arcaneBrewery.adapter.bukkit.alchemy.EffectProfileMetadata(plugin.getName().toLowerCase(Locale.ROOT)).markGeneration(meta,session.effectGeneration);
-                meta.getPersistentDataContainer().set(new NamespacedKey(plugin,"brew_stage"),PersistentDataType.STRING,new LegacyWortBridge().stageFor(completed.draft()));
+                if(session.effectGeneration>0)new me.arcanebrewery.arcaneBrewery.adapter.bukkit.alchemy.EffectProfileMetadata("arcanebrewery").markGeneration(meta,session.effectGeneration);
+                meta.getPersistentDataContainer().set(new NamespacedKey("arcanebrewery","brew_stage"),PersistentDataType.STRING,new LegacyWortBridge().stageFor(completed.draft()));
                 double purity=completed.draft().ingredientPurity().entrySet().stream()
                         .mapToDouble(e -> completed.draft().ingredientRatios().get(e.getKey())*e.getValue()).sum();
-                meta.getPersistentDataContainer().set(new NamespacedKey(plugin,"ingredient_purity"),PersistentDataType.INTEGER,(int)Math.round(purity));
+                meta.getPersistentDataContainer().set(new NamespacedKey("arcanebrewery","ingredient_purity"),PersistentDataType.INTEGER,(int)Math.round(purity));
                 meta.setDisplayName(MessageConfig.title("refined-base"));
                 meta.setLore(List.of("§7Stage: §bReady for cultivation§r","§7Transferred Purity: §f"+Math.round(purity)+"%§r","§7Place in a Cultivation Barrel; sneak-click it for controls.§r"));
             }

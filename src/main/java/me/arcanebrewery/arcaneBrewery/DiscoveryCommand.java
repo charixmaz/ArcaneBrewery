@@ -12,7 +12,7 @@ import java.util.*;
 
 public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
     private static final int PAGE_SIZE = 8;
-    public static final List<String> PLAYER_COMMANDS=List.of("inspect", "guide", "codex", "discoveries", "recipe", "rename", "visibility", "status", "crate", "help");
+    public static final List<String> PLAYER_COMMANDS=List.of("inspect", "guide", "access", "discoveries", "recipe", "rename", "visibility", "status", "crate", "help");
 
     private final JavaPlugin plugin;
     private final DiscoveryQueryRuntime queries;
@@ -43,12 +43,13 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
         }
 
         return switch (args[0].toLowerCase(Locale.ROOT)) {
-            case "guide", "codex" -> {
-                if (args.length == 1) guide.open(player);
+            case "guide" -> {
+                if (args.length == 1) me.arcanebrewery.arcaneBrewery.adapter.bukkit.CodexBook.give(player);
                 else if (args.length == 3 && args[1].equalsIgnoreCase("recipe")) guide.recipe(player, args[2]);
-                else player.sendMessage(MessageConfig.prefix() + "§eUsage: /brew guide [recipe <full fingerprint>]§r");
+                else player.sendMessage(MessageConfig.prefix() + "§eUsage: /al guide [recipe <full fingerprint>]§r");
                 yield true;
             }
+            case "access" -> {me.arcanebrewery.arcaneBrewery.adapter.bukkit.machine.MachineAccessCommand.run(player,args,((ArcaneBrewery)plugin).machineAccess());yield true;}
             case "crate" -> { me.arcanebrewery.arcaneBrewery.adapter.bukkit.BottleCrates.command(player,args); yield true; }
             case "inspect" -> { guide.inspect(player); yield true; }
             case "discoveries" -> { discoveries(player, args); yield true; }
@@ -67,7 +68,7 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
                 page = Integer.parseInt(args[1]);
                 if (page < 1) throw new NumberFormatException();
             } catch (NumberFormatException failure) {
-                player.sendMessage("§c[ArcaneBrewery] Page must be a positive number.");
+                player.sendMessage("§c[ArcaneAlchemy] Page must be a positive number.");
                 return;
             }
         }
@@ -76,7 +77,7 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
         try {
             offset = Math.multiplyExact(page - 1, PAGE_SIZE);
         } catch (ArithmeticException failure) {
-            player.sendMessage("§c[ArcaneBrewery] Page is too large.");
+            player.sendMessage("§c[ArcaneAlchemy] Page is too large.");
             return;
         }
 
@@ -86,7 +87,7 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
                     if (online == null) return;
                     if (failure != null) {
                         plugin.getLogger().warning("Discovery list query failed: " + rootMessage(failure));
-                        online.sendMessage("§c[ArcaneBrewery] Could not load your discoveries.");
+                        online.sendMessage("§c[ArcaneAlchemy] Could not load your discoveries.");
                         return;
                     }
                     online.sendMessage("§d§lArcane Discoveries §7— page " + requestedPage);
@@ -99,13 +100,13 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
                         online.sendMessage("§f" + item.displayName().value()
                                 + " §8[" + shortFingerprint + "…] §7" + item.visibility());
                     }
-                    online.sendMessage("§7Use §f/brew recipe <shown id> §7to inspect knowledge.");
+                    online.sendMessage("§7Use §f/al recipe <shown id> §7to inspect knowledge.");
                 }));
     }
 
     private void recipe(Player player, String[] args) {
         if (args.length != 2) {
-            player.sendMessage("§cUsage: /brew recipe <fingerprint|shown id>");
+            player.sendMessage("§cUsage: /al recipe <fingerprint|shown id>");
             return;
         }
 
@@ -117,7 +118,7 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
         }
 
         if (value.length() < 6 || !value.matches("[0-9a-f]+")) {
-            player.sendMessage("§c[ArcaneBrewery] Invalid recipe id.");
+            player.sendMessage("§c[ArcaneAlchemy] Invalid recipe id.");
             return;
         }
 
@@ -139,7 +140,7 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
                     if (online == null) return;
                     if (failure != null) {
                         plugin.getLogger().warning("Recipe knowledge query failed: " + rootMessage(failure));
-                        online.sendMessage("§c[ArcaneBrewery] Could not load recipe knowledge.");
+                        online.sendMessage("§c[ArcaneAlchemy] Could not load recipe knowledge.");
                         return;
                     }
                     online.sendMessage("§d§lArcane Recipe");
@@ -149,7 +150,7 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
 
     private void rename(Player player, String[] args) {
         if (args.length < 3) {
-            player.sendMessage("§cUsage: /brew rename <held|short-id> <new name>");
+            player.sendMessage("§cUsage: /al rename <held|short-id> <new name>");
             return;
         }
         boolean confirmed=args.length>=4 && args[args.length-1].equalsIgnoreCase("confirm");
@@ -159,7 +160,7 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
             result->{
                 queries.invalidatePersonalNames(player.getUniqueId());
                 new me.arcanebrewery.arcaneBrewery.adapter.bukkit.PresentationRefreshListener(plugin,queries).refresh(player);
-                return "§a[ArcaneBrewery] Your brewing record is now §f"+result.displayName().value();
+                return "§a[ArcaneAlchemy] Your brewing record is now §f"+result.displayName().value();
             });
         if(args[1].equalsIgnoreCase("held")) {
             var held=player.getInventory().getItemInMainHand();
@@ -173,7 +174,7 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
 
     private void visibility(Player player, String[] args) {
         if (args.length != 3) {
-            player.sendMessage("§cUsage: /brew visibility <fingerprint> <private|public>");
+            player.sendMessage("§cUsage: /al visibility <fingerprint> <private|public>");
             return;
         }
         DrinkFingerprint fingerprint = fingerprint(player, args[1]);
@@ -183,11 +184,11 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
             visibility = DiscoveryVisibility.valueOf(args[2].toUpperCase(Locale.ROOT));
             if(visibility==DiscoveryVisibility.SHARED) throw new IllegalArgumentException("Sharing removed");
         } catch (IllegalArgumentException failure) {
-            player.sendMessage("§c[ArcaneBrewery] Visibility must be private or public.");
+            player.sendMessage("§c[ArcaneAlchemy] Visibility must be private or public.");
             return;
         }
         completeMutation(player, mutations.visibility(player.getUniqueId(), fingerprint, visibility),
-                result -> "§a[ArcaneBrewery] Visibility is now §f" + result.visibility());
+                result -> "§a[ArcaneAlchemy] Visibility is now §f" + result.visibility());
     }
 
     private void completeMutation(Player player,
@@ -203,12 +204,12 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
             }
             Throwable root = root(failure);
             if (root instanceof SecurityException) {
-                online.sendMessage("§c[ArcaneBrewery] You need your own independently discovered or fully learned record.");
+                online.sendMessage("§c[ArcaneAlchemy] You need your own independently discovered or fully learned record.");
             } else if (root instanceof IllegalArgumentException || root instanceof IllegalStateException) {
-                online.sendMessage("§c[ArcaneBrewery] " + root.getMessage());
+                online.sendMessage("§c[ArcaneAlchemy] " + root.getMessage());
             } else {
                 plugin.getLogger().warning("Discovery mutation failed: " + root.getMessage());
-                online.sendMessage("§c[ArcaneBrewery] Recipe update failed.");
+                online.sendMessage("§c[ArcaneAlchemy] Recipe update failed.");
             }
         }));
     }
@@ -217,7 +218,7 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
         try {
             return new DrinkFingerprint(value);
         } catch (IllegalArgumentException failure) {
-            player.sendMessage("§c[ArcaneBrewery] Invalid recipe fingerprint.");
+            player.sendMessage("§c[ArcaneAlchemy] Invalid recipe fingerprint.");
             return null;
         }
     }
@@ -262,7 +263,7 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
             return PLAYER_COMMANDS.stream()
                     .filter(value -> value.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
         }
-        if (args.length == 2 && (args[0].equalsIgnoreCase("guide") || args[0].equalsIgnoreCase("codex"))) {
+        if (args.length == 2 && args[0].equalsIgnoreCase("guide")) {
             return List.of("recipe").stream().filter(value -> value.startsWith(args[1].toLowerCase(Locale.ROOT))).toList();
         }
         if (args.length==2 && args[0].equalsIgnoreCase("help")) return BrewHelp.TOPICS.stream()

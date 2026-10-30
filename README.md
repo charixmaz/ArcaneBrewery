@@ -1,4 +1,4 @@
-# ArcaneBrewery
+# ArcaneAlchemy
 
 Fantasy brewing and alchemy for **Paper 26.1.2 · Java 25**.
 
@@ -29,7 +29,7 @@ mvn --batch-mode clean verify
 python3 scripts/verify-standalone-packaging.py
 ```
 
-Back up plugin data, worlds and player data. **Pull → rebuild → replace Brewery JAR → restart Paper.** Use `target/ArcaneBrewery-1.0-SNAPSHOT.jar`.
+Back up plugin data, worlds and player data. **Pull → rebuild → replace Brewery JAR → restart Paper.** Use `target/ArcaneAlchemy-1.0-SNAPSHOT.jar`.
 
 Automated CI is not live gameplay certification. Paper startup requires owner-provided EULA acceptance; plugin/protection compatibility and multiplayer crash recovery must be checked on the target server. See the changelog for verification of each change.
 
@@ -47,3 +47,7 @@ Automated CI is not live gameplay certification. Paper startup requires owner-pr
 | `scripts` | Packaging and optional Paper checks |
 
 Some older runtime classes remain in the root Java package. Package moves will be done separately from behavior changes to keep review and compatibility manageable.
+
+## Upgrade from ArcaneBrewery
+
+Stop Paper and remove the old Brewery JAR before installing `ArcaneAlchemy-1.0-SNAPSHOT.jar`; never run both. On first startup the legacy `plugins/ArcaneBrewery` data folder is copied into `plugins/ArcaneAlchemy`, retaining the original as a recovery copy. Conflicting populated folders fail closed. Existing database names, item namespaces and permission nodes remain stable for compatibility. `/al` is the short command; `/arcanealchemy` is the full command. `/al guide` gives a reusable Codex book; the codex subcommand has been removed. See [upgrade and shared access](docs/arcanealchemy-upgrade.md).

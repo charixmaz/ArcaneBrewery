@@ -27,7 +27,7 @@ public class DistilleryProcessTask {
         if (ingredient == null || ingredient.getType() == Material.AIR || !hasBottles(bottles)) return;
         if (runningBrews.containsKey(standBlock)) return;
 
-        NamespacedKey startTimeKey = new NamespacedKey(plugin, "distill_start_time");
+        NamespacedKey startTimeKey = new NamespacedKey("arcanebrewery", "distill_start_time");
 
         if (inv.getItem(8) != null && inv.getItem(8).getType() == Material.REDSTONE_TORCH) {
             ItemMeta matchMeta = ingredient.getItemMeta();
@@ -66,7 +66,7 @@ public class DistilleryProcessTask {
         ItemStack ingredient = inv.getItem(4);
         if (ingredient == null || !ingredient.hasItemMeta()) return;
 
-        NamespacedKey startTimeKey = new NamespacedKey(plugin, "distill_start_time");
+        NamespacedKey startTimeKey = new NamespacedKey("arcanebrewery", "distill_start_time");
         if (!ingredient.getItemMeta().getPersistentDataContainer().has(startTimeKey, PersistentDataType.LONG)) return;
 
         long startTime = ingredient.getItemMeta().getPersistentDataContainer().getOrDefault(startTimeKey, PersistentDataType.LONG, System.currentTimeMillis());
@@ -163,7 +163,7 @@ public class DistilleryProcessTask {
     }
 
     private static void processItemsOutput(JavaPlugin plugin, Inventory inv, String recipeType, String finalName) {
-        NamespacedKey itemStageKey = new NamespacedKey(plugin, "brew_stage");
+        NamespacedKey itemStageKey = new NamespacedKey("arcanebrewery", "brew_stage");
 
         for (int i = 0; i < 3; i++) {
             ItemStack item = inv.getItem(i);

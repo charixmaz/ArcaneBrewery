@@ -29,9 +29,9 @@ public class CaskHygieneEngine implements Listener {
 
     public CaskHygieneEngine(JavaPlugin plugin) {
         this.plugin = plugin;
-        this.contaminationKey = new NamespacedKey(plugin, "cask_contaminated");
-        this.spoilTimeKey = new NamespacedKey(plugin, "cask_spoil_timestamp");
-        this.starRatingKey = new NamespacedKey(plugin, "alcohol_stars");
+        this.contaminationKey = new NamespacedKey("arcanebrewery", "cask_contaminated");
+        this.spoilTimeKey = new NamespacedKey("arcanebrewery", "cask_spoil_timestamp");
+        this.starRatingKey = new NamespacedKey("arcanebrewery", "alcohol_stars");
     }
 
     /**
@@ -40,8 +40,8 @@ public class CaskHygieneEngine implements Listener {
     public static boolean checkInfectionStatus(JavaPlugin plugin, Block barrelBlock) {
         if (barrelBlock == null || !(barrelBlock.getState() instanceof TileState tileState)) return false;
 
-        NamespacedKey contKey = new NamespacedKey(plugin, "cask_contaminated");
-        NamespacedKey spoilKey = new NamespacedKey(plugin, "cask_spoil_timestamp");
+        NamespacedKey contKey = new NamespacedKey("arcanebrewery", "cask_contaminated");
+        NamespacedKey spoilKey = new NamespacedKey("arcanebrewery", "cask_spoil_timestamp");
 
         if (tileState.getPersistentDataContainer().getOrDefault(contKey, PersistentDataType.INTEGER, 0) == 1) {
             return true;
@@ -83,8 +83,8 @@ public class CaskHygieneEngine implements Listener {
     public static void updateExternalSigns(JavaPlugin plugin, Block barrelBlock) {
         if (barrelBlock == null || !(barrelBlock.getState() instanceof TileState tileState)) return;
 
-        NamespacedKey contKey = new NamespacedKey(plugin, "cask_contaminated");
-        NamespacedKey spoilKey = new NamespacedKey(plugin, "cask_spoil_timestamp");
+        NamespacedKey contKey = new NamespacedKey("arcanebrewery", "cask_contaminated");
+        NamespacedKey spoilKey = new NamespacedKey("arcanebrewery", "cask_spoil_timestamp");
 
         boolean isInfected = tileState.getPersistentDataContainer().getOrDefault(contKey, PersistentDataType.INTEGER, 0) == 1;
         long spoilStart = tileState.getPersistentDataContainer().getOrDefault(spoilKey, PersistentDataType.LONG, -1L);
@@ -176,7 +176,7 @@ public class CaskHygieneEngine implements Listener {
 
         // HARDCORE MINIMUM PROOF CEILING: Rejects cheap 1-3 star variants
         if (qualityStars < 4) {
-            player.sendMessage("§c[ArcaneBrewery] This cleansing quality is too low! You need a 4★+ high-quality elixir to dissolve the contamination.");
+            player.sendMessage("§c[ArcaneAlchemy] This cleansing quality is too low! You need a 4★+ high-quality elixir to dissolve the contamination.");
             return;
         }
 
@@ -206,7 +206,7 @@ public class CaskHygieneEngine implements Listener {
             player.getInventory().setItemInMainHand(new ItemStack(Material.GLASS_BOTTLE));
         }
 
-        player.sendMessage("§a§l[ArcaneBrewery] ✔ Core unit successfully sanitized! The chemical balance has been restored.");
+        player.sendMessage("§a§l[ArcaneAlchemy] ✔ Core unit successfully sanitized! The chemical balance has been restored.");
         updateExternalSigns(plugin, clicked);
     }
 }
