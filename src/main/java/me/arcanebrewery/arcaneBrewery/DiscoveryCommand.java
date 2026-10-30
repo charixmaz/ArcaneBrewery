@@ -226,7 +226,7 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
     private void status(Player player) {
         var condition = consumption.refresh(player, false);
         var state = condition.state();
-        player.sendMessage("§d§lArcaneBrewery Status");
+        player.sendMessage("§d§lArcaneAlchemy Status");
         player.sendMessage("§7State: §f" + consumption.status(condition));
         player.sendMessage("§7"+(consumption.legacyEnabled()?"Intoxication":"Arcane Saturation")+": §b" + Math.round(state.intoxication()) + "/100§r");
         player.sendMessage("§7Recovery: §f" + Math.round(condition.hangover()) + "/100§r");
@@ -262,6 +262,10 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
         if (args.length == 1) {
             return PLAYER_COMMANDS.stream()
                     .filter(value -> value.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
+        }
+        if(args[0].equalsIgnoreCase("access")){
+            var choices=args.length==2?List.of("grant","revoke","list"):args.length==3?List.of("all","cultivation","extractor","infuser","cask","specialist","machine"):args.length==4?Bukkit.getOnlinePlayers().stream().map(Player::getName).toList():List.<String>of();
+            return choices.stream().filter(v->v.toLowerCase(Locale.ROOT).startsWith(args[args.length-1].toLowerCase(Locale.ROOT))).toList();
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("guide")) {
             return List.of("recipe").stream().filter(value -> value.startsWith(args[1].toLowerCase(Locale.ROOT))).toList();

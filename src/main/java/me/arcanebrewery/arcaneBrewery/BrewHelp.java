@@ -46,7 +46,7 @@ public final class BrewHelp {
                     "§f/al guide §7— get a reusable Codex book; hold and right-click.§r",
                     "§f/al status §7— temporary saturation and recovery.§r",
                     "§f/al discoveries §7and §f/al recipe §7— browse your recipe knowledge.§r");
-            default -> List.of("§5§lArcaneBrewery — Brewing & Alchemy§r",
+            default -> List.of("§5§lArcaneAlchemy — Brewing & Alchemy§r",
                     "§f/al inspect §7— inspect the held elixir and its quality breakdown.§r",
                     "§f/al guide §7— get your reusable Alchemy Codex book§r",
                     "§f/al help getting-started §7— production and washing§r",

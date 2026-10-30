@@ -19,7 +19,7 @@ The public name change is branding, not an EULA compliance guarantee. The reposi
 - `/al access revoke <scope> Player`: remove that grant.
 - `/al access list`: list the caller's grants.
 
-The target must be online so the UUID is verified. Grants persist in `machine-access.properties` and work when the owner is offline. They authorize operation, not transfer, granting on the owner's behalf or structure destruction. Existing exclusive-viewer sessions and input locks remain. Access changes close the owner's active machine views so revoked access cannot keep an old session. Machine owner descriptions list up to five relevant permitted names; the command lists all recorded grants. World claim/protection denials still apply. Personal research requirements remain in force; access grants do not purchase XP unlocks.
+The target must be online for a new grant so the UUID is verified. Revocation can resolve a unique previously saved guest name while they are offline. Grants persist in `machine-access.properties` and work when the owner is offline. They authorize operation, not transfer, granting on the owner's behalf or structure destruction. Existing exclusive-viewer sessions and input locks remain. Access changes close the owner's active machine views so revoked access cannot keep an old session. Machine owner descriptions list up to five relevant permitted names; the command lists all recorded grants. World claim/protection denials still apply. Personal research requirements remain in force; access grants do not purchase XP unlocks.
 
 ## Structure and UI feedback
 

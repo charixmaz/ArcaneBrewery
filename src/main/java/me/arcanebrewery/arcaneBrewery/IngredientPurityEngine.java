@@ -17,7 +17,7 @@ public final class IngredientPurityEngine {
 
     public static ItemStack processWashCycle(JavaPlugin plugin, ItemStack rawItem) {
         if (!(plugin instanceof ArcaneBrewery brewery))
-            throw new IllegalArgumentException("ArcaneBrewery ingredient catalog is required");
+            throw new IllegalArgumentException("ArcaneAlchemy ingredient catalog is required");
         return processWashCycle(brewery.ingredientItems(), rawItem);
     }
 
