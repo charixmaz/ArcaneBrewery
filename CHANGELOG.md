@@ -2,7 +2,20 @@
 
 Every change must leave a trace here. Entries describe behavior, compatibility, verification and remaining limits; planned work must not be listed as released.
 
-## Unreleased — cultivation multiblock
+## Unreleased — ArcaneAlchemy and shared operation access
+
+### Added
+- `/al` and `/arcanealchemy`, portable `/al guide` Codex book, owner-managed category/all/per-machine grants and revocation.
+- Cask sign ACTIVE/INVALID validation and lighter input-area backgrounds.
+
+### Changed
+- Public plugin and build artifact renamed to ArcaneAlchemy. Old metadata, database names and permission nodes remain compatible; legacy folder is copied once with conflict detection.
+- Removed codex subcommand; existing command aliases remain during transition.
+
+### Verification
+- Pending CI; no live Paper upgrade, book, sign or protection tests claimed.
+
+## Earlier — cultivation multiblock
 
 ### Fixed
 - Empty cultivation machines are recognized from a horizontal Barrel and a wooden Fence directly behind it, rather than requiring a bottle to trigger recognition.

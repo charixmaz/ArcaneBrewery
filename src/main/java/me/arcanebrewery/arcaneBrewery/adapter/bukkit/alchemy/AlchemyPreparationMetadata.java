@@ -16,7 +16,7 @@ public final class AlchemyPreparationMetadata {
     private final AlchemyPreparationCodec codec = new AlchemyPreparationCodec();
 
     public AlchemyPreparationMetadata(JavaPlugin plugin) {
-        this(plugin.getName().toLowerCase(java.util.Locale.ROOT));
+        this("arcanebrewery");
     }
 
     public AlchemyPreparationMetadata(String namespace) {

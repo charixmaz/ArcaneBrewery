@@ -61,7 +61,7 @@ public final class BreweryListener implements Listener {
             catch (RuntimeException corrupt) { event.setCancelled(true); return; }
             if (stored.isPresent() && stored.get().status() == FermentationBatchState.Status.FERMENTING) {
                 event.setCancelled(true);
-                event.getPlayer().sendMessage("§c[ArcaneBrewery] This barrel contains an active cultivation batch. Remove or finish it before breaking the barrel.");
+                event.getPlayer().sendMessage("§c[ArcaneAlchemy] This barrel contains an active cultivation batch. Remove or finish it before breaking the barrel.");
                 return;
             }
         }
@@ -96,7 +96,7 @@ public final class BreweryListener implements Listener {
         public Inventory getInventory() { return inventory; }
     }
     private org.bukkit.NamespacedKey controlsKey(org.bukkit.block.Block core) {
-        return new org.bukkit.NamespacedKey(plugin,"cultivation_controls_"+(core.getX()&15)+"_"+core.getY()+"_"+(core.getZ()&15));
+        return new org.bukkit.NamespacedKey("arcanebrewery","cultivation_controls_"+(core.getX()&15)+"_"+core.getY()+"_"+(core.getZ()&15));
     }
     private FermentationSettings settings(org.bukkit.block.Block core) {
         String saved=core.getChunk().getPersistentDataContainer().get(controlsKey(core),org.bukkit.persistence.PersistentDataType.STRING);

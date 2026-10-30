@@ -45,5 +45,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ArcaneBrewery
-          path: target/ArcaneBrewery-*.jar
+          path: target/ArcaneAlchemy-*.jar
           if-no-files-found: error

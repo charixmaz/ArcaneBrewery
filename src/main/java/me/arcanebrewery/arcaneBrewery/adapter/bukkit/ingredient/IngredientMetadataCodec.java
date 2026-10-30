@@ -13,7 +13,7 @@ import java.util.*;
 public final class IngredientMetadataCodec {
     public static final int VERSION = 1;
     private final String namespace;
-    public IngredientMetadataCodec(JavaPlugin plugin) { this(plugin.getName().toLowerCase(Locale.ROOT)); }
+    public IngredientMetadataCodec(JavaPlugin plugin) { this("arcanebrewery"); }
     public IngredientMetadataCodec(String namespace) {
         this.namespace = Objects.requireNonNull(namespace);
         key("ingredient_id"); // validate namespace immediately

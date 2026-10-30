@@ -19,7 +19,7 @@ public final class CaskStructure {
         for (BlockFace face : BlockFace.values()) {
             Block neighbor = core.getRelative(face);
             if (loaded(neighbor) && neighbor.getState() instanceof Sign sign
-                    && sign.getSide(Side.FRONT).getLine(0).contains("[Brewery]")) return true;
+                    && (sign.getSide(Side.FRONT).getLine(0).contains("[Brewery]")||sign.getSide(Side.FRONT).getLine(0).contains("[Alchemy]"))) return true;
         }
         return false;
     }

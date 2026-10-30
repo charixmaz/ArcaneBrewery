@@ -39,7 +39,7 @@ class ElixirPresentationTest {
         var again=updated.clone(); ElixirPresentation.refresh(again,new FinalDrinkMetadata("arcanebrewery"));
         assertEquals(updated.getLore(),again.getLore());
         assertTrue(updated.getLore().size()<=9);
-        assertTrue(updated.getLore().stream().anyMatch(l->l.contains("/brew inspect")));
+        assertTrue(updated.getLore().stream().anyMatch(l->l.contains("/al inspect")));
         assertFalse(updated.getLore().stream().anyMatch(l->l.contains("Higher load")||l.contains("Magical Potency")));
         assertEquals(1,new FinalDrinkMetadata("arcanebrewery").qualityBreakdown(updated).size());
     }

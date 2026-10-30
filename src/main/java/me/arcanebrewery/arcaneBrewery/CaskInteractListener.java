@@ -40,12 +40,12 @@ public class CaskInteractListener implements Listener {
         if (sign.getLine(0).contains("[Brewery]")) {
             Block barrel = findAdjacentBarrel(block);
             if (barrel != null && barrel.getState() instanceof TileState ts) {
-                NamespacedKey contaminationKey = new NamespacedKey(plugin, "cask_contaminated");
+                NamespacedKey contaminationKey = new NamespacedKey("arcanebrewery", "cask_contaminated");
                 int status = ts.getPersistentDataContainer().getOrDefault(contaminationKey, PersistentDataType.INTEGER, 0);
 
                 if (status == 1) {
                     // Still fully infected, no methanol used yet
-                    event.getPlayer().sendMessage("§c[ArcaneBrewery] ☣ Core contaminated! Flush the internal valves with Cleansing Solution first.");
+                    event.getPlayer().sendMessage("§c[ArcaneAlchemy] ☣ Core contaminated! Flush the internal valves with Cleansing Solution first.");
                 } else if (status == 2) {
                     // Methanol was injected, rebooting system to 0 (clean)
                     ts.getPersistentDataContainer().set(contaminationKey, PersistentDataType.INTEGER, 0);
@@ -56,7 +56,7 @@ public class CaskInteractListener implements Listener {
                     sign.setLine(3, "");
                     sign.update();
 
-                    event.getPlayer().sendMessage("§a[ArcaneBrewery] ✔ System rebooted successfully. Cask is ready for new batches.");
+                    event.getPlayer().sendMessage("§a[ArcaneAlchemy] ✔ System rebooted successfully. Cask is ready for new batches.");
                 }
             }
         }

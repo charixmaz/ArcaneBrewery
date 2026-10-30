@@ -22,7 +22,7 @@ public final class BottleCrates implements Listener {
  static ItemStack[] add(ItemStack[] inventory,ItemStack item){var p=ShiftTransfers.plan(item,inventory,java.util.stream.IntStream.range(0,inventory.length).toArray(),i->64,(i,v)->true);if(p.remainder()!=null)throw new IllegalArgumentException("Not enough inventory space; nothing changed");return p.destination();}
  public static void command(Player player,String[] args){
   try{
-   if(args.length<2)throw new IllegalArgumentException("/brew crate pack <1–9> | unpack | inspect");
+   if(args.length<2)throw new IllegalArgumentException("/al crate pack <1–9> | unpack | inspect");
    var before=copy(player.getInventory().getStorageContents());var next=copy(before);String message;
    if(args[1].equalsIgnoreCase("pack")){
     int count=args.length>2?Integer.parseInt(args[2]):9;if(count<1||count>9)throw new IllegalArgumentException("Pack 1–9 bottles");
@@ -33,7 +33,7 @@ public final class BottleCrates implements Listener {
     if(next[barrel].getAmount()==1)next[barrel]=null;else next[barrel].setAmount(next[barrel].getAmount()-1);
     var payload=new ArrayList<byte[]>();for(int i=0;i<9;i++)payload.add(i<count?bottles.get(i).serializeAsBytes():new byte[0]);
     var packed=new ItemStack(Material.BARREL);var meta=packed.getItemMeta();meta.getPersistentDataContainer().set(KEY,PersistentDataType.BYTE_ARRAY,CODEC.encode(new MachineInventoryCodec.Snapshot("bottle-crate-v1",payload)));meta.getPersistentDataContainer().set(ID,PersistentDataType.STRING,UUID.randomUUID().toString());
-    meta.setDisplayName("§6Bottle Crate · "+count+"/9");meta.setLore(List.of("§7/brew crate inspect · view contents","§7/brew crate unpack · recover bottles and Barrel","§7Portable container; cannot be placed."));PresentationStyle.apply(meta);packed.setItemMeta(meta);next=add(next,packed);message="§aPacked "+count+" bottles.";
+    meta.setDisplayName("§6Bottle Crate · "+count+"/9");meta.setLore(List.of("§7/al crate inspect · view contents","§7/al crate unpack · recover bottles and Barrel","§7Portable container; cannot be placed."));PresentationStyle.apply(meta);packed.setItemMeta(meta);next=add(next,packed);message="§aPacked "+count+" bottles.";
    }else{
     int slot=player.getInventory().getHeldItemSlot();var held=next[slot];if(!crate(held)||held.getAmount()!=1)throw new IllegalArgumentException("Hold one Bottle Crate");
     var raw=held.getItemMeta().getPersistentDataContainer().get(KEY,PersistentDataType.BYTE_ARRAY);if(raw==null)throw new IllegalArgumentException("Invalid crate data; retained");
@@ -48,6 +48,6 @@ public final class BottleCrates implements Listener {
    player.sendMessage(message);
   }catch(RuntimeException failure){player.sendMessage("§e"+(failure.getMessage()==null?"Crate unavailable; inventory retained":failure.getMessage()));}
  }
- @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true)public void place(BlockPlaceEvent e){if(crate(e.getItemInHand())){e.setCancelled(true);e.getPlayer().sendMessage("§eUse /brew crate unpack; crates cannot be placed.");}}
- @EventHandler(priority=EventPriority.LOWEST)public void interact(PlayerInteractEvent e){if(crate(e.getItem())){e.setCancelled(true);if(e.getHand()==EquipmentSlot.HAND)e.getPlayer().sendMessage("§e/brew crate inspect | unpack");}}
+ @EventHandler(priority=EventPriority.HIGHEST,ignoreCancelled=true)public void place(BlockPlaceEvent e){if(crate(e.getItemInHand())){e.setCancelled(true);e.getPlayer().sendMessage("§eUse /al crate unpack; crates cannot be placed.");}}
+ @EventHandler(priority=EventPriority.LOWEST)public void interact(PlayerInteractEvent e){if(crate(e.getItem())){e.setCancelled(true);if(e.getHand()==EquipmentSlot.HAND)e.getPlayer().sendMessage("§e/al crate inspect | unpack");}}
 }

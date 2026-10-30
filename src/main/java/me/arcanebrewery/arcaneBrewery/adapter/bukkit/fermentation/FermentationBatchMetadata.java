@@ -17,7 +17,7 @@ public final class FermentationBatchMetadata {
     private final FermentationStateCodec codec = new FermentationStateCodec();
 
     public FermentationBatchMetadata(JavaPlugin plugin) {
-        this(plugin.getName().toLowerCase(Locale.ROOT));
+        this("arcanebrewery");
     }
 
     public FermentationBatchMetadata(String namespace) {

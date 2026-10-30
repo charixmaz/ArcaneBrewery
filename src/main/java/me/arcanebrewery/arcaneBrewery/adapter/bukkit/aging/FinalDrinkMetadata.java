@@ -20,7 +20,7 @@ public final class FinalDrinkMetadata {
     private final DrinkStrengthCalculator strength = new DrinkStrengthCalculator();
 
     public FinalDrinkMetadata(JavaPlugin plugin) {
-        this(plugin.getName().toLowerCase(Locale.ROOT));
+        this("arcanebrewery");
     }
 
     public FinalDrinkMetadata(String namespace) {

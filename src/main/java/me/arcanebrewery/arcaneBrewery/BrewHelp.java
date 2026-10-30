@@ -33,8 +33,8 @@ public final class BrewHelp {
                     "§7First valid use claims a machine. Owner-only, one viewer; automation is blocked for recognized machines.§r");
             case "recipes" -> List.of(
                     "§5§lRecipes§r",
-                    "§f/brew discoveries [page] §7— your discoveries, secret by default.§r",
-                    "§f/brew recipe <full fingerprint|shown id> §7— inspect only knowledge you may access.§r",
+                    "§f/al discoveries [page] §7— your discoveries, secret by default.§r",
+                    "§f/al recipe <full fingerprint|shown id> §7— inspect only knowledge you may access.§r",
                     "§7Short IDs resolve across your complete accessible catalog; supply ≥6 unambiguous hex characters.§r",
 
                     "§7Rename accepts held or short-id; visibility uses full IDs. Rename is permanent and requires a final confirm.§r",
@@ -42,17 +42,17 @@ public final class BrewHelp {
                     "§7Formulation, culture style and catalyst doses define identity; temperatures, wood and quality are batch data.§r");
             case "commands" -> List.of(
                     "§5§lCommands§r",
-                    "§f/brew inspect §7— inspect the held elixir and its quality breakdown.§r",
-                    "§f/brew guide §7— open the ingredient, catalyst, machine and recipe Codex.§r",
-                    "§f/brew status §7— temporary saturation and recovery.§r",
-                    "§f/brew discoveries §7and §f/brew recipe §7— browse your recipe knowledge.§r");
-            default -> List.of("§5§lArcaneBrewery — Brewing & Alchemy§r",
-                    "§f/brew inspect §7— inspect the held elixir and its quality breakdown.§r",
-                    "§f/brew guide §7— open the visual Brewing Codex§r",
-                    "§f/brew help getting-started §7— production and washing§r",
-                    "§f/brew help machines §7— structures, inputs and ownership§r",
-                    "§f/brew help recipes §7— discoveries and short IDs§r",
-                    "§f/brew help commands §7— status, inspection and discoveries§r");
+                    "§f/al inspect §7— inspect the held elixir and its quality breakdown.§r",
+                    "§f/al guide §7— get a reusable Codex book; hold and right-click.§r",
+                    "§f/al status §7— temporary saturation and recovery.§r",
+                    "§f/al discoveries §7and §f/al recipe §7— browse your recipe knowledge.§r");
+            default -> List.of("§5§lArcaneAlchemy — Brewing & Alchemy§r",
+                    "§f/al inspect §7— inspect the held elixir and its quality breakdown.§r",
+                    "§f/al guide §7— get your reusable Alchemy Codex book§r",
+                    "§f/al help getting-started §7— production and washing§r",
+                    "§f/al help machines §7— structures, inputs and ownership§r",
+                    "§f/al help recipes §7— discoveries and short IDs§r",
+                    "§f/al help commands §7— status, inspection and discoveries§r");
         };
     }
 }

@@ -15,7 +15,7 @@ import java.util.List;
 public class ProducerVisualEngine {
 
     public static void updateProducerInterface(JavaPlugin plugin, Inventory inv, Block coreBlock) {
-        NamespacedKey slotTimeKey = new NamespacedKey(plugin, "slot_start_time");
+        NamespacedKey slotTimeKey = new NamespacedKey("arcanebrewery", "slot_start_time");
 
         // Set static automated separator walls
         int[] decorativeSlots = {1, 3, 5, 7};

@@ -31,13 +31,15 @@ public final class BukkitMachineAccess implements Listener, AutoCloseable {
     private final Map<Inventory,MachineIdentity> pendingClaims=new IdentityHashMap<>();
     private final Map<MachineIdentity.Kind,Predicate<Block>> occupied = new EnumMap<>(MachineIdentity.Kind.class);
     private boolean closed;
+    private final MachineGrants grants;
     public BukkitMachineAccess(Plugin plugin) {
-        this.plugin = plugin; storage = new MachineIdentityStorage(plugin.getName().toLowerCase(Locale.ROOT));
+        grants=new MachineGrants(plugin instanceof org.bukkit.plugin.java.JavaPlugin?plugin.getDataFolder().toPath().resolve("machine-access.properties"):null);
+        this.plugin = plugin; storage = new MachineIdentityStorage("arcanebrewery");
     }
     public void occupancy(MachineIdentity.Kind kind, Predicate<Block> check) { occupied.put(kind,check); }
     public Optional<MachineIdentity> identity(Block core) { return storage.read(core); }
     public boolean permitted(Player player, Block core) {
-        try { return identity(core).map(id -> id.permits(player.getUniqueId(),player.hasPermission(BYPASS))).orElse(true); }
+        try { return identity(core).map(id -> id.permits(player.getUniqueId(),player.hasPermission(BYPASS)) || grants.permits(id.ownerId(),id.kind().name(),id.machineId(),player.getUniqueId())).orElse(true); }
         catch (RuntimeException corrupt) { return false; }
     }
     public boolean authorize(Player player,Block core,MachineIdentity.Kind kind,boolean claim) {
@@ -81,18 +83,21 @@ public final class BukkitMachineAccess implements Listener, AutoCloseable {
         var view = views.get(inv);
         return view != null && leases.owns(view.lease(),player);
     }
-    public String ownerLabel(Block core) { return identity(core).map(MachineIdentity::displayOwner).orElse("Unclaimed"); }
+    public void refreshAccess(UUID owner){for(var e:List.copyOf(views.entrySet()))if(identity(e.getValue().core()).map(id->id.ownerId().equals(owner)).orElse(false))closeCore(e.getValue().core());}
+    public MachineGrants grants(){return grants;}
+    public boolean ownerMayAlter(Player player,Block core){return identity(core).map(id->id.permits(player.getUniqueId(),player.hasPermission(BYPASS))).orElse(true);}
+    public String ownerLabel(Block core) { return identity(core).map(id->{var names=grants.list(id.ownerId()).entrySet().stream().filter(e->e.getKey().startsWith("all/")||e.getKey().startsWith(id.kind().name()+"/")||e.getKey().startsWith("machine-"+id.machineId()+"/")).map(e->e.getValue()).distinct().sorted().limit(5).toList();return id.displayOwner()+(names.isEmpty()?"":" · Access: "+String.join(", ",names));}).orElse("Unclaimed"); }
     public void release(Inventory inventory) {
         var view = views.remove(inventory); custom.remove(inventory);
         if (view != null) leases.release(view.lease());
     }
-    private void busy(Player player) { player.sendMessage("§d[ArcaneBrewery]§r §eThis machine is already in use.§r"); }
+    private void busy(Player player) { player.sendMessage("§d[ArcaneAlchemy]§r §eThis machine is already in use.§r"); }
 
     public boolean canonicalBase(ItemStack item) {
         if (item == null || item.getType() != Material.POTION || !item.hasItemMeta()) return false;
         try {
             var meta=item.getItemMeta();
-            String namespace=plugin.getName().toLowerCase(Locale.ROOT);
+            String namespace="arcanebrewery";
             var fermentation=new me.arcanebrewery.arcaneBrewery.adapter.bukkit.fermentation.FermentationBatchMetadata(namespace).read(meta);
             if (fermentation.isPresent()) return true;
             var distilled=new me.arcanebrewery.arcaneBrewery.adapter.bukkit.distillery.DistilleryBatchMetadata(namespace).read(meta);
@@ -118,7 +123,7 @@ public final class BukkitMachineAccess implements Listener, AutoCloseable {
     }
     private boolean hasLegacyData(Block core) {
         if (core.getType()!=Material.BREWING_STAND && core.getType()!=Material.BARREL && core.getType()!=Material.ENCHANTING_TABLE) return false;
-        String ns=plugin.getName().toLowerCase(Locale.ROOT);
+        String ns="arcanebrewery";
         var inventories=new MachineInventoryStorage(ns,"barrel_inventory_storage",null);
         var chunk=core.getChunk().getPersistentDataContainer();
         if (chunk.has(inventories.key(core))) {
@@ -284,7 +289,7 @@ public final class BukkitMachineAccess implements Listener, AutoCloseable {
                 var identity = identity(core).orElseThrow();
                 boolean full = (core.equals(event.getBlock()) || identity.kind()==MachineIdentity.Kind.CULTIVATION) && occupied.getOrDefault(identity.kind(),b ->
                         b.getState() instanceof Container container && !container.getInventory().isEmpty()).test(core);
-                if (!permitted(event.getPlayer(),core) || full) {
+                if (!ownerMayAlter(event.getPlayer(),core) || full) {
                     event.setCancelled(true); event.getPlayer().sendMessage(MessageConfig.prefix() + "§cOnly the owner may alter this structure; occupied cores must be emptied first.§r"); return;
                 }
             } catch (RuntimeException corrupt) { event.setCancelled(true); return; }
@@ -292,14 +297,14 @@ public final class BukkitMachineAccess implements Listener, AutoCloseable {
     }
     @EventHandler(priority=EventPriority.LOWEST,ignoreCancelled=true)
     public void onPlace(BlockPlaceEvent event) {
-        for (Block core:claimsNear(event.getBlock())) if (!permitted(event.getPlayer(),core)) { event.setCancelled(true); return; }
+        for (Block core:claimsNear(event.getBlock())) if (!ownerMayAlter(event.getPlayer(),core)) { event.setCancelled(true); return; }
     }
     @EventHandler(priority=EventPriority.MONITOR,ignoreCancelled=true)
     public void afterBreak(BlockBreakEvent event) {
         // BlockBreakEvent runs while the old block/PDC is still available.
         try {
             Block core=event.getBlock();
-            var inventories=new MachineInventoryStorage(plugin.getName().toLowerCase(Locale.ROOT),"barrel_inventory_storage",null);
+            var inventories=new MachineInventoryStorage("arcanebrewery","barrel_inventory_storage",null);
             if (identity(core).isPresent()) { closeCore(core); storage.remove(core); inventories.remove(core); }
             else if (core.getChunk().getPersistentDataContainer().has(inventories.key(core))
                     && Arrays.stream(inventories.load(core).items()).allMatch(Objects::isNull)) inventories.remove(core);

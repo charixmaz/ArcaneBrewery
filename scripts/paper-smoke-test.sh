@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SERVER_DIR="$ROOT/.paper-smoke"
 MC_VERSION="26.1.2"
-USER_AGENT="ArcaneBrewery-CI/1.0 (https://github.com/charixmaz/ArcaneBrewery)"
+USER_AGENT="ArcaneAlchemy-CI/1.0 (https://github.com/charixmaz/ArcaneAlchemy)"
 
 # Never accept a new EULA implicitly. CI may use an explicitly configured
 # repository variable; local runs may reuse an already accepted test directory.
@@ -24,7 +24,7 @@ if [[ -z "$PAPER_URL" ]]; then
 fi
 
 curl -fsSL -H "User-Agent: $USER_AGENT" "$PAPER_URL" -o "$SERVER_DIR/paper.jar"
-cp "$ROOT"/target/ArcaneBrewery-*.jar "$SERVER_DIR/plugins/ArcaneBrewery.jar"
+cp "$ROOT"/target/ArcaneAlchemy-*.jar "$SERVER_DIR/plugins/ArcaneAlchemy.jar"
 
 cd "$SERVER_DIR"
 if [[ -e console.in && ! -p console.in ]]; then
@@ -57,13 +57,13 @@ for _ in $(seq 1 120); do
     exit 1
   fi
 
-  if grep -Fq "ArcaneBrewery enabled." server.out && grep -Eq 'Done \([0-9.]+s\)!' server.out; then
+  if grep -Fq "ArcaneAlchemy enabled." server.out && grep -Eq 'Done \([0-9.]+s\)!' server.out; then
     ready=1
     break
   fi
 
-  if grep -Eq 'Could not load|Error occurred while enabling ArcaneBrewery|NoClassDefFoundError|ClassNotFoundException' server.out; then
-    echo "ArcaneBrewery load failure detected." >&2
+  if grep -Eq 'Could not load|Error occurred while enabling ArcaneAlchemy|NoClassDefFoundError|ClassNotFoundException' server.out; then
+    echo "ArcaneAlchemy load failure detected." >&2
     cat server.out >&2
     exit 1
   fi
@@ -71,7 +71,7 @@ for _ in $(seq 1 120); do
 done
 
 if [[ "$ready" -ne 1 ]]; then
-  echo "Timed out waiting for Paper + ArcaneBrewery startup." >&2
+  echo "Timed out waiting for Paper + ArcaneAlchemy startup." >&2
   cat server.out >&2
   exit 1
 fi
@@ -85,7 +85,7 @@ for _ in $(seq 1 30); do
     wait "$SERVER_PID"
     trap - EXIT
     exec 3>&-
-    echo "Paper smoke test passed: standalone ArcaneBrewery loaded."
+    echo "Paper smoke test passed: standalone ArcaneAlchemy loaded."
     exit 0
   fi
   sleep 1

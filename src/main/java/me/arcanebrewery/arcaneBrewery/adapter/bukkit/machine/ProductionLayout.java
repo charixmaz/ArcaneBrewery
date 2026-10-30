@@ -18,7 +18,7 @@ public enum ProductionLayout {
  public Set<Integer> inputs(){return inputs;}
  public Map<Integer,Integer> controls(){return controls;}
  public int logical(int visible){if(inputs.contains(visible))return visible;return controls.entrySet().stream().filter(e->e.getValue()==visible).mapToInt(e->e.getKey()).findFirst().orElse(-1);}
- private static ItemStack pane(){var i=new ItemStack(Material.BLACK_STAINED_GLASS_PANE);var m=i.getItemMeta();DisplayOnlyItems.mark(m);m.setDisplayName(" ");PresentationStyle.apply(m);i.setItemMeta(m);return i;}
+ private static ItemStack pane(){var i=new ItemStack(Material.LIGHT_BLUE_STAINED_GLASS_PANE);var m=i.getItemMeta();DisplayOnlyItems.mark(m);m.setDisplayName(" ");PresentationStyle.apply(m);i.setItemMeta(m);return i;}
  public void frame(Inventory gui){if(gui.getSize()!=SIZE)throw new IllegalArgumentException("Wrong production GUI size");for(int i=0;i<SIZE;i++)if(!inputs.contains(i))gui.setItem(i,pane());}
  public void relocate(Inventory gui){var saved=new HashMap<Integer,ItemStack>();controls.forEach((old,visible)->saved.put(visible,gui.getItem(old)));controls.keySet().forEach(i->gui.setItem(i,pane()));saved.forEach(gui::setItem);}
  public static void label(Inventory gui,int slot,Material icon,String title,String... lines){var i=new ItemStack(icon);var m=i.getItemMeta();DisplayOnlyItems.mark(m);m.setDisplayName("§b§l"+title+"§r");m.setLore(Arrays.stream(lines).map(s->"§f"+s+"§r").toList());PresentationStyle.apply(m);i.setItemMeta(m);gui.setItem(slot,i);}

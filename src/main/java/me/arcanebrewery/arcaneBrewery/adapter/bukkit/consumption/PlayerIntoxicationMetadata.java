@@ -14,7 +14,7 @@ public final class PlayerIntoxicationMetadata {
     private final String namespace;
 
     public PlayerIntoxicationMetadata(JavaPlugin plugin) {
-        this(plugin.getName().toLowerCase(Locale.ROOT));
+        this("arcanebrewery");
     }
 
     public PlayerIntoxicationMetadata(String namespace) {

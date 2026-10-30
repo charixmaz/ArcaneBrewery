@@ -5,11 +5,11 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>me.arcanebrewery</groupId>
-    <artifactId>ArcaneBrewery</artifactId>
+    <artifactId>ArcaneAlchemy</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
-    <name>ArcaneBrewery</name>
+    <name>ArcaneAlchemy</name>
 
     <properties>
         <java.version>25</java.version>

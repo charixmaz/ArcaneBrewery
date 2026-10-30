@@ -35,8 +35,8 @@ public final class MethanolProducerEngine implements Listener, AutoCloseable {
         Session(Block core,Inventory gui,byte[] raw) { this.core=core; this.gui=gui; this.raw=raw; }
     }
     public MethanolProducerEngine(JavaPlugin plugin) {
-        this.plugin=plugin; storage=new MachineInventoryStorage(plugin.getName().toLowerCase(Locale.ROOT),"producer_inventory_storage",null);
-        stageKey=new NamespacedKey(plugin,"brew_stage"); timeKey=new NamespacedKey(plugin,"slot_start_time");
+        this.plugin=plugin; storage=new MachineInventoryStorage("arcanebrewery","producer_inventory_storage",null);
+        stageKey=new NamespacedKey("arcanebrewery","brew_stage"); timeKey=new NamespacedKey("arcanebrewery","slot_start_time");
     }
     @EventHandler(priority=EventPriority.HIGH,ignoreCancelled=true)
     public void onOpen(PlayerInteractEvent event) {
@@ -51,7 +51,7 @@ public final class MethanolProducerEngine implements Listener, AutoCloseable {
         if (core==null) { event.getPlayer().sendMessage(MessageConfig.get("structure_broken")); return; }
         Block target=core;
         if (sessions.values().stream().anyMatch(session -> session.core.equals(target))) {
-            event.getPlayer().sendMessage("§d[ArcaneBrewery]§r §eThis machine is already in use.§r"); return;
+            event.getPlayer().sendMessage("§d[ArcaneAlchemy]§r §eThis machine is already in use.§r"); return;
         }
         try {
             var saved=storage.load(core); var holder=new Holder(); Inventory gui=Bukkit.createInventory(holder,9,"§5§lCleansing Solution Producer§r"); holder.inventory=gui;

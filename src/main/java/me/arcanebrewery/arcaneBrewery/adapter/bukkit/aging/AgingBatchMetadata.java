@@ -17,7 +17,7 @@ public final class AgingBatchMetadata {
     private final String namespace;
 
     public AgingBatchMetadata(JavaPlugin plugin) {
-        this(plugin.getName().toLowerCase(Locale.ROOT));
+        this("arcanebrewery");
     }
 
     public AgingBatchMetadata(String namespace) {

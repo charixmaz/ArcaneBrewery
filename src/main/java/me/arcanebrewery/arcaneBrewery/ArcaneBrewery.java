@@ -38,6 +38,8 @@ public final class ArcaneBrewery extends JavaPlugin {
 
     @Override
     public void onEnable() {
+        if(getServer().getPluginManager().getPlugin("ArcaneBrewery")!=null){getLogger().severe("Remove the old ArcaneBrewery JAR before loading ArcaneAlchemy.");getServer().getPluginManager().disablePlugin(this);return;}
+        try{LegacyDataUpgrade.prepare(getDataFolder().toPath());}catch(java.io.IOException failed){getLogger().severe("Legacy data upgrade blocked: "+failed.getMessage());getServer().getPluginManager().disablePlugin(this);return;}
         MessageConfig.setup(this);
         saveDefaultConfig();
         ingredientItems = new IngredientItemAdapter(BuiltInIngredients.registry(), new IngredientMetadataCodec(this));
@@ -50,13 +52,13 @@ public final class ArcaneBrewery extends JavaPlugin {
             Object legacy=getConfig().get("consumption.legacy-alcohol-mechanics",false);
             if (!(legacy instanceof Boolean)) throw new IllegalArgumentException("consumption.legacy-alcohol-mechanics must be true or false");
         } catch (RuntimeException failure) {
-            getLogger().severe("ArcaneBrewery configuration is invalid: " + failure.getMessage());
+            getLogger().severe("ArcaneAlchemy configuration is invalid: " + failure.getMessage());
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
 
         discoveryWorker=new ThreadPoolExecutor(2,2,0,TimeUnit.MILLISECONDS,new ArrayBlockingQueue<>(256),task->{
-            var thread=new Thread(task,"ArcaneBrewery-discovery"); thread.setDaemon(true); return thread;
+            var thread=new Thread(task,"ArcaneAlchemy-discovery"); thread.setDaemon(true); return thread;
         });
         java.util.concurrent.Executor async = discoveryWorker;
 
@@ -76,9 +78,9 @@ public final class ArcaneBrewery extends JavaPlugin {
                         + " prepared transaction(s), " + unresolvedEscrow
                         + " unresolved escrow record(s). No automatic payout/refund was attempted.");
             }
-            getLogger().info("ArcaneBrewery storage ready (schema V" + storage.schemaVersion() + ").");
+            getLogger().info("ArcaneAlchemy storage ready (schema V" + storage.schemaVersion() + ").");
         } catch (RuntimeException failure) {
-            getLogger().severe("ArcaneBrewery storage initialization failed: " + failure.getMessage());
+            getLogger().severe("ArcaneAlchemy storage initialization failed: " + failure.getMessage());
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
@@ -105,18 +107,19 @@ public final class ArcaneBrewery extends JavaPlugin {
         // Structure validation and cask reboot now run through the shared access
         // boundary. Do not register the old broad sign-mutating/reboot listeners.
 
-        materialWorker=new ThreadPoolExecutor(1,1,0,TimeUnit.MILLISECONDS,new ArrayBlockingQueue<>(256),task->{var thread=new Thread(task,"ArcaneBrewery-materials");thread.setDaemon(true);return thread;});
+        materialWorker=new ThreadPoolExecutor(1,1,0,TimeUnit.MILLISECONDS,new ArrayBlockingQueue<>(256),task->{var thread=new Thread(task,"ArcaneAlchemy-materials");thread.setDaemon(true);return thread;});
         materialDiscoveries=new me.arcanebrewery.arcaneBrewery.adapter.bukkit.discovery.MaterialDiscoveryListener(this,
             new me.arcanebrewery.arcaneBrewery.adapter.bukkit.discovery.MaterialCatalog(ingredientItems),
             new MaterialDiscoveryRuntime(storage.materials(),materialWorker));
         getServer().getPluginManager().registerEvents(materialDiscoveries,this);
         specialists=new me.arcanebrewery.arcaneBrewery.adapter.bukkit.research.SpecialistMachines(this);
         getServer().getPluginManager().registerEvents(specialists,this);
-        var brew = java.util.Objects.requireNonNull(getCommand("brew"), "brew command missing from plugin.yml");
+        var brew = java.util.Objects.requireNonNull(getCommand("arcanealchemy"), "brew command missing from plugin.yml");
         var guide = new me.arcanebrewery.arcaneBrewery.guide.BrewingGuide(this,
                 new me.arcanebrewery.arcaneBrewery.guide.GuideCatalog(ingredientItems.registry(), timing,
                         getConfig().getDouble("alchemy.processing-seconds", 8.0)), discoveryQueries,materialDiscoveries);
         getServer().getPluginManager().registerEvents(guide, this);
+        getServer().getPluginManager().registerEvents(new me.arcanebrewery.arcaneBrewery.adapter.bukkit.CodexBook(guide),this);
         var discoveryCommand = new DiscoveryCommand(
                 this, discoveryQueries, discoveryMutations, consumption, guide);
         brew.setExecutor(discoveryCommand);
@@ -128,9 +131,16 @@ public final class ArcaneBrewery extends JavaPlugin {
                 this, storage.marketJournal(), storage.marketEscrow(), async);
         brewMarket.setExecutor(diagnostics);
         brewMarket.setTabCompleter(diagnostics);
+        brew.setExecutor((sender,command,label,args)->{
+            if(args.length>0&&args[0].equalsIgnoreCase("market")){
+                if(!sender.hasPermission("arcanebrewery.admin.market")){sender.sendMessage("No permission.");return true;}
+                return diagnostics.onCommand(sender,command,label,java.util.Arrays.copyOfRange(args,1,args.length));
+            }
+            return discoveryCommand.onCommand(sender,command,label,args);
+        });
 
         getServer().getPluginManager().registerEvents(new me.arcanebrewery.arcaneBrewery.adapter.bukkit.BottleCrates(),this);
-        getLogger().info("ArcaneBrewery enabled.");
+        getLogger().info("ArcaneAlchemy enabled.");
     }
 
     @Override
@@ -156,11 +166,11 @@ public final class ArcaneBrewery extends JavaPlugin {
             try {
                 storage.close();
             } catch (RuntimeException failure) {
-                getLogger().warning("ArcaneBrewery storage shutdown failed: " + failure.getMessage());
+                getLogger().warning("ArcaneAlchemy storage shutdown failed: " + failure.getMessage());
             } finally {
                 storage = null;
             }
         }
-        getLogger().info("ArcaneBrewery systems offline.");
+        getLogger().info("ArcaneAlchemy systems offline.");
     }
 }

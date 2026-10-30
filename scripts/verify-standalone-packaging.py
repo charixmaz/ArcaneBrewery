@@ -5,7 +5,7 @@ import sys
 import xml.etree.ElementTree as ET
 
 def verify(root: Path) -> None:
-    jars = list((root / "target").glob("ArcaneBrewery-*.jar"))
+    jars = list((root / "target").glob("ArcaneAlchemy-*.jar"))
     if len(jars) != 1:
         raise ValueError(f"Expected one Brewery JAR, found {jars}")
     forbidden = (

@@ -1,18 +1,18 @@
-name: ArcaneBrewery
+name: ArcaneAlchemy
 version: 1.0
 main: me.arcanebrewery.arcaneBrewery.ArcaneBrewery
 api-version: '26.1'
-author: ArcaneBreweryTeam
+author: ArcaneAlchemyTeam
 description: Fantasy Brewing & Alchemy for Paper 26.1.2.
 
 commands:
-  brew:
-    description: ArcaneBrewery player commands.
-    usage: /brew help
-    aliases: [arcanebrewery]
+  arcanealchemy:
+    description: ArcaneAlchemy player commands.
+    usage: /al help
+    aliases: [al, brew, arcanebrewery]
     permission: arcanebrewery.use
   brewmarket:
-    description: ArcaneBrewery historical market recovery diagnostics (read-only).
+    description: ArcaneAlchemy historical market recovery diagnostics (read-only).
     usage: /brewmarket help
     permission: arcanebrewery.admin.market
 
@@ -24,7 +24,7 @@ permissions:
     description: Access machines without changing ownership; exclusive sessions and safety locks still apply.
     default: op
   arcanebrewery.use:
-    description: Allows access to ArcaneBrewery player commands.
+    description: Allows access to ArcaneAlchemy player commands.
     default: true
 
   arcanebrewery.admin.market:

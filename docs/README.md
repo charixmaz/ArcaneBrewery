@@ -2,6 +2,8 @@
 
 ## Current entry points
 
+- [ArcaneAlchemy upgrade, portable book and shared access](arcanealchemy-upgrade.md)
+
 - [Server-owner installation and updates](server-owner.md)
 - [Current changes and validation](../CHANGELOG.md)
 - [Machine structures, construction and effects](phase2-specialists-release.md)

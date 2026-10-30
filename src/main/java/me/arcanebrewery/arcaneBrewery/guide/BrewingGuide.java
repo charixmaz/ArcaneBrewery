@@ -51,7 +51,7 @@ public final class BrewingGuide implements Listener {
     }
     public void inspect(Player player) {
         var held=player.getInventory().getItemInMainHand();
-        var data=new me.arcanebrewery.arcaneBrewery.adapter.bukkit.aging.FinalDrinkMetadata(plugin.getName().toLowerCase(Locale.ROOT));
+        var data=new me.arcanebrewery.arcaneBrewery.adapter.bukkit.aging.FinalDrinkMetadata("arcanebrewery");
         if(held.getType()!=Material.POTION || !held.hasItemMeta()) {
             player.sendMessage(MessageConfig.prefix()+"§eHold an elixir to inspect it.§r");return;
         }
@@ -98,7 +98,7 @@ public final class BrewingGuide implements Listener {
         button(view, 32, Material.KNOWLEDGE_BOOK, "Brewing Knowledge", List.of("Names, discovery, quality and magical conditions."),
                 p -> entries(p, "Brewing Knowledge", catalog.knowledge(), 0));
         button(view, 40, Material.CHEST, "Legacy Compatibility Profiles", List.of("Older predefined profiles; not current starter recipes."),
-                p -> entries(p,"Legacy Compatibility",List.of(new GuideCatalog.Entry(Material.CHEST,"Historical Bottles",List.of("The 30 legacy profiles remain compatible.","Hold an old bottle and use /brew inspect.","This page does not reveal locked materials or private recipes."))),0));
+                p -> entries(p,"Legacy Compatibility",List.of(new GuideCatalog.Entry(Material.CHEST,"Historical Bottles",List.of("The 30 legacy profiles remain compatible.","Hold an old bottle and use /al inspect.","This page does not reveal locked materials or private recipes."))),0));
         player.openInventory(view.inventory);
     }
     private void machines(Player player) {
@@ -226,7 +226,7 @@ public final class BrewingGuide implements Listener {
             for (int i = 0; i < Math.min(items.size(), PAGE_SIZE); i++) {
                 var recipe = items.get(i);
                 button(view, i, Material.POTION, recipe.name(), List.of("ID: " + recipe.fingerprint().value().substring(0, 12),
-                        "Click to inspect your current knowledge.", "One permanent rename: /brew rename <shown id> <name> confirm.", "Or hold your own bottle: /brew rename held <name>."),
+                        "Click to inspect your current knowledge.", "One permanent rename: /al rename <shown id> <name> confirm.", "Or hold your own bottle: /al rename held <name>."),
                         p -> recipe(p, recipe.fingerprint(), () -> discoveries(p, publicList, page)));
             }
             if (page > 0) button(view, 45, Material.ARROW, "Previous", List.of(), p -> discoveries(p, publicList, page - 1));
@@ -235,7 +235,7 @@ public final class BrewingGuide implements Listener {
     }
     public void recipe(Player player, String value) {
         if (!value.matches("[0-9a-fA-F]{64}")) {
-            player.sendMessage(MessageConfig.prefix() + "§eUse a full 64-character recipe fingerprint. For short IDs use /brew recipe.§r");
+            player.sendMessage(MessageConfig.prefix() + "§eUse a full 64-character recipe fingerprint. For short IDs use /al recipe.§r");
             return;
         }
         recipe(player, new DrinkFingerprint(value.toLowerCase(Locale.ROOT)), () -> open(player));
@@ -255,7 +255,7 @@ public final class BrewingGuide implements Listener {
             List<String> lines = new ArrayList<>();
             lines.add("Your knowledge: " + knowledge.state());
             lines.addAll(formatter.format(knowledge));
-            lines.add("Rename your full personal record: /brew rename "+fingerprint.value().substring(0,12)+" <name> confirm (one permanent rename)");
+            lines.add("Rename your full personal record: /al rename "+fingerprint.value().substring(0,12)+" <name> confirm (one permanent rename)");
             queries.info(player.getUniqueId(),fingerprint).whenComplete((info,infoFailure)->onMain(()->{
                 if(!current(player,loading)) return;
                 if(infoFailure==null) lines.add(info);

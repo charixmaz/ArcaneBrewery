@@ -23,16 +23,16 @@ public final class CaskVisualEngine {
             if (bottle!=null && bottle.getType()==Material.POTION && bottle.getItemMeta()!=null) {
                 try {
                     var meta=bottle.getItemMeta(); var aging=new AgingBatchMetadata(plugin).read(meta);
-                    long started=meta.getPersistentDataContainer().getOrDefault(new NamespacedKey(plugin,"slot_start_time"),PersistentDataType.LONG,System.currentTimeMillis());
+                    long started=meta.getPersistentDataContainer().getOrDefault(new NamespacedKey("arcanebrewery","slot_start_time"),PersistentDataType.LONG,System.currentTimeMillis());
                     long elapsed=Math.max(0,(System.currentTimeMillis()-started)/1000);
                     long target=120;
                     lore.add("§7Wood: §f"+me.arcanebrewery.arcaneBrewery.adapter.bukkit.machine.CaskStructure.wood(core)+"§r");
-                    var harvest=new me.arcanebrewery.arcaneBrewery.adapter.bukkit.aging.CaskHarvestMetadata(plugin.getName().toLowerCase(Locale.ROOT)).read(meta);
+                    var harvest=new me.arcanebrewery.arcaneBrewery.adapter.bukkit.aging.CaskHarvestMetadata("arcanebrewery").read(meta);
                     if (aging.isPresent()) { elapsed=aging.get().elapsedSeconds(harvest.map(h->h.harvestedAt()).orElseGet(System::currentTimeMillis)); target=aging.get().maturationSeconds(); }
                     else {
-                        String stage=meta.getPersistentDataContainer().getOrDefault(new NamespacedKey(plugin,"brew_stage"),PersistentDataType.STRING,"");
+                        String stage=meta.getPersistentDataContainer().getOrDefault(new NamespacedKey("arcanebrewery","brew_stage"),PersistentDataType.STRING,"");
                         var profile=BreweryData.RECIPES.get(stage);
-                        boolean legacy=new me.arcanebrewery.arcaneBrewery.adapter.bukkit.aging.MaturationInputPolicy(plugin.getName().toLowerCase(Locale.ROOT)).legacyEligible(meta);
+                        boolean legacy=new me.arcanebrewery.arcaneBrewery.adapter.bukkit.aging.MaturationInputPolicy("arcanebrewery").legacyEligible(meta);
                         if (profile==null || !legacy) {
                             pane(inv,slot+1,Material.GRAY_STAINED_GLASS_PANE,"Lane "+(lane+1)+" — PRESERVED INPUT",
                                     List.of("§7Stored input retained; no maturity stats available.§r","§7Withdraw it and complete the required process.§r"));
@@ -40,7 +40,7 @@ public final class CaskVisualEngine {
                         }
                         if (profile!=null) target=profile.baseDuration;
                         if (profile!=null && elapsed>target+15 && core.getState() instanceof TileState tile) {
-                            var key=new NamespacedKey(plugin,"cask_spoil_timestamp");
+                            var key=new NamespacedKey("arcanebrewery","cask_spoil_timestamp");
                             if (!tile.getPersistentDataContainer().has(key)) {
                                 tile.getPersistentDataContainer().set(key,PersistentDataType.LONG,System.currentTimeMillis()); tile.update(false,false);
                             }

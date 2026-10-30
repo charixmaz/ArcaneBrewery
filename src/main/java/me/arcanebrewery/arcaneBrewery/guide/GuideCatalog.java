@@ -42,7 +42,7 @@ public final class GuideCatalog {
                 "Catalyst affinities are references, not guaranteed safe results.",
                 "Integrity repair uses Iron Ingots; cleaning is not required."),
             entry(Material.OAK_STAIRS, MessageConfig.text("names.cask"),
-                "Barrel with an adjacent sign: first line [Brewery].",
+                "Barrel with an adjacent sign: first line [Alchemy].",
                 "At least 12 matching wood components in the 3×3×3 area.",
                 "Use matching planks, stairs, slabs or logs. Open with the sign.",
                 "Four lanes; insert completed cultivated or infused bases.",
@@ -138,8 +138,8 @@ public final class GuideCatalog {
     }
     public List<Entry> knowledge() {
         return List.of(
-            entry(Material.POTION,"Personal Names and Bottles","/brew rename held <name> confirm for a finished bottle brewed by you.",
-                "/brew rename <short-id> <name> confirm for your independently discovered record.",
+            entry(Material.POTION,"Personal Names and Bottles","/al rename held <name> confirm for a finished bottle brewed by you.",
+                "/al rename <short-id> <name> confirm for your independently discovered record.",
                 "One permanent rename per personal formulation; 1–80 visible characters.","Color codes &0–&f require arcanebrewery.rename.colors; no obfuscated styling.",
                 "Your name does not rename another producer's bottle.","Old bottles with no reliable producer remain unattributed."),
             entry(Material.WRITABLE_BOOK,"Formulation, Variant and Batch","Ingredients and relative proportions, culture and catalyst doses define discovery identity.",
@@ -152,7 +152,7 @@ public final class GuideCatalog {
                 "A poorly suited base cannot reach the same strength by merely swapping catalysts.",
                 "Some bases shorten mild drawbacks while diluting strength; compare ratios experimentally.",
                 "Unlocked ingredient entries describe broad roles. Existing batches keep their captured rules.",
-                "Bottle quality and effect strength are different; /brew inspect shows actual results."),
+                "Bottle quality and effect strength are different; /al inspect shows actual results."),
             entry(Material.BOOK,"Personal Discovery and Server First","Players can independently discover the same formulation.",
                 "Personal records are private by default. Reproduction updates personal best quality.",
                 "The server first receives permanent recognition without publishing private instructions.",
