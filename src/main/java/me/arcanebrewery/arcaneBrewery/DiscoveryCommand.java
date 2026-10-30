@@ -34,7 +34,7 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("ArcaneBrewery discovery commands are player-only.");
+            sender.sendMessage("ArcaneAlchemy commands are player-only.");
             return true;
         }
         if (args.length == 0 || args[0].equalsIgnoreCase("help")) {

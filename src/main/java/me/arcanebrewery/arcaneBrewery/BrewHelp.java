@@ -43,12 +43,12 @@ public final class BrewHelp {
             case "commands" -> List.of(
                     "§5§lCommands§r",
                     "§f/al inspect §7— inspect the held elixir and its quality breakdown.§r",
-                    "§f/al guide §7— open the ingredient, catalyst, machine and recipe Codex.§r",
+                    "§f/al guide §7— get a reusable Codex book; hold and right-click.§r",
                     "§f/al status §7— temporary saturation and recovery.§r",
                     "§f/al discoveries §7and §f/al recipe §7— browse your recipe knowledge.§r");
             default -> List.of("§5§lArcaneBrewery — Brewing & Alchemy§r",
                     "§f/al inspect §7— inspect the held elixir and its quality breakdown.§r",
-                    "§f/al guide §7— open the visual Brewing Codex§r",
+                    "§f/al guide §7— get your reusable Alchemy Codex book§r",
                     "§f/al help getting-started §7— production and washing§r",
                     "§f/al help machines §7— structures, inputs and ownership§r",
                     "§f/al help recipes §7— discoveries and short IDs§r",

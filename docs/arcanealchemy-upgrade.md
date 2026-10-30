@@ -8,7 +8,7 @@ The public name change is branding, not an EULA compliance guarantee. The reposi
 
 ## Commands and portable Codex
 
-`/al` aliases `/arcanealchemy` for both players and admins. `/al guide` gives an Alchemy Codex item. Hold it and right-click to open the existing private GUI. If inventory is full, make room and retry. Re-running the command does not grant another book if one is already carried. The `codex` subcommand is removed. Legacy `/brew` and `/arcanebrewery` aliases remain for transition; visible help uses `/al`. Historical market diagnostics remain admin-only and read-only.
+`/al` aliases `/arcanealchemy` for both players and admins. `/al guide` gives an Alchemy Codex item. Hold it and right-click to open the existing private GUI. If inventory is full, make room and retry. Re-running the command does not grant another book if one is already carried. The `codex` subcommand is removed. Legacy `/brew` and `/arcanebrewery` aliases remain for transition; visible help uses `/al`. `/al market` routes historical diagnostics for admins with the existing admin permission; it remains read-only.
 
 ## Owner-managed operation access
 

@@ -7,12 +7,12 @@ description: Fantasy Brewing & Alchemy for Paper 26.1.2.
 
 commands:
   arcanealchemy:
-    description: ArcaneBrewery player commands.
+    description: ArcaneAlchemy player commands.
     usage: /al help
     aliases: [al, brew, arcanebrewery]
     permission: arcanebrewery.use
   brewmarket:
-    description: ArcaneBrewery historical market recovery diagnostics (read-only).
+    description: ArcaneAlchemy historical market recovery diagnostics (read-only).
     usage: /brewmarket help
     permission: arcanebrewery.admin.market
 

@@ -131,6 +131,13 @@ public final class ArcaneBrewery extends JavaPlugin {
                 this, storage.marketJournal(), storage.marketEscrow(), async);
         brewMarket.setExecutor(diagnostics);
         brewMarket.setTabCompleter(diagnostics);
+        brew.setExecutor((sender,command,label,args)->{
+            if(args.length>0&&args[0].equalsIgnoreCase("market")){
+                if(!sender.hasPermission("arcanebrewery.admin.market")){sender.sendMessage("No permission.");return true;}
+                return diagnostics.onCommand(sender,command,label,java.util.Arrays.copyOfRange(args,1,args.length));
+            }
+            return discoveryCommand.onCommand(sender,command,label,args);
+        });
 
         getServer().getPluginManager().registerEvents(new me.arcanebrewery.arcaneBrewery.adapter.bukkit.BottleCrates(),this);
         getLogger().info("ArcaneAlchemy enabled.");
