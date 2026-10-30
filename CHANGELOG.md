@@ -2,7 +2,20 @@
 
 Every change must leave a trace here. Entries describe behavior, compatibility, verification and remaining limits; planned work must not be listed as released.
 
-## Unreleased — production interfaces
+## Unreleased — cultivation multiblock
+
+### Fixed
+- Empty cultivation machines are recognized from a horizontal Barrel and a wooden Fence directly behind it, rather than requiring a bottle to trigger recognition.
+- New cultivation starts require the rear fence. Existing owned barrels, bottles and captured progress remain recoverable; restore the structure to start another batch.
+- Rear fences participate in machine ownership and occupied-machine structure protection.
+
+### Changed
+- Build icons and machine instructions describe the rear-fence structure, normal inventory click and sneak-click controls.
+
+### Verification
+- CI pending. No live Paper checks performed.
+
+## Earlier — production interfaces
 
 ### Added
 - Expanded Extractor, Cultivation, Arcane Infuser and Maturation Cask interfaces to 27 slots. Inputs retain saved indexes; controls and status occupy separate rows. Casks expose elapsed time only.

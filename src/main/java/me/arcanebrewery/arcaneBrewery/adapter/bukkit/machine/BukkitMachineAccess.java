@@ -112,7 +112,7 @@ public final class BukkitMachineAccess implements Listener, AutoCloseable {
         if (core.getType() == Material.ENCHANTING_TABLE && AlchemyStructureScanner.isValid(core)) return MachineIdentity.Kind.INFUSER;
         if (core.getType() == Material.BARREL) {
             if (CaskStructure.hasSign(core) && !CaskStructure.wood(core).equals("UNKNOWN")) return MachineIdentity.Kind.CASK;
-            if (core.getState() instanceof Barrel barrel && Arrays.stream(barrel.getInventory().getContents()).anyMatch(this::canonicalBase)) return MachineIdentity.Kind.CULTIVATION;
+            if (CultivationStructure.valid(core)) return MachineIdentity.Kind.CULTIVATION;
         }
         return null;
     }
@@ -213,6 +213,7 @@ public final class BukkitMachineAccess implements Listener, AutoCloseable {
             if (event.getClick()==ClickType.SWAP_OFFHAND) candidate=player.getInventory().getItemInOffHand();
             if (canonicalBase(candidate)) {
                 if (recognized(barrel.getBlock())==MachineIdentity.Kind.CASK) { event.setCancelled(true); return; }
+                if (recognized(barrel.getBlock())!=MachineIdentity.Kind.CULTIVATION) return;
                 if (!authorize(player,barrel.getBlock(),MachineIdentity.Kind.CULTIVATION,true) || !attachBarrel(player,barrel.getBlock(),inv)) {
                     event.setCancelled(true); return;
                 }
@@ -269,7 +270,7 @@ public final class BukkitMachineAccess implements Listener, AutoCloseable {
         int x=changed.getX()-core.getX(),y=changed.getY()-core.getY(),z=changed.getZ()-core.getZ();
         return switch (kind) {
             case SPECIALIST -> x==0 && z==0 && (y==0 || y==-1);
-            case CULTIVATION -> x==0 && y==0 && z==0;
+            case CULTIVATION -> CultivationStructure.component(core,changed);
             case EXTRACTOR -> x==0 && z==0 && (y==0 || y==-1);
             case INFUSER -> (y==0 && Math.abs(x)+Math.abs(z)<=1) || (y==-1 && x==0 && z==0);
             case CASK -> (Math.abs(x)<=1 && Math.abs(y)<=1 && Math.abs(z)<=1)
@@ -281,7 +282,7 @@ public final class BukkitMachineAccess implements Listener, AutoCloseable {
         for (Block core : claimsNear(event.getBlock())) {
             try {
                 var identity = identity(core).orElseThrow();
-                boolean full = core.equals(event.getBlock()) && occupied.getOrDefault(identity.kind(),b ->
+                boolean full = (core.equals(event.getBlock()) || identity.kind()==MachineIdentity.Kind.CULTIVATION) && occupied.getOrDefault(identity.kind(),b ->
                         b.getState() instanceof Container container && !container.getInventory().isEmpty()).test(core);
                 if (!permitted(event.getPlayer(),core) || full) {
                     event.setCancelled(true); event.getPlayer().sendMessage(MessageConfig.prefix() + "§cOnly the owner may alter this structure; occupied cores must be emptied first.§r"); return;

@@ -1,0 +1,16 @@
+package me.arcanebrewery.arcaneBrewery.adapter.bukkit.machine;
+import me.arcanebrewery.arcaneBrewery.application.machine.MachineIdentity.Kind;
+import org.bukkit.*;
+import org.bukkit.block.BlockFace;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.junit.jupiter.api.Test;
+import java.util.*;
+import static org.junit.jupiter.api.Assertions.*;
+class CultivationStructureTest {
+ @Test void emptyBarrelWithRearFenceRecognizesAllHorizontalDirections(){for(var face:List.of(BlockFace.NORTH,BlockFace.SOUTH,BlockFace.EAST,BlockFace.WEST)){var w=new MachineFixture();var barrel=w.put(4,64,4,Material.BARREL);w.facings.put("4,64,4",face);var back=face.getOppositeFace();w.put(4+back.getModX(),64,4+back.getModZ(),Material.OAK_FENCE);assertTrue(CultivationStructure.valid(barrel));var access=new BukkitMachineAccess(w.plugin);assertEquals(Kind.CULTIVATION,access.recognized(barrel));assertTrue(access.identity(barrel).isEmpty());}}
+ @Test void frontSideAndAboveFencesDoNotCount(){for(var offset:List.of(new int[]{0,0,-1},new int[]{1,0,0},new int[]{0,1,0})){var w=new MachineFixture();var barrel=w.put(0,64,0,Material.BARREL);w.put(offset[0],64+offset[1],offset[2],Material.OAK_FENCE);assertFalse(CultivationStructure.valid(barrel));}}
+ @Test void gatesNetherBrickAndVerticalBarrelsDoNotCount(){for(var material:List.of(Material.OAK_FENCE_GATE,Material.NETHER_BRICK_FENCE,Material.STONE)){var w=new MachineFixture();var barrel=w.put(0,64,0,Material.BARREL);w.put(0,64,1,material);assertFalse(CultivationStructure.valid(barrel));}for(var face:List.of(BlockFace.UP,BlockFace.DOWN)){var w=new MachineFixture();var barrel=w.put(0,64,0,Material.BARREL);w.facings.put("0,64,0",face);w.put(0,64,1,Material.OAK_FENCE);assertFalse(CultivationStructure.valid(barrel));}}
+ @Test void allWoodenFencesAreAcceptedAndUnloadedRearIsNotLoaded(){for(var material:Material.values())if(material.name().endsWith("_FENCE")&&material!=Material.NETHER_BRICK_FENCE)assertTrue(CultivationStructure.woodenFence(material));var w=new MachineFixture();var barrel=w.put(0,64,0,Material.BARREL);w.put(0,64,1,Material.OAK_FENCE);w.loaded=false;assertFalse(CultivationStructure.valid(barrel));}
+ @Test void oldOwnedBarrelsRemainRecognizedWhenFenceIsMissing(){var w=new MachineFixture();var barrel=w.put(0,64,0,Material.BARREL);var access=new BukkitMachineAccess(w.plugin);var owner=w.player(UUID.randomUUID(),false);assertTrue(access.authorize(owner,barrel,Kind.CULTIVATION,true));assertFalse(CultivationStructure.valid(barrel));assertEquals(Kind.CULTIVATION,new BukkitMachineAccess(w.plugin).recognized(barrel));assertTrue(access.permitted(owner,barrel));}
+ @Test void rearFenceUsesOwnershipAndOccupiedProtection(){var w=new MachineFixture();var barrel=w.put(0,64,0,Material.BARREL);var fence=w.put(0,64,1,Material.OAK_FENCE);var access=new BukkitMachineAccess(w.plugin);var owner=w.player(UUID.randomUUID(),false);var stranger=w.player(UUID.randomUUID(),false);access.authorize(owner,barrel,Kind.CULTIVATION,true);var denied=new BlockBreakEvent(fence,stranger);access.onBreak(denied);assertTrue(denied.isCancelled());access.occupancy(Kind.CULTIVATION,b->true);var occupied=new BlockBreakEvent(fence,owner);access.onBreak(occupied);assertTrue(occupied.isCancelled());}
+}
