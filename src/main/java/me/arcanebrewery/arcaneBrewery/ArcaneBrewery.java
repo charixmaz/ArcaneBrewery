@@ -22,7 +22,7 @@ public final class ArcaneBrewery extends JavaPlugin {
     private BukkitMachineAccess machineAccess;
     private DistilleryMenuHandler extractors;
     private AgingCaskEngine casks;
-    private MethanolProducerEngine cleansers;
+    private RetiredProducerRecovery cleansers;
     private me.arcanebrewery.arcaneBrewery.adapter.bukkit.research.SpecialistMachines specialists;
     private me.arcanebrewery.arcaneBrewery.adapter.bukkit.discovery.MaterialDiscoveryListener materialDiscoveries;
     private ExecutorService materialWorker;
@@ -49,8 +49,6 @@ public final class ArcaneBrewery extends JavaPlugin {
         try {
             alchemySettings = AlchemyRuntimeSettings.from(getConfig());
             timing = ProcessingTimes.from(getConfig());
-            Object legacy=getConfig().get("consumption.legacy-alcohol-mechanics",false);
-            if (!(legacy instanceof Boolean)) throw new IllegalArgumentException("consumption.legacy-alcohol-mechanics must be true or false");
         } catch (RuntimeException failure) {
             getLogger().severe("ArcaneAlchemy configuration is invalid: " + failure.getMessage());
             getServer().getPluginManager().disablePlugin(this);
@@ -102,7 +100,7 @@ public final class ArcaneBrewery extends JavaPlugin {
         getServer().getScheduler().runTaskTimer(this, new ConsumptionRecoveryTask(consumption), 200L, 200L);
         getServer().getPluginManager().registerEvents(new me.arcanebrewery.arcaneBrewery.adapter.bukkit.PresentationRefreshListener(this,discoveryQueries),this);
 
-        cleansers=new MethanolProducerEngine(this);
+        cleansers=new RetiredProducerRecovery(this);
         getServer().getPluginManager().registerEvents(cleansers, this);
         // Structure validation and cask reboot now run through the shared access
         // boundary. Do not register the old broad sign-mutating/reboot listeners.

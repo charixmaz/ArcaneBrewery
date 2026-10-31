@@ -52,7 +52,7 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
     private final MachineInventoryStorage storage;
     private final MaturationInputPolicy inputPolicy;
     private final Map<Inventory,Session> sessions=new IdentityHashMap<>();
-    private final NamespacedKey slotTimeKey,recipeTypeKey;
+    private final NamespacedKey slotTimeKey;
     private boolean closed;
     private static final class Holder implements MachineGuiHolder {
         Inventory inventory; public Inventory getInventory() { return inventory; }
@@ -70,7 +70,7 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
         alchemy=new AlchemyEngine(items.registry());
         storage=new MachineInventoryStorage("arcanebrewery","barrel_inventory_storage",null);
         inputPolicy=new MaturationInputPolicy("arcanebrewery");
-        slotTimeKey=new NamespacedKey("arcanebrewery","slot_start_time"); recipeTypeKey=new NamespacedKey("arcanebrewery","brew_stage");
+        slotTimeKey=new NamespacedKey("arcanebrewery","slot_start_time");
         access.occupancy(Kind.CASK,core -> Arrays.stream(storage.load(core).items()).anyMatch(Objects::nonNull)
                 || core.getState() instanceof Barrel barrel && !barrel.getInventory().isEmpty());
     }
@@ -162,7 +162,7 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
             if (cursor==null || cursor.getType().isAir()) return;
             if (cursor.getType()!=Material.POTION || !(cursor.getItemMeta() instanceof PotionMeta meta)
                     || meta.getPersistentDataContainer().has(new NamespacedKey("arcanebrewery","drink_format"))) {
-                player.sendMessage(MessageConfig.prefix()+"§eInsert a cultivated base or a compatible legacy base.§r"); return;
+                player.sendMessage(MessageConfig.prefix()+"§eInsert a completed cultivated base.§r"); return;
             }
             var move=AlchemySlotTransfer.move(null,cursor,event.getClick()==ClickType.RIGHT,1);
             ItemStack inserted=move.slot();
@@ -177,7 +177,7 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
     }
     private void begin(PotionMeta meta,String wood) {
         var fermented=inputPolicy.completedSource(meta,System.currentTimeMillis());
-        if (fermented.isEmpty()) return; // Preserve legacy contract without inventing canonical recipes.
+        if (fermented.isEmpty()) throw new IllegalArgumentException("a completed cultivated base is required");
         if (fermented.get().status()!=FermentationBatchState.Status.COMPLETED) throw new IllegalArgumentException("cultivation is incomplete");
         preparationMetadata.read(meta); // Malformed additives never silently become absent.
         var qualityLots=new TreeMap<String,IngredientLot>();
@@ -195,7 +195,7 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
         ItemStack source=session.gui.getItem(slot);
         if (source.getAmount()!=1) { player.sendMessage(MessageConfig.prefix()+"§eThis legacy stacked lane is retained for administrator inspection.§r"); return; }
         PotionMeta meta=source.getItemMeta() instanceof PotionMeta potion?potion:null;
-        ItemStack output=source.clone(); AgingResult result=null; boolean mature=false; int legacyStars=-1;
+        ItemStack output=source.clone(); AgingResult result=null; boolean mature=false;
         byte[] privateEvidence=null;String productionKey=null;
         CaskHarvestMetadata.Checkpoint checkpoint=meta==null?null:harvestMetadata.read(meta).orElse(null);
         UUID producer=checkpoint==null?player.getUniqueId():checkpoint.producer();
@@ -232,12 +232,6 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
                 privateEvidence=source.serializeAsBytes();
                 if(privateEvidence.length>1048576) throw new IllegalArgumentException("batch evidence exceeds storage bound");
                 productionKey=state.batchId().toString();
-            } else if (inputPolicy.legacyEligible(meta) && meta.getPersistentDataContainer().has(slotTimeKey,PersistentDataType.LONG)) {
-                String stage=meta.getPersistentDataContainer().getOrDefault(recipeTypeKey,PersistentDataType.STRING,"");
-                if (BreweryData.RECIPES.containsKey(stage)) {
-                    legacyStars=CaskQualityEngine.calculateHarvestStars(plugin,source,CaskStructure.wood(session.core),session.core);
-                    output=legacyBottle(legacyStars);
-                }
             }
         }
         me.arcanebrewery.arcaneBrewery.adapter.bukkit.machine.ShiftTransfers.Plan delivery=null;
@@ -256,7 +250,6 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
             return;
         }
         deliver(player,session,slot,output,shift);
-        if (legacyStars>=1) CaskQualityEngine.incrementBatchCounter(plugin,session.core);
         player.sendMessage(MessageConfig.prefix()+(mature?"§aElixir matured and bottled.§r":"§eWithdrawn before full maturity; no recipe discovery is registered.§r"));
         if(mature && result!=null && result.simulation().quality().overallScore()==0)
             player.sendMessage(MessageConfig.prefix()+"§cThis batch is ruined; no discovery was registered.§r");
@@ -309,18 +302,11 @@ public final class AgingCaskEngine implements Listener, AutoCloseable {
         finalDrinkMetadata.write(meta,result,effect,value);
 
         if(mature && result.process().preparationMethod().equals("distillation-v2")) finalDrinkMetadata.producer(meta,producer,producerName,result.process());
-        meta.getPersistentDataContainer().set(new NamespacedKey("arcanebrewery","alcohol_stars"),PersistentDataType.INTEGER,qualityStars(result.simulation().quality().overallScore()));
         String name=mature?"Unnamed Elixir":MessageConfig.text("names.unfinished");
         if(mature)me.arcanebrewery.arcaneBrewery.adapter.bukkit.TastingNotes.capture(meta,harvestedAt^producer.getMostSignificantBits());
         meta.setDisplayName("§d§l"+name+"§r"); ElixirPresentation.refresh(meta,finalDrinkMetadata); item.setItemMeta(meta); return item;
     }
-    private ItemStack legacyBottle(int stars) {
-        var item=new ItemStack(Material.POTION); var meta=(PotionMeta)item.getItemMeta();
-        meta.setDisplayName("§d§lLegacy Elixir§r"); meta.setLore(List.of("§7Legacy Quality: §f"+stars+" stars§r","§7Compatibility batch; no canonical recipe discovery.§r"));
-        meta.getPersistentDataContainer().set(new NamespacedKey("arcanebrewery","alcohol_stars"),PersistentDataType.INTEGER,stars);
-        meta.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP); PresentationStyle.apply(meta); item.setItemMeta(meta); return item;
-    }
-    private int qualityStars(double value) { return value<20?0:value<40?1:value<55?2:value<70?3:value<82?4:value<94?5:6; }
+
     private void give(Player player,ItemStack item) { player.getInventory().addItem(item).values().forEach(left -> player.getWorld().dropItemNaturally(player.getLocation(),left)); }
     private ItemStack[] contents(Inventory gui) {
         var items=new ItemStack[9]; for (int slot:LANES) if (gui.getItem(slot)!=null) items[slot]=gui.getItem(slot).clone(); return items;

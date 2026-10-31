@@ -2,6 +2,8 @@
 
 ## Current entry points
 
+- [Mana conditions and retired systems](mana-conditions.md)
+
 - [ArcaneAlchemy upgrade, portable book and shared access](arcanealchemy-upgrade.md)
 
 - [Server-owner installation and updates](server-owner.md)
@@ -14,8 +16,6 @@
 
 The changelog takes precedence over older feature descriptions. In particular: the processor now uses Smooth Stone; old oxidized copper is accepted for compatibility. Specialist unlocks cost 50 levels each. Economy payouts, player-facing recipe sharing and active contamination were removed. Unreleased changes are explicitly marked in the changelog.
 
-## Historical design and implementation records
+## Current mana conditions
 
-`foundation-v*.md`, `v1.15-hardening.md`, `economy-api-integration.md`, `discovery-alchemy-phase1.md`, `brewing-gameplay-v2.md`, `fantasy-machines.md`, `brewing-codex.md`, `ingredient-relevance.md` and `washing-safety.md` preserve earlier decisions and fixes. They are retained so commits and past deployments remain understandable. They may describe superseded mechanics; consult current entry points first.
-
-No files were moved merely to change their appearance: existing documentation links remain valid.
+[Fantasy-only mana conditions and retired systems](mana-conditions.md) describes the current symptoms and upgrade behavior. Superseded foundation records have been removed from this checkout; previous revisions remain in Git history.

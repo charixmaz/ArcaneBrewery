@@ -51,3 +51,5 @@ Some older runtime classes remain in the root Java package. Package moves will b
 ## Upgrade from ArcaneBrewery
 
 Stop Paper and remove the old Brewery JAR before installing `ArcaneAlchemy-1.0-SNAPSHOT.jar`; never run both. On first startup the legacy `plugins/ArcaneBrewery` data folder is copied into `plugins/ArcaneAlchemy`, retaining the original as a recovery copy. Conflicting populated folders fail closed. Existing database names, item namespaces and permission nodes remain stable for compatibility. `/al` is the short command; `/arcanealchemy` is the full command. `/al guide` gives a reusable Codex book; the codex subcommand has been removed. See [upgrade and shared access](docs/arcanealchemy-upgrade.md).
+
+Current symptoms use mana load, Mana Overload and Mana Depletion. See [mana conditions and retired systems](docs/mana-conditions.md).

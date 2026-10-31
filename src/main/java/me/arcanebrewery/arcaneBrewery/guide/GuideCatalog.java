@@ -102,39 +102,8 @@ public final class GuideCatalog {
         lines.add((fire ? "6." : "5.") + " Mature in an Oak cask; choose a harvest time and record it.");
         lines.add("New batches use this server's current durations.");
         lines.add("Use a cask; compare harvest times to find your best batch.");
-        lines.add("Temporary saturation and deliberately dangerous reactions still apply.");
+        lines.add("Temporary mana load and deliberately dangerous reactions still apply.");
         return new Entry(icon, title, lines);
-    }
-    public List<Entry> legacyProfiles() {
-        Map<String, String> names = Map.ofEntries(
-            Map.entry("WORT_BEER", "Barley Essence"), Map.entry("WORT_MEAD", "Meadow Essence"),
-            Map.entry("WORT_GROG", "Sailor's Essence"), Map.entry("WORT_CIDER", "Orchard Essence"),
-            Map.entry("WORT_PIT_BEER", "Miner's Essence"), Map.entry("WORT_TONIC", "Wandering Tonic"),
-            Map.entry("WORT_CACTUS", "Badlands Essence"), Map.entry("WORT_MOONSHINE", "Marsh Essence"),
-            Map.entry("WORT_TODDY", "Snowpeak Essence"), Map.entry("WORT_GLAZED_MEAD", "Honeyglaze Essence"),
-            Map.entry("WORT_VODKA", "Glacial Essence"), Map.entry("PREMIUM_WORT_BEER", "Noble Grain Essence"),
-            Map.entry("WORT_TEQUILA", "Cactus Essence"), Map.entry("WORT_PUMPKIN", "Golden Pumpkin Essence"),
-            Map.entry("WORT_ABSINTHE", "Crimson Essence"), Map.entry("WORT_SAKI", "Bamboo Essence"),
-            Map.entry("WORT_SCHNAPPS", "Glowberry Essence"), Map.entry("WORT_SLIME", "Mire Essence"),
-            Map.entry("WORT_CHORUS", "Chorus Essence"), Map.entry("WORT_GIN", "Deepsea Essence"),
-            Map.entry("WORT_WHISKEY", "Netherfire Essence"), Map.entry("WORT_BLINK", "Ender's Blink Essence"),
-            Map.entry("WORT_GOLD", "Liquid Gold Essence"), Map.entry("WORT_BRANDY", "Dragonbreath Essence"),
-            Map.entry("WORT_WITHER", "Wither Essence"), Map.entry("WORT_RUM", "Monument Essence"),
-            Map.entry("WORT_AMETHYST", "Geode Essence"), Map.entry("WORT_DEBRIS", "Ancient Debris Essence"),
-            Map.entry("WORT_WARDEN", "Soul Echo Essence"), Map.entry("WORT_SHULKER", "Gravity Essence"));
-        return me.arcanebrewery.arcaneBrewery.BreweryData.RECIPES.entrySet().stream()
-                .sorted(Map.Entry.comparingByKey()).map(e -> entry(Material.POTION,
-                    names.getOrDefault(e.getKey(), "Compatibility Essence") + " (Legacy)",
-                    "Compatibility reference for older bottles only.",
-                    "Fantasy reference label; older item names are retained.",
-                    "Required wood: " + label(e.getValue().woodRequired.toLowerCase(Locale.ROOT)),
-                    "Legacy maturation timing must also be learned.",
-                    "Record actual harvest times and compare resulting quality.",
-                    "Wrong wood or overaging can ruin legacy quality.",
-                    "This is not a complete current ingredient-to-elixir recipe.",
-                    "The current extractor does not generate these legacy stages.",
-                    "Legacy outputs do not register procedural discoveries."))
-                .toList();
     }
     public List<Entry> knowledge() {
         return List.of(
@@ -170,7 +139,7 @@ public final class GuideCatalog {
             entry(Material.TRIPWIRE_HOOK,"Privacy and Safety","Short IDs resolve across your complete accessible catalog; ambiguous prefixes fail.",
                 "Historical grants remain permission checked. Public names are not process permission.",
                 "Owner-only machines, one active viewer. Automation blocked only for recognized machines.",
-                "Saturation and dangerous alchemy still apply. First-60-second withdrawals remain poisonous.",
+                "Mana load and dangerous alchemy still apply. First-60-second withdrawals remain poisonous.",
                 "The 30 legacy profiles remain compatibility references, separate from new discoveries."));
     }
     public static String label(String id) {

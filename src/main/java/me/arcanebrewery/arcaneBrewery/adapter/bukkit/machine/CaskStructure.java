@@ -1,6 +1,5 @@
 package me.arcanebrewery.arcaneBrewery.adapter.bukkit.machine;
 
-import me.arcanebrewery.arcaneBrewery.BreweryData;
 import org.bukkit.Material;
 import org.bukkit.block.*;
 import org.bukkit.block.sign.Side;
@@ -32,7 +31,7 @@ public final class CaskStructure {
             String name = block.getType().name();
             boolean component = name.endsWith("_STAIRS") || name.endsWith("_SLAB") || name.endsWith("_PLANKS") || name.contains("_LOG");
             if (component) {
-                String species = BreweryData.getWoodFromBlock(block.getType()).replaceFirst("^STRIPPED_", "");
+                String species = name.replace("_STAIRS", "").replace("_SLAB", "").replace("_PLANKS", "").replace("_LOG", "").replace("_WOOD", "").replaceFirst("^STRIPPED_", "");
                 if (java.util.Set.of("OAK", "SPRUCE", "BIRCH", "JUNGLE", "ACACIA", "DARK_OAK",
                         "MANGROVE", "CHERRY", "PALE_OAK", "BAMBOO", "CRIMSON", "WARPED").contains(species))
                     counts.merge(species, 1, Integer::sum);

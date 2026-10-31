@@ -47,11 +47,11 @@ not a successful Paper startup test.
 9. Change durations and restart with active batches. Old batches must retain their
    timing; new ones must use the new configuration. Test invalid values on a
    backed-up disposable instance.
-10. Use existing bottles and legacy player state. Confirm fantasy saturation and
-    recovery, contamination hazards, one alchemy reaction per use, no default
-    dependence/tolerance/withdrawal growth and no removal of unrelated effects.
-    Test Cleansing Solution using the existing cask control/legacy producer path.
+10. Use existing bottles and saved player state. Confirm Mana Charged, Mana Overload,
+    Mana Depletion and offline recovery. Ensure unrelated potion effects remain intact.
+    Withdraw unsupported old cask inputs unchanged. As an administrator, recover old
+    producer contents; verify that insertion and conversion are disabled.
 
 Record console exceptions, exact player actions and item counts. Test abrupt
 termination separately from graceful restart, with backups. See
-[compatibility and configuration details](fantasy-machines.md).
+[current conditions and upgrade details](mana-conditions.md).

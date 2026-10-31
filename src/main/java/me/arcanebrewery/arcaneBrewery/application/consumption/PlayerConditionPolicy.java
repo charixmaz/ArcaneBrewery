@@ -1,44 +1,30 @@
 package me.arcanebrewery.arcaneBrewery.application.consumption;
 
-/** Fantasy policy is deliberately separate from the opt-in legacy progression. */
+/** Deterministic mana exposure and recovery; no alternate consumption mode. */
 public final class PlayerConditionPolicy {
-    private final boolean legacy;
-    private final RecoveryLifecycle historical = new RecoveryLifecycle();
-    public PlayerConditionPolicy(boolean legacy) { this.legacy = legacy; }
-    public boolean legacyEnabled() { return legacy; }
 
     public RecoveryCondition recover(RecoveryCondition current, long now) {
-        if (legacy) return historical.recover(current, now);
         if (now < 0) throw new IllegalArgumentException("invalid recovery time");
         double minutes = current.updatedAtEpochMillis() == 0 ? 0
                 : Math.max(0, now - current.updatedAtEpochMillis()) / 60_000.0;
-        var state = new IntoxicationState(clamp(current.state().intoxication() - minutes * 4),
-                0, clamp(current.state().poisoning() - minutes * 2), 0, now);
-        return new RecoveryCondition(state, clamp(current.hangover() - minutes * 2), 0, now);
+        var state = new ManaState(clamp(current.state().load() - minutes * 4), clamp(current.state().hazard() - minutes * 2), now);
+        return new RecoveryCondition(state, clamp(current.depletion() - minutes * 2), now);
     }
     public RecoveryCondition consume(RecoveryCondition current, DrinkConsumptionProfile elixir, long now) {
-        if (legacy) return historical.afterDrink(current,new DrinkConsumptionProfile(elixir.strength(),elixir.quality(),0,elixir.magicalPotency()),now);
         var recovered = recover(current, now);
-        double saturation = clamp(recovered.state().intoxication()
+        double saturation = clamp(recovered.state().load()
                 + elixir.strength() * 0.42 * (0.85 + elixir.quality() * 0.003)
                 + elixir.magicalPotency() * 0.10);
         double contamination = 0;
-        double recovery = saturation >= 70 ? Math.max(recovered.hangover(), (saturation - 50) * 1.2) : recovered.hangover();
-        return new RecoveryCondition(new IntoxicationState(saturation,0,contamination,0,now),clamp(recovery),0,now);
+        double recovery = saturation >= 70 ? Math.max(recovered.depletion(), (saturation - 50) * 1.2) : recovered.depletion();
+        return new RecoveryCondition(new ManaState(saturation,contamination,now),clamp(recovery),now);
     }
     public String displayStatus(RecoveryCondition condition) {
-        if (legacy) return readable(historical.status(condition).name());
 
-        if (condition.state().intoxication() >= 70) return "Magical Overload";
-        if (condition.hangover() >= 25) return "Arcane Recovery";
-        if (condition.state().intoxication() >= 12) return "Arcane Saturation";
+        if (condition.state().load() >= 70) return "Mana Overload";
+        if (condition.depletion() >= 25) return "Mana Depletion";
+        if (condition.state().load() >= 12) return "Mana Charged";
         return "Clear";
-    }
-    public static RecoveryCondition importLegacy(RecoveryCondition old) {
-        // Import temporary exposure only. Do not revive dependence, withdrawal,
-        // tolerance or hangover, and do not erase the original persisted fields.
-        return new RecoveryCondition(new IntoxicationState(old.state().intoxication(),0,
-                old.state().poisoning(),0,old.updatedAtEpochMillis()),0,0,old.updatedAtEpochMillis());
     }
     public static String readable(String value) {
         return java.util.Arrays.stream(value.toLowerCase(java.util.Locale.ROOT).split("[_: ]+"))
