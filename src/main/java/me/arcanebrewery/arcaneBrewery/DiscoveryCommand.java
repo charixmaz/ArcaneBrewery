@@ -228,13 +228,8 @@ public final class DiscoveryCommand implements CommandExecutor, TabCompleter {
         var state = condition.state();
         player.sendMessage("§d§lArcaneAlchemy Status");
         player.sendMessage("§7State: §f" + consumption.status(condition));
-        player.sendMessage("§7"+(consumption.legacyEnabled()?"Intoxication":"Arcane Saturation")+": §b" + Math.round(state.intoxication()) + "/100§r");
-        player.sendMessage("§7Recovery: §f" + Math.round(condition.hangover()) + "/100§r");
-        if (consumption.legacyEnabled()) {
-            player.sendMessage("§7Legacy Tolerance: §f"+Math.round(state.tolerance())+"/100§r");
-            player.sendMessage("§7Legacy Dependence: §f"+Math.round(state.dependence())+"/100§r");
-            player.sendMessage("§7Legacy Withdrawal: §f"+Math.round(condition.withdrawal())+"/100§r");
-        }
+        player.sendMessage("§7Mana Load: §b" + Math.round(state.load()) + "/100§r");
+        player.sendMessage("§7Mana Depletion: §f" + Math.round(condition.depletion()) + "/100§r");
     }
 
     private void help(Player player) {

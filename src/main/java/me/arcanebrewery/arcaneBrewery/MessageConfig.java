@@ -30,16 +30,16 @@ public class MessageConfig {
         if (!config.contains(path)) config.set(path, val);
     }
 
-    private static final Map<String,String> OLD = Map.of(
-            "prefix","§d§l§o[Arcane] §f§o",
-            "structure_broken","⚠ Warning: Structural integrity compromised. Machine offline.",
-            "distillery_wash_first","Pipeline stalled! Raw elements clog the boiler. You must wash the ingredient first!",
-            "distillery_needs_catalyst","Critical error! Refining Ethanol Wort requires a Golden Apple catalyst.",
-            "distillery_success","✔ Condensation line cycle completed successfully.",
-            "producer_reject","Lane Rejected! This factory only accepts boiled REFINED INDUSTRIAL ALCOHOL.",
-            "producer_reject_potion","Lane Rejected! This machine only accepts potion compounds.",
-            "producer_incomplete","Processing incomplete! Fluid condensation lines are still running.",
-            "producer_success","✔ Successfully collected 1x bottle of pure Industrial Methanol Fluid.");
+    private static final Map<String,String> STOCK_MESSAGE_HASHES = Map.ofEntries(
+            Map.entry("prefix","2d71ee593b0727f296b951d5433b0383f4bf07de7185e9a94c393ce718cb5af2"),
+            Map.entry("structure_broken","88375a026dc95009e01852a008db948cf32bacc8d00d2fa8c549884a2d7862b6"),
+            Map.entry("distillery_wash_first","2eff9d0b0a294fa54b4292e4928f02a71d4cad241ae9c3f48898269af5c319d8"),
+            Map.entry("distillery_needs_catalyst","0c335c589ef3feb8a4f7dfdb7ff62268bd63817b5977506fd4c6504fbb6b9e85"),
+            Map.entry("distillery_success","aaa676097a212feac279feca1416b07457a1e45d008b5e61a51f411e54d86340"),
+            Map.entry("producer_reject","c9720252e82e0537a627aad9ae56f3ac78ddb6c49d7fc21778b41c79fbf134a5"),
+            Map.entry("producer_reject_potion","5006ce81b47ccec68ee2e5524c75e933fa1236a69ed9f0952eee2b83d61b855a"),
+            Map.entry("producer_incomplete","d815bf32dbe607382b780c5b2b55724136110beaf39ec1626d65c56763e9bb8c"),
+            Map.entry("producer_success","134c5c6b3058f411f3cd8c9368c77f86c5d2ea034a8a4d87406a2ead3df684ec"));
     private static final Map<String,String> DEFAULTS = Map.ofEntries(
             Map.entry("prefix","§d§l[ArcaneAlchemy]§r §f"),
             Map.entry("structure_broken","§eStructure incomplete. Contents and progress are retained.§r"),
@@ -64,9 +64,16 @@ public class MessageConfig {
     public static void migrate(FileConfiguration target) {
         if (target.getInt("messages-version",0)>2) throw new IllegalStateException("messages.yml uses a newer messages-version; file left unchanged");
         DEFAULTS.forEach((key,value) -> {
-            if (!target.contains(key) || java.util.Objects.equals(target.getString(key),OLD.get(key))) target.set(key,value);
+            if (!target.contains(key) || isHistoricStock(key,target.getString(key))) target.set(key,value);
         });
         target.set("messages-version",2);
+    }
+    private static boolean isHistoricStock(String key,String value) {
+        if(value==null) return false;
+        try {
+            String digest=java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(value.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+            return digest.equals(STOCK_MESSAGE_HASHES.get(key));
+        } catch(java.security.NoSuchAlgorithmException impossible) { throw new IllegalStateException(impossible); }
     }
     public static String text(String path) {
         return config == null ? DEFAULTS.getOrDefault(path,path) : config.getString(path,DEFAULTS.getOrDefault(path,path));

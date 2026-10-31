@@ -1,7 +1,7 @@
 package me.arcanebrewery.arcaneBrewery;
 
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.aging.FinalDrinkMetadata;
-import me.arcanebrewery.arcaneBrewery.adapter.bukkit.consumption.PlayerIntoxicationMetadata;
+import me.arcanebrewery.arcaneBrewery.adapter.bukkit.consumption.PlayerManaMetadata;
 import me.arcanebrewery.arcaneBrewery.application.alchemy.*;
 import me.arcanebrewery.arcaneBrewery.application.consumption.*;
 import org.bukkit.Material;
@@ -20,14 +20,14 @@ import org.bukkit.plugin.java.JavaPlugin;
 public final class ConsumptionListener implements Listener {
     private final JavaPlugin plugin;
     private final FinalDrinkMetadata drinks;
-    private final PlayerIntoxicationMetadata players;
+    private final PlayerManaMetadata players;
     private final PlayerConditionPolicy policy;
 
     public ConsumptionListener(JavaPlugin plugin) {
         this.plugin = plugin;
         this.drinks = new FinalDrinkMetadata(plugin);
-        this.players = new PlayerIntoxicationMetadata(plugin);
-        this.policy = new PlayerConditionPolicy(plugin.getConfig().getBoolean("consumption.legacy-alcohol-mechanics",false));
+        this.players = new PlayerManaMetadata(plugin);
+        this.policy = new PlayerConditionPolicy();
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -41,7 +41,7 @@ public final class ConsumptionListener implements Listener {
         try {
             String legacyStage=meta.getPersistentDataContainer().get(new org.bukkit.NamespacedKey("arcanebrewery","brew_stage"),org.bukkit.persistence.PersistentDataType.STRING);
             if ("INDUSTRIAL_METHANOL".equals(legacyStage)) {
-                event.setCancelled(true); event.getPlayer().sendMessage(MessageConfig.prefix()+"§eCleansing Solution is a machine input, not an elixir.§r"); return;
+                event.setCancelled(true); event.getPlayer().sendMessage(MessageConfig.prefix()+"§eThis retired solution cannot be consumed.§r"); return;
             }
             profile=drinks.readConsumption(meta);
             if (profile.isEmpty()) {
@@ -78,9 +78,9 @@ public final class ConsumptionListener implements Listener {
             player.sendMessage(MessageConfig.prefix()+"§cThis prematurely withdrawn batch is poisonous.§r");
         } else reaction.ifPresent(alchemy -> applyAlchemy(player, alchemy));
 
-        player.sendMessage(MessageConfig.prefix() + (policy.legacyEnabled() ? "§7Intoxication: §f" : "§7Arcane Saturation: §b")
-                + Math.round(next.state().intoxication()) + "/100 §7| Contamination Hazard: §f"
-                + Math.round(next.state().poisoning()) + "/100§r");
+        player.sendMessage(MessageConfig.prefix() + "§7Mana Load: §b"
+                + Math.round(next.state().load()) + "/100 §7| Contamination Hazard: §f"
+                + Math.round(next.state().hazard()) + "/100§r");
     }
 
     private void applyAlchemy(Player player, AlchemyResult alchemy) {
@@ -161,64 +161,26 @@ public final class ConsumptionListener implements Listener {
     public String status(RecoveryCondition condition) {
         return policy.displayStatus(condition);
     }
-    public boolean legacyEnabled() { return policy.legacyEnabled(); }
-    private RecoveryCondition read(Player player) { return policy.legacyEnabled() ? players.read(player) : players.readFantasy(player); }
+    private RecoveryCondition read(Player player) { return players.read(player); }
     private void write(Player player, RecoveryCondition condition) {
-        if (policy.legacyEnabled()) players.write(player,condition); else players.writeFantasy(player,condition);
+        players.write(player,condition);
     }
 
     private void applyStatus(Player player, RecoveryCondition condition, boolean announce) {applyStatus(player,condition,announce,player::addPotionEffect);}
     private void applyStatus(Player player,RecoveryCondition condition,boolean announce,java.util.function.Consumer<PotionEffect> sink) {
-        if (!policy.legacyEnabled()) {
+        {
             // Never remove effects: the same types may belong to another plugin
             // or to a legitimate elixir reaction. Our short symptoms expire.
-            if (condition.state().intoxication() >= 70) {
+            if (condition.state().load() >= 70) {
                 sink.accept(new PotionEffect(PotionEffectType.SLOWNESS, 8 * 20, 0,false,false,true));
                 sink.accept(new PotionEffect(PotionEffectType.WEAKNESS, 8 * 20, 0,false,false,true));
-            } else if (condition.hangover() >= 25) {
+            } else if (condition.depletion() >= 25) {
                 sink.accept(new PotionEffect(PotionEffectType.WEAKNESS, 8 * 20, 0,false,false,true));
             }
 
-            return;
-        }
-        RecoveryLifecycle.Status status = new RecoveryLifecycle().status(condition);
-        int shortDuration = 12 * 20;
-
-        switch (status) {
-            case CLEAR -> { }
-            case BUZZED -> sink.accept(new PotionEffect(PotionEffectType.NAUSEA, 6 * 20, 0, false, false, true));
-            case DRUNK -> {
-                sink.accept(new PotionEffect(PotionEffectType.NAUSEA, shortDuration, 0, false, false, true));
-                sink.accept(new PotionEffect(PotionEffectType.SLOWNESS, shortDuration, 0, false, false, true));
-            }
-            case HANGOVER -> {
-                sink.accept(new PotionEffect(PotionEffectType.SLOWNESS, shortDuration, 0, false, false, true));
-                sink.accept(new PotionEffect(PotionEffectType.MINING_FATIGUE, shortDuration, 0, false, false, true));
-            }
-            case SEVERE_HANGOVER -> {
-                sink.accept(new PotionEffect(PotionEffectType.SLOWNESS, shortDuration, 1, false, false, true));
-                sink.accept(new PotionEffect(PotionEffectType.MINING_FATIGUE, shortDuration, 1, false, false, true));
-                sink.accept(new PotionEffect(PotionEffectType.NAUSEA, shortDuration, 0, false, false, true));
-            }
-            case WITHDRAWAL -> {
-                sink.accept(new PotionEffect(PotionEffectType.WEAKNESS, shortDuration, 0, false, false, true));
-                sink.accept(new PotionEffect(PotionEffectType.NAUSEA, 6 * 20, 0, false, false, true));
-            }
-            case SEVERE_WITHDRAWAL -> {
-                sink.accept(new PotionEffect(PotionEffectType.WEAKNESS, shortDuration, 1, false, false, true));
-                sink.accept(new PotionEffect(PotionEffectType.NAUSEA, shortDuration, 1, false, false, true));
-                sink.accept(new PotionEffect(PotionEffectType.SLOWNESS, shortDuration, 0, false, false, true));
-            }
+            if (announce && condition.state().load() >= 70) player.sendMessage(MessageConfig.prefix()+"§cMana overload symptoms are active.§r");
+            else if (announce && condition.depletion() >= 25) player.sendMessage(MessageConfig.prefix()+"§eMana depletion symptoms are active.§r");
         }
 
-
-
-        if (!announce) return;
-        if (condition.hangover() >= 25) {
-            player.sendMessage("§7[ArcaneAlchemy] Hangover symptoms are active.");
-        }
-        if (condition.withdrawal() >= 25) {
-            player.sendMessage("§c[ArcaneAlchemy] Withdrawal symptoms are active.");
-        }
     }
 }

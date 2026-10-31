@@ -71,7 +71,7 @@ public final class BrewingGuide implements Listener {
             entries.add(new GuideCatalog.Entry(Material.POTION,"Batch Summary",summary));
             entries.add(new GuideCatalog.Entry(Material.WRITABLE_BOOK,"Quality Breakdown",data.qualityBreakdown(meta)));
             List<String> effects=new ArrayList<>(List.of("Arcane load: "+Math.round(q.strength())+"/100",
-                "Higher load increases temporary saturation.","Magical potency: "+Math.round(q.magicalPotency())+"/100",
+                "Higher load increases temporary mana load.","Magical potency: "+Math.round(q.magicalPotency())+"/100",
                 "Historical statistics retained"));
             data.readEffects(meta).ifPresent(p->effects.addAll(p.summary()));
             if(data.readEffects(meta).isEmpty()) data.readAlchemy(meta).ifPresent(a->{ effects.add("Effect: "+me.arcanebrewery.arcaneBrewery.application.consumption.PlayerConditionPolicy.readable(a.effect().name()));
@@ -97,8 +97,6 @@ public final class BrewingGuide implements Listener {
                 p -> discoveries(p, true, 0));
         button(view, 32, Material.KNOWLEDGE_BOOK, "Brewing Knowledge", List.of("Names, discovery, quality and magical conditions."),
                 p -> entries(p, "Brewing Knowledge", catalog.knowledge(), 0));
-        button(view, 40, Material.CHEST, "Legacy Compatibility Profiles", List.of("Older predefined profiles; not current starter recipes."),
-                p -> entries(p,"Legacy Compatibility",List.of(new GuideCatalog.Entry(Material.CHEST,"Historical Bottles",List.of("The 30 legacy profiles remain compatible.","Hold an old bottle and use /al inspect.","This page does not reveal locked materials or private recipes."))),0));
         player.openInventory(view.inventory);
     }
     private void machines(Player player) {

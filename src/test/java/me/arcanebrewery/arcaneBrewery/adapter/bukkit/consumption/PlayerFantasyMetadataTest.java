@@ -16,22 +16,24 @@ class PlayerFantasyMetadataTest {
             if (m.getName().equals("getPersistentDataContainer")) return data;
             throw new UnsupportedOperationException(m.getName());
         });
-        var storage=new PlayerIntoxicationMetadata("arcanebrewery");
-        var historical=new RecoveryCondition(new IntoxicationState(55,85,20,95,1000),90,80,1000);
-        storage.write(player,historical);
-        var imported=storage.readFantasy(player); assertEquals(0,imported.state().tolerance()); assertEquals(0,imported.withdrawal()); assertEquals(0,imported.hangover());
-        var updated=new PlayerConditionPolicy(false).recover(imported,61_000);
-        storage.writeFantasy(player,updated);
-        assertEquals(historical,storage.read(player));
-        assertEquals(updated,new PlayerIntoxicationMetadata("arcanebrewery").readFantasy(player));
+        var storage=new PlayerManaMetadata("arcanebrewery");
+        data.set(new NamespacedKey("arcanebrewery","player_intoxication"),PersistentDataType.DOUBLE,55.0);
+        data.set(new NamespacedKey("arcanebrewery","player_intox_updated"),PersistentDataType.LONG,1000L);
+        data.set(new NamespacedKey("arcanebrewery","player_dependence"),PersistentDataType.DOUBLE,95.0);
+        data.set(new NamespacedKey("arcanebrewery","player_hangover"),PersistentDataType.DOUBLE,90.0);
+        var imported=storage.read(player); assertEquals(55,imported.state().load()); assertEquals(0,imported.depletion());
+        var updated=new PlayerConditionPolicy().recover(imported,61_000);
+        storage.write(player,updated);
+        assertEquals(updated,new PlayerManaMetadata("arcanebrewery").read(player));
         assertEquals(95,data.get(new NamespacedKey("arcanebrewery","player_dependence"),PersistentDataType.DOUBLE));
+        assertEquals(90,data.get(new NamespacedKey("arcanebrewery","player_hangover"),PersistentDataType.DOUBLE));
     }
     @Test void malformedLegacyNumbersAreSafelyBoundedWithoutErasingRawData() {
         var data=TestItems.stack(org.bukkit.Material.PAPER,1).getItemMeta().getPersistentDataContainer();
         Player player=(Player)Proxy.newProxyInstance(Player.class.getClassLoader(),new Class<?>[]{Player.class},(p,m,a) -> data);
         var key=new NamespacedKey("arcanebrewery","player_intoxication"); data.set(key,PersistentDataType.DOUBLE,Double.NaN);
-        var storage=new PlayerIntoxicationMetadata("arcanebrewery");
-        assertEquals(0,storage.readFantasy(player).state().intoxication());
+        var storage=new PlayerManaMetadata("arcanebrewery");
+        assertEquals(0,storage.read(player).state().load());
         assertTrue(Double.isNaN(data.get(key,PersistentDataType.DOUBLE)));
     }
 }

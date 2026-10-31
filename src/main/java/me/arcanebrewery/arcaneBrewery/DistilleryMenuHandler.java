@@ -169,29 +169,26 @@ public final class DistilleryMenuHandler implements Listener, AutoCloseable {
             }
         }
         if (ingredient==null || !bottle) { player.sendMessage(MessageConfig.prefix()+"§eSupply bottles in slots 1–3 and washed ingredients in slots 5–6.§r");return; }
-        boolean legacy=legacyRefinement(session.gui);
-        if (IngredientPurityEngine.getPurity(plugin,ingredient)==0 && !legacy) {
+        if (IngredientPurityEngine.getPurity(plugin,ingredient)==0) {
             player.sendMessage(MessageConfig.get("distillery_wash_first")); return;
         }
-        if (legacy && (ingredient.getType()!=Material.GOLDEN_APPLE || session.gui.getItem(5)!=null)) {
-            player.sendMessage(MessageConfig.get("distillery_needs_catalyst")); return;
-        }
+
         try {
             for(int input:new int[]{4,5}) {
                 var stack=session.gui.getItem(input);
-                if(stack!=null && !legacy && stack.getAmount()>8) throw new IllegalArgumentException("mixing slot maximum is 8; split this retained stack first");
-                if(stack!=null && IngredientPurityEngine.getPurity(plugin,stack)==0 && !legacy) throw new IllegalArgumentException("wash first");
+                if(stack!=null && stack.getAmount()>8) throw new IllegalArgumentException("mixing slot maximum is 8; split this retained stack first");
+                if(stack!=null && IngredientPurityEngine.getPurity(plugin,stack)==0) throw new IllegalArgumentException("wash first");
             }
             var extracted=ingredients.extract(session.gui,4,5);
             if(!extracted.containers().isEmpty() || !extracted.baseLiquids().isEmpty()) throw new IllegalArgumentException("Only ingredients in mixing slots");
             double heads=session.cuts==1?2:session.cuts==2?15:10;
             var controls=new DistillationControls(session.temperature,heads,100-2*heads,heads,1);
             var draft=DistilleryProcessDraft.from(extracted,controls);
-            draft=new DistilleryProcessDraft(draft.ingredientRatios(),draft.ingredientPurity(),legacy?"distillation":"distillation-v2",controls);
+            draft=new DistilleryProcessDraft(draft.ingredientRatios(),draft.ingredientPurity(),"distillation-v2",controls);
             var state=new DistilleryBatchState(DistilleryBatchState.VERSION,UUID.randomUUID(),key(session.core),draft,
                 System.currentTimeMillis(),timing.extractionMillis(),DistilleryBatchState.Status.PROCESSING);
-            session.effectGeneration=legacy?0:2;
-            session.qualityGeneration=legacy?2:3;
+            session.effectGeneration=2;
+            session.qualityGeneration=3;
             commit(session,contents(session.gui),state);
             if(plugin instanceof ArcaneBrewery brewery)brewery.reconcileMaterialInputs(player,new ItemStack[]{session.gui.getItem(4),session.gui.getItem(5)});
             schedule(session);
@@ -199,14 +196,7 @@ public final class DistilleryMenuHandler implements Listener, AutoCloseable {
             player.sendMessage(MessageConfig.prefix()+"§eThis ingredient is not supported by the extractor.§r");
         }
     }
-    private boolean legacyRefinement(Inventory inv) {
-        for (int slot:new int[]{0,1,2}) {
-            ItemStack item=inv.getItem(slot);
-            if (item!=null && item.getItemMeta() instanceof PotionMeta meta && metadata.stage(meta).isBlank()
-                    && "WORT_ETHANOL".equals(meta.getPersistentDataContainer().get(new NamespacedKey("arcanebrewery","brew_stage"),PersistentDataType.STRING))) return true;
-        }
-        return false;
-    }
+
     private void recover(Session session) {
         if (!session.processing() || !DistilleryStructureScanner.isValidDistillery(session.core)) return;
         if (session.state.ready(System.currentTimeMillis())) complete(session); else schedule(session);
@@ -233,21 +223,16 @@ public final class DistilleryMenuHandler implements Listener, AutoCloseable {
         current=new DistilleryProcessDraft(current.ingredientRatios(),current.ingredientPurity(),session.state.draft().preparationMethod(),current.controls());
         if (!current.equals(session.state.draft())) throw new IllegalStateException("locked ingredient changed");
         var completed=session.state.complete(System.currentTimeMillis());
-        boolean legacy=legacyRefinement(session.gui);
         for (int slot:new int[]{0,1,2}) {
             ItemStack item=next[slot]; if (item==null) continue;
             if (!bottleInput(item) || item.getAmount()!=1) throw new IllegalStateException("invalid locked bottle");
             item.setType(Material.POTION); PotionMeta meta=(PotionMeta)item.getItemMeta();
             if (meta==null) throw new IllegalStateException("potion meta unavailable");
-            if (legacy) {
-                meta.setDisplayName("§d§lRefined Catalyst Base§r");
-                meta.setLore(List.of("§7For the Cleansing Solution producer.§r"));
-                meta.getPersistentDataContainer().set(new NamespacedKey("arcanebrewery","brew_stage"),PersistentDataType.STRING,"REFINED_INDUSTRIAL_ALCOHOL");
-            } else {
+            {
                 metadata.write(meta,completed,"DISTILLED_BASE");
                 me.arcanebrewery.arcaneBrewery.adapter.bukkit.QualityPolicyMetadata.write(meta,session.qualityGeneration);
                 if(session.effectGeneration>0)new me.arcanebrewery.arcaneBrewery.adapter.bukkit.alchemy.EffectProfileMetadata("arcanebrewery").markGeneration(meta,session.effectGeneration);
-                meta.getPersistentDataContainer().set(new NamespacedKey("arcanebrewery","brew_stage"),PersistentDataType.STRING,new LegacyWortBridge().stageFor(completed.draft()));
+                meta.getPersistentDataContainer().set(new NamespacedKey("arcanebrewery","brew_stage"),PersistentDataType.STRING,"REFINED_BASE");
                 double purity=completed.draft().ingredientPurity().entrySet().stream()
                         .mapToDouble(e -> completed.draft().ingredientRatios().get(e.getKey())*e.getValue()).sum();
                 meta.getPersistentDataContainer().set(new NamespacedKey("arcanebrewery","ingredient_purity"),PersistentDataType.INTEGER,(int)Math.round(purity));

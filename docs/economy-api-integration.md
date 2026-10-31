@@ -166,7 +166,7 @@ tree to the API tree (their old paths are listed as removals).
 - `arcane-economy/src/main/java/me/arcanebrewery/arcaneeconomy/storage/SqliteLedger.java`
 - `arcane-economy/src/test/java/me/arcanebrewery/arcaneeconomy/storage/SqliteLedgerTest.java`
 - `docs/economy-api-integration.md`
-- `docs/foundation-v1.19.md`
+- Historical foundation details remain in Git history.
 - `pom.xml`
 - `scripts/verify-economy-packaging.py`
 - `src/main/java/me/arcanebrewery/arcaneBrewery/adapter/bukkit/economy/ArcaneEconomyAdapter.java`

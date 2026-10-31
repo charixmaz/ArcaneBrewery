@@ -77,14 +77,14 @@ public final class PresentationRefreshListener implements Listener {
                     meta.setLore(List.of("§7Insert in a Cultivation Barrel; sneak-click for controls.§r")); changed=true;
                 } else if (stage.equals("INDUSTRIAL_METHANOL")) {
                     meta.setDisplayName(MessageConfig.title("cleanser"));
-                    meta.setLore(List.of("§7For the existing cask cleaning control.§r","§cUnsafe solution: do not consume.§r")); changed=true;
+                    meta.setLore(List.of("§7Retired solution; no current processing use.§r","§cUnsafe solution: do not consume.§r")); changed=true;
                 } else if (stage.equals("REFINED_INDUSTRIAL_ALCOHOL")) {
                     meta.setDisplayName("§d§lRefined Catalyst Base§r");
-                    meta.setLore(List.of("§7For the Cleansing Solution producer.§r")); changed=true;
+                    meta.setLore(List.of("§7Retired base; no current processing use.§r")); changed=true;
                 } else if ((stage.startsWith("WORT_") || stage.startsWith("PREMIUM_WORT_"))
                         && meta.hasDisplayName() && ChatColor.stripColor(meta.getDisplayName()).startsWith("Unfermented")) {
                     meta.setDisplayName("§d§lLegacy Brewing Base§r");
-                    meta.setLore(List.of("§7Compatible legacy base; process metadata retained.§r")); changed=true;
+                    meta.setLore(List.of("§7Retired base; withdraw from old storage.§r")); changed=true;
                 }
             }
             if (changed) { meta.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP); PresentationStyle.apply(meta); item.setItemMeta(meta); }

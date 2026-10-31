@@ -18,6 +18,11 @@ def verify(root: Path) -> None:
         b"MarketSettlementService",
         b"MarketSettlementRuntime",
         b"EconomyPort",
+        b"IntoxicationModel",
+        b"RecoveryLifecycle",
+        b"LegacyWortBridge",
+        b"CaskQualityEngine",
+        b"DistilleryProcessTask",
     )
     with ZipFile(jars[0]) as jar:
         for name in jar.namelist():

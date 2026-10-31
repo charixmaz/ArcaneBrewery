@@ -7,6 +7,12 @@ import java.util.*;
 
 /** Presentation is never parsed as identity. Only our recorded lore block is replaced. */
 public final class IngredientPresentation {
+    private static boolean historicPremiumLore(String line) {
+        try {
+            var hash=java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(line.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+            return java.util.Set.of("ae95c8e1f1b4f3e8ffe3625b178b9a079f0c8d9077c473f4c215d18b8aa518e2","78be393739b669bc1416855aec24be51d294c2d8673b131f8f875376eb21f2fd","9babb41ec73069b0c5776ab49d1de94ddb942dcce79680ce14d8f3aba6fc382c").contains(hash);
+        } catch(java.security.NoSuchAlgorithmException impossible) { throw new IllegalStateException(impossible); }
+    }
     private final IngredientMetadataCodec metadata;
     public IngredientPresentation(IngredientMetadataCodec metadata) { this.metadata = Objects.requireNonNull(metadata); }
 
@@ -17,10 +23,7 @@ public final class IngredientPresentation {
         String oldBlock = meta.getPersistentDataContainer().get(key, PersistentDataType.STRING);
         if (oldBlock != null) removeBlock(lore, Arrays.asList(oldBlock.split("\\n", -1)));
         else { removeBlock(lore, washedLines(previousPurity)); removeBlock(lore,legacyWashedLines(previousPurity)); }
-        if (definition.premium()) removeBlock(lore, List.of(
-                "§7A heavy, shimmering grain highly valued by brewmasters.",
-                "§7Required to ferment §a4-Star §7to §e5-Star §7beverages.",
-                "§dHas a volatile 1% chance to yield legendary 6-Star Mythic alcohol!")); // Old stock lore, removal only.
+        if (definition.premium()) lore.removeIf(line -> historicPremiumLore(line));
         var block = new ArrayList<String>();
         block.add("§7Ingredient: §f" + definition.displayName());
         block.addAll(washedLines(ingredient.purity()));

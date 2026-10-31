@@ -1,5 +1,13 @@
 # Changelog
 
+## Fantasy-only mana cleanup
+
+- Changes: removed the alternate consumption mode; renamed conditions to Mana Charged, Mana Overload and Mana Depletion.
+- Removals: obsolete predefined recipes, recipe bridge, random-star scoring, unused process/hygiene engines, old Codex page and superseded foundation documentation.
+- Compatibility: preserved canonical process generations, metadata keys and player data; retired producer permits stored-item recovery only. Unsupported cask inputs withdraw unchanged.
+- Documentation: [current behavior and upgrade notes](docs/mana-conditions.md).
+
+
 Every change must leave a trace here. Entries describe behavior, compatibility, verification and remaining limits; planned work must not be listed as released.
 
 ## Unreleased — ArcaneAlchemy and shared operation access

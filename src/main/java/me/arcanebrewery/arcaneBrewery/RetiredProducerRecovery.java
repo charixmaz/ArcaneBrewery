@@ -18,9 +18,8 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import java.util.*;
 
-/** Legacy cleansing producer compatibility, with unchanged inputs and 10s timing.
- * It does not introduce a fifth ownership kind or new cleaning mechanics. */
-public final class MethanolProducerEngine implements Listener, AutoCloseable {
+/** Withdrawal-only bridge for stored items in removed producer machines. */
+public final class RetiredProducerRecovery implements Listener, AutoCloseable {
     private static final int[] LANES={0,2,4,6};
     private final JavaPlugin plugin;
     private final MachineInventoryStorage storage;
@@ -34,7 +33,7 @@ public final class MethanolProducerEngine implements Listener, AutoCloseable {
         final Block core; final Inventory gui; byte[] raw; BukkitRunnable task;
         Session(Block core,Inventory gui,byte[] raw) { this.core=core; this.gui=gui; this.raw=raw; }
     }
-    public MethanolProducerEngine(JavaPlugin plugin) {
+    public RetiredProducerRecovery(JavaPlugin plugin) {
         this.plugin=plugin; storage=new MachineInventoryStorage("arcanebrewery","producer_inventory_storage",null);
         stageKey=new NamespacedKey("arcanebrewery","brew_stage"); timeKey=new NamespacedKey("arcanebrewery","slot_start_time");
     }
@@ -43,6 +42,7 @@ public final class MethanolProducerEngine implements Listener, AutoCloseable {
         if (closed || event.getAction()!=Action.RIGHT_CLICK_BLOCK || event.getClickedBlock()==null
                 || !(event.getClickedBlock().getState() instanceof Sign sign) || !sign.getLine(0).contains("[Producer]")) return;
         event.setCancelled(true); if (event.getHand()!=EquipmentSlot.HAND) return;
+        if (!event.getPlayer().hasPermission("arcanebrewery.admin.bypass")) { event.getPlayer().sendMessage(MessageConfig.prefix()+"§eThis machine is retired. Ask an administrator to recover stored items.§r"); return; }
         Block core=null;
         for (BlockFace face:BlockFace.values()) {
             Block candidate=event.getClickedBlock().getRelative(face);
@@ -54,7 +54,7 @@ public final class MethanolProducerEngine implements Listener, AutoCloseable {
             event.getPlayer().sendMessage("§d[ArcaneAlchemy]§r §eThis machine is already in use.§r"); return;
         }
         try {
-            var saved=storage.load(core); var holder=new Holder(); Inventory gui=Bukkit.createInventory(holder,9,"§5§lCleansing Solution Producer§r"); holder.inventory=gui;
+            var saved=storage.load(core); var holder=new Holder(); Inventory gui=Bukkit.createInventory(holder,9,"§5§lRetired Machine · Item Recovery§r"); holder.inventory=gui;
             for (int slot=0;slot<9;slot++) {
                 if (!Set.of(0,2,4,6).contains(slot) && saved.items()[slot]!=null) throw new IllegalArgumentException("legacy control slot contains an item");
                 if (Set.of(0,2,4,6).contains(slot)) gui.setItem(slot,saved.items()[slot]);
@@ -79,48 +79,20 @@ public final class MethanolProducerEngine implements Listener, AutoCloseable {
         if (event.getClickedInventory()!=gui && !event.isShiftClick()) return;
         event.setCancelled(true);
         try {
-            if (event.getClickedInventory()!=gui) {
-                ItemStack input=event.getCurrentItem(); if (!valid(input)) { player.sendMessage(MessageConfig.get("producer_reject")); return; }
-                for (int slot:LANES) if (gui.getItem(slot)==null) {
-                    var inserted=input.clone(); inserted.setAmount(1); stamp(inserted);
-                    var next=contents(gui); next[slot]=inserted; commit(session,next);
-                    if (input.getAmount()==1) event.setCurrentItem(null);
-                    else { var left=input.clone(); left.setAmount(left.getAmount()-1); event.setCurrentItem(left); }
-                    return;
-                }
-                return;
-            }
+            if (event.getClickedInventory()!=gui) return;
             int slot=event.getSlot(); if (!Set.of(0,2,4,6).contains(slot)) return;
-            ItemStack current=gui.getItem(slot);
-            if (event.isShiftClick()) {
-                if (current==null || current.getAmount()!=1 || !(current.getItemMeta() instanceof PotionMeta meta)) return;
-                long started=meta.getPersistentDataContainer().getOrDefault(timeKey,PersistentDataType.LONG,System.currentTimeMillis());
-                if (System.currentTimeMillis()-started<10_000) { player.sendMessage(MessageConfig.get("producer_incomplete")); return; }
-                if (!valid(current)) { player.sendMessage(MessageConfig.get("producer_reject")); return; }
-                var output=new ItemStack(Material.POTION); var outputMeta=(PotionMeta)output.getItemMeta();
-                outputMeta.setDisplayName(MessageConfig.title("cleanser"));
-                outputMeta.setLore(List.of("§7Historical industrial solution; no brewing use.§r","§cUnsafe solution: do not consume.§r"));
-                outputMeta.addItemFlags(ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
-                me.arcanebrewery.arcaneBrewery.adapter.bukkit.PresentationStyle.apply(outputMeta);
-                outputMeta.getPersistentDataContainer().set(stageKey,PersistentDataType.STRING,"INDUSTRIAL_METHANOL"); output.setItemMeta(outputMeta);
-                var inventory=player.getInventory().getStorageContents();var delivery=me.arcanebrewery.arcaneBrewery.adapter.bukkit.machine.ShiftTransfers.plan(output,inventory,java.util.stream.IntStream.range(0,inventory.length).toArray(),i->64,(i,item)->true);if(delivery.remainder()!=null){player.sendMessage("§eMake inventory room first.");return;}
+            ItemStack current=gui.getItem(slot); if(current==null) return;
+            if(event.isShiftClick()) {
+                var inventory=player.getInventory().getStorageContents();
+                var delivery=ShiftTransfers.plan(current,inventory,java.util.stream.IntStream.range(0,inventory.length).toArray(),i->64,(i,item)->true);
+                if(delivery.remainder()!=null) { player.sendMessage("§eMake inventory room first."); return; }
                 var next=contents(gui); next[slot]=null; commit(session,next);
                 player.getInventory().setStorageContents(delivery.destination());
-                player.sendMessage(MessageConfig.get("producer_success")); return;
+            } else {
+                var cursor=player.getItemOnCursor(); if(cursor!=null && !cursor.getType().isAir()) return;
+                var next=contents(gui); next[slot]=null; commit(session,next); player.setItemOnCursor(current);
             }
-            ItemStack cursor=player.getItemOnCursor();
-            if (cursor!=null && cursor.getType()!=Material.AIR && !valid(cursor)) { player.sendMessage(MessageConfig.get("producer_reject")); return; }
-            var move=AlchemySlotTransfer.move(current,cursor,event.getClick()==ClickType.RIGHT,1);
-            if (move.slot()!=null && valid(move.slot())) stamp(move.slot());
-            var next=contents(gui); next[slot]=move.slot(); commit(session,next); player.setItemOnCursor(move.cursor());
-        } catch (RuntimeException failure) { player.sendMessage(MessageConfig.prefix()+"§cProducer transfer failed; saved contents were retained.§r"); detach(session); }
-    }
-    private boolean valid(ItemStack item) {
-        return item!=null && item.getType()==Material.POTION && item.getItemMeta() instanceof PotionMeta meta
-                && "REFINED_INDUSTRIAL_ALCOHOL".equals(meta.getPersistentDataContainer().get(stageKey,PersistentDataType.STRING));
-    }
-    private void stamp(ItemStack item) {
-        var meta=item.getItemMeta(); if (!meta.getPersistentDataContainer().has(timeKey)) meta.getPersistentDataContainer().set(timeKey,PersistentDataType.LONG,System.currentTimeMillis()); item.setItemMeta(meta);
+        } catch(RuntimeException failure) { player.sendMessage(MessageConfig.prefix()+"§cRecovery failed; saved contents retained.§r"); detach(session); }
     }
     private ItemStack[] contents(Inventory gui) {
         var items=new ItemStack[9]; for (int slot:LANES) if (gui.getItem(slot)!=null) items[slot]=gui.getItem(slot).clone(); return items;
@@ -130,7 +102,13 @@ public final class MethanolProducerEngine implements Listener, AutoCloseable {
         for (int slot:LANES) session.gui.setItem(slot,next[slot]); paint(session);
     }
     private void paint(Session session) {
-        try { ProducerVisualEngine.updateProducerInterface(plugin,session.gui,session.core); }
+        try {
+            for(int slot:new int[]{1,3,5,7,8}) {
+                var pane=new ItemStack(Material.LIGHT_BLUE_STAINED_GLASS_PANE); var meta=pane.getItemMeta();
+                meta.setDisplayName("§bWithdraw stored items§r"); meta.setLore(List.of("§7This machine has been retired.§r","§7New processing and insertion are disabled.§r"));
+                pane.setItemMeta(meta); session.gui.setItem(slot,pane);
+            }
+        }
         catch (RuntimeException failure) { plugin.getLogger().warning("Producer display refresh failed; contents retained."); }
     }
     @EventHandler(ignoreCancelled=true) public void onDrag(InventoryDragEvent event) {

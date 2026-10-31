@@ -42,12 +42,6 @@ class GuideCatalogTest {
         assertFalse(text.contains("100%"));
         assertFalse(text.contains("guaranteed Fire Resistance"));
     }
-    @Test void legacyReferencesUseActualProfilesAndExplainTheirLimits() {
-        var entries = catalog.legacyProfiles();
-        assertEquals(me.arcanebrewery.arcaneBrewery.BreweryData.RECIPES.size(), entries.size());
-        assertTrue(entries.stream().allMatch(e -> e.lines().contains("Compatibility reference for older bottles only.")));
-        assertTrue(entries.stream().allMatch(e -> e.lines().contains("Legacy outputs do not register procedural discoveries.")));
-    }
     @Test void wrappingPreservesLongFingerprintCharactersAndBoundsTooltipWidth() {
         String fingerprint = "abcdef0123456789".repeat(4);
         var wrapped = BrewingGuide.wrap(List.of(fingerprint));
