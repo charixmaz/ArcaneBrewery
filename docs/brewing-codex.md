@@ -28,8 +28,7 @@ inventory gestures and drags cannot transfer reference icons.
 
 ## Contents
 
-- Machines: washing cauldron, four current machines and the legacy cleansing
-  producer. Includes structures, inputs, configured durations and maintenance.
+- Machines: washing cauldron, current production and specialist machines. Includes structures, inputs, configured durations and maintenance.
 - Ingredients: all entries in the runtime ingredient registry. Only the same seven
   materials accepted by the actual cauldron handler are marked starter-ready.
   Registry-only ingredients and special premium metadata are explicitly labeled.
@@ -45,12 +44,8 @@ inventory gestures and drags cannot transfer reference icons.
 - Shared recipes: `/brew guide recipe <full fingerprint>` uses the existing
   recipient-specific knowledge projection. Unknown/identified/partial/full states
   stay distinct. There is no invented shared-recipe index.
-- Brewing Knowledge: naming, discovery identity, saturation, contamination and care.
-- Legacy Profiles: 30 existing compatibility profiles, with fantasy reference
-  labels, actual required woods and legacy timing windows. They require older
-  stage-tagged bottles; the modern extractor does not create those stages. They
-  are not seeded modern discoveries or a new survival recipe catalog. Legacy
-  outputs remain compatibility elixirs without procedural registration.
+- Brewing Knowledge: naming, discovery identity, mana load, overload and depletion.
+- The obsolete compatibility recipe page has been removed. Only current process guides are shown.
 
 Async replies return to the main thread, and are discarded if the player closed
 or replaced that exact guide view. Recipe access is freshly queried; no authoritative

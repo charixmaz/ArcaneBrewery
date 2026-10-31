@@ -19,20 +19,20 @@ class MaturationInputPolicyTest {
     private DistilleryProcessDraft draft() {
         return new DistilleryProcessDraft(Map.of("minecraft:wheat",1.0),Map.of("minecraft:wheat",90.0),"distillation",DistillationControls.DEFAULT);
     }
-    @Test void canonicalRefinedBaseCannotBypassCultivationOrEnterLegacyRngPath() {
+    @Test void canonicalRefinedBaseCannotBypassCultivation() {
         var meta=TestItems.water().getItemMeta();
         var state=new DistilleryBatchState(1,UUID.randomUUID(),new MachineLocation(UUID.randomUUID(),0,64,0),draft(),0,1000,DistilleryBatchState.Status.COMPLETED);
         new DistilleryBatchMetadata(ns).write(meta,state,"DISTILLED_BASE");
         meta.getPersistentDataContainer().set(new NamespacedKey(ns,"brew_stage"),PersistentDataType.STRING,"WORT_BEER");
-        assertFalse(policy.legacyEligible(meta));
+
         assertThrows(IllegalArgumentException.class,() -> policy.completedSource(meta,100_000));
         assertEquals(state,new DistilleryBatchMetadata(ns).read(meta).orElseThrow());
     }
-    @Test void legitimateLegacyWortRemainsCompatibleWithoutInventingCanonicalData() {
+    @Test void obsoleteBaseCannotStartMaturationAndMetadataIsRetained() {
         var meta=TestItems.water().getItemMeta();
         meta.getPersistentDataContainer().set(new NamespacedKey(ns,"brew_stage"),PersistentDataType.STRING,"WORT_BEER");
         var keys=meta.getPersistentDataContainer().getKeys();
-        assertTrue(policy.legacyEligible(meta)); assertTrue(policy.completedSource(meta,100_000).isEmpty());
+        assertThrows(IllegalArgumentException.class,() -> policy.completedSource(meta,100_000));
         assertEquals(keys,meta.getPersistentDataContainer().getKeys());
     }
     @Test void readyCultivationCompletesLazilyWithCapturedTimingAndOriginalBatchId() {
@@ -43,14 +43,14 @@ class MaturationInputPolicyTest {
         assertEquals(original,new FermentationBatchMetadata(ns).read(meta).orElseThrow());
         var completed=policy.completedSource(meta,61_000).orElseThrow();
         assertEquals(original.batchId(),completed.batchId()); assertEquals(original.settings(),completed.settings());
-        assertEquals(FermentationBatchState.Status.COMPLETED,completed.status()); assertFalse(policy.legacyEligible(meta));
+        assertEquals(FermentationBatchState.Status.COMPLETED,completed.status());
     }
     @Test void orphanAndMalformedCanonicalMetadataNeverBecomesLegacy() {
         var meta=TestItems.water().getItemMeta();
         meta.getPersistentDataContainer().set(new NamespacedKey(ns,"fermentation_format"),PersistentDataType.INTEGER,1);
-        assertFalse(policy.legacyEligible(meta)); assertThrows(IllegalArgumentException.class,() -> policy.completedSource(meta,100_000));
+        assertThrows(IllegalArgumentException.class,() -> policy.completedSource(meta,100_000));
         var prepared=TestItems.water().getItemMeta();
         new AlchemyPreparationMetadata(ns).write(prepared,new AlchemyPreparation(Map.of("custom:fire",1.0)));
-        assertFalse(policy.legacyEligible(prepared)); assertThrows(IllegalArgumentException.class,() -> policy.completedSource(prepared,100_000));
+        assertThrows(IllegalArgumentException.class,() -> policy.completedSource(prepared,100_000));
     }
 }

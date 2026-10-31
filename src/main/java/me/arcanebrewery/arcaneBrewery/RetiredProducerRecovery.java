@@ -1,7 +1,6 @@
 package me.arcanebrewery.arcaneBrewery;
 
 import me.arcanebrewery.arcaneBrewery.adapter.bukkit.machine.*;
-import me.arcanebrewery.arcaneBrewery.adapter.bukkit.alchemy.AlchemySlotTransfer;
 import org.bukkit.*;
 import org.bukkit.block.*;
 import org.bukkit.entity.Player;
@@ -12,8 +11,6 @@ import org.bukkit.event.inventory.*;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.world.ChunkUnloadEvent;
 import org.bukkit.inventory.*;
-import org.bukkit.inventory.meta.PotionMeta;
-import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import java.util.*;
@@ -24,7 +21,6 @@ public final class RetiredProducerRecovery implements Listener, AutoCloseable {
     private final JavaPlugin plugin;
     private final MachineInventoryStorage storage;
     private final Map<Inventory,Session> sessions=new IdentityHashMap<>();
-    private final NamespacedKey stageKey,timeKey;
     private boolean closed;
     private static final class Holder implements MachineAutomationHolder {
         Inventory inventory; public Inventory getInventory() { return inventory; }
@@ -35,7 +31,6 @@ public final class RetiredProducerRecovery implements Listener, AutoCloseable {
     }
     public RetiredProducerRecovery(JavaPlugin plugin) {
         this.plugin=plugin; storage=new MachineInventoryStorage("arcanebrewery","producer_inventory_storage",null);
-        stageKey=new NamespacedKey("arcanebrewery","brew_stage"); timeKey=new NamespacedKey("arcanebrewery","slot_start_time");
     }
     @EventHandler(priority=EventPriority.HIGH,ignoreCancelled=true)
     public void onOpen(PlayerInteractEvent event) {
